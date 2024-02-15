@@ -71,6 +71,12 @@ setupRcLocal() {
     fi
 }
 
+restartService() {
+    echo "Neustart des dbus-adc Dienstes..."
+    svc -d /service/dbus-adc && svc -u /service/dbus-adc
+    echo "dbus-adc Dienst erfolgreich neugestartet."
+}
+
 # Hauptlogik basierend auf der Aktion
 case "$scriptAction" in
     INSTALL)
@@ -80,6 +86,7 @@ case "$scriptAction" in
         updateConfigTxt
         checkAndInstallKernelModules
         setupRcLocal
+        restartService
         ;;
     UNINSTALL)
         logMessage "Deinstallationslogik hier implementieren..."
@@ -91,6 +98,7 @@ case "$scriptAction" in
         updateConfigTxt
         checkAndInstallKernelModules
         setupRcLocal
+        restartService
         ;;
 esac
 
