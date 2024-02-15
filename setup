@@ -4,12 +4,15 @@
 
 # Pfaddefinitionen
 configFile="/etc/venus/dbus-adc.conf"
+backupConfigFile="${configFile}.old"
 sourceFileDir="/data/VenusOS_ExpanderPi/FileSets"
 overlays=("i2c-rtc.dtbo" "ds1307-rtc.dtbo" "mcp3208.dtbo")
 overlayDir="/u-boot/overlays"
 configTxt="/u-boot/config.txt"
+configTxtBackup="/u-boot/config.txt.old"
 requiredModules=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
 rcLocalFile="/data/rc.local"
+rcLocalBackup="/data/rc.local.old"
 rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
 
 # SetupHelper-Utilities einbinden
@@ -29,14 +32,22 @@ checkCompatibility() {
     fi
 }
 
+backupOriginals() {
+    [ -f "$configFile" ] && cp "$configFile" "$backupConfigFile"
+    [ -f "$configTxt" ] && cp "$configTxt" "$configTxtBackup"
+    [ -f "$rcLocalFile" ] && cp "$rcLocalFile" "$rcLocalBackup"
+}
+
+restoreBackups() {
+    [ -f "$backupConfigFile" ] && mv "$backupConfigFile" "$configFile"
+    [ -f "$configTxtBackup" ] && mv "$configTxtBackup" "$configTxt"
+    [ -f "$rcLocalBackup" ] && mv "$rcLocalBackup" "$rcLocalFile"
+}
+
 installConfig() {
-    if [ ! -s "$configFile" ]; then
-        logMessage "Installiere dbus-adc.conf..."
-        cp "$sourceFileDir/dbus-adc.conf" "$configFile"
-        logMessage "dbus-adc.conf erfolgreich installiert."
-    else
-        logMessage "dbus-adc.conf existiert bereits und ist nicht leer. Keine Aktion durchgeführt."
-    fi
+    logMessage "Installiere dbus-adc.conf..."
+    cp "$sourceFileDir/dbus-adc.conf" "$configFile"
+    logMessage "dbus-adc.conf erfolgreich installiert."
 }
 
 checkAndRestoreOverlays() {
@@ -64,11 +75,13 @@ checkAndInstallKernelModules() {
 }
 
 setupRcLocal() {
-    if [ ! -f "$rcLocalFile" ]; then
+    if [ -f "$rcLocalFile" ]; then
+        grep -q "$rcLocalContent" "$rcLocalFile" || echo -e "\n$rcLocalContent" >> "$rcLocalFile"
+    else
         logMessage "Erstelle $rcLocalFile..."
         echo -e "$rcLocalContent" > "$rcLocalFile"
-        chmod +x "$rcLocalFile"
     fi
+    chmod +x "$rcLocalFile"
 }
 
 restartService() {
@@ -77,9 +90,27 @@ restartService() {
     echo "dbus-adc Dienst erfolgreich neugestartet."
 }
 
+uninstall() {
+    restoreBackups
+
+    for overlay in "${overlays[@]}"; do
+        [ -f "$overlayDir/$overlay" ] && rm -f "$overlayDir/$overlay"
+    done
+
+    for module in "${requiredModules[@]}"; do
+        if opkg list-installed | grep -q "$module"; then
+            logMessage "Deinstalliere $module..."
+            opkg remove "$module" && logMessage "$module deinstalliert."
+        fi
+    done
+
+    logMessage "Deinstallation abgeschlossen."
+}
+
 # Hauptlogik basierend auf der Aktion
 case "$scriptAction" in
     INSTALL)
+        backupOriginals
         logMessage "Beginne mit der Installation..."
         installConfig
         checkAndRestoreOverlays
@@ -89,10 +120,11 @@ case "$scriptAction" in
         restartService
         ;;
     UNINSTALL)
-        logMessage "Deinstallationslogik hier implementieren..."
+        uninstall
         ;;
     *)
         logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
+        backupOriginals
         installConfig
         checkAndRestoreOverlays
         updateConfigTxt
