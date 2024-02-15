@@ -2,113 +2,79 @@
 
 # Skript zur Verwaltung der dbus-adc.conf und weiteren Konfigurationen auf Raspberry Pi Plattformen für Venus OS
 
+# Pfaddefinitionen
 configFile="/etc/venus/dbus-adc.conf"
-sourceFileDir="FileSets"
+sourceFileDir="/data/VenusOS_ExpanderPi/FileSets"
 overlays=("i2c-rtc.dtbo" "ds1307-rtc.dtbo" "mcp3208.dtbo")
 overlayDir="/u-boot/overlays"
 configTxt="/u-boot/config.txt"
 requiredModules=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
 rcLocalFile="/data/rc.local"
 rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
-scriptAction="NONE"
+
+# SetupHelper-Utilities einbinden
+source "/data/SetupHelper/CommonResources"
 
 # Funktionen definieren
 checkCompatibility() {
     if [ ! -f /etc/venus/machine ]; then
-        echo "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
+        logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
         exit 1
     fi
 
     machine=$(cat /etc/venus/machine)
     if [ "$machine" != "raspberrypi2" ] && [ "$machine" != "raspberrypi4" ]; then
-        echo "$machine wird nicht unterstützt - Skript wird beendet."
+        logMessage "$machine wird nicht unterstützt - Skript wird beendet."
         exit 1
     fi
 }
 
 installConfig() {
     if [ ! -s "$configFile" ]; then
-        echo "Installiere $configFile..."
-        cp "$sourceFileDir/$sourceFileName" "$configFile"
-        echo "$configFile erfolgreich installiert."
+        logMessage "Installiere dbus-adc.conf..."
+        cp "$sourceFileDir/dbus-adc.conf" "$configFile"
+        logMessage "dbus-adc.conf erfolgreich installiert."
     else
-        echo "$configFile existiert bereits und ist nicht leer. Keine Aktion durchgeführt."
+        logMessage "dbus-adc.conf existiert bereits und ist nicht leer. Keine Aktion durchgeführt."
     fi
 }
 
 checkAndRestoreOverlays() {
     for overlay in "${overlays[@]}"; do
         if [ ! -f "$overlayDir/$overlay" ]; then
-            echo "Overlay $overlay fehlt. Wiederherstellung aus $sourceFileDir..."
+            logMessage "Overlay $overlay fehlt. Wiederherstellung aus $sourceFileDir..."
             cp "$sourceFileDir/$overlay" "$overlayDir/"
         fi
     done
 }
 
 updateConfigTxt() {
-    local needsUpdate=false
-
-    # Überprüfen, ob die benötigten dtoverlay-Einträge vorhanden sind
-    if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"; then
-        needsUpdate=true
-        sed -i "/#### change all digital inputs to pull ups/a dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"
-    fi
-
-    if ! grep -q "dtoverlay=mcp3208:spi0-0-present" "$configTxt"; then
-        needsUpdate=true
-        sed -i "/dtoverlay=i2c-rtc,ds1307-rtc/a dtoverlay=mcp3208:spi0-0-present" "$configTxt"
-    fi
-
-    if [ "$needsUpdate" = true ]; then
-        echo "$configTxt aktualisiert."
-    fi
+    grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt" || sed -i "/#### Venus OS Overlays/a dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"
+    grep -q "dtoverlay=mcp3208:spi0-0-present" "$configTxt" || sed -i "/#### Venus OS Overlays/a dtoverlay=mcp3208:spi0-0-present" "$configTxt"
+    logMessage "$configTxt aktualisiert."
 }
 
 checkAndInstallKernelModules() {
-    local needsReboot=false
-
     for module in "${requiredModules[@]}"; do
         if ! opkg list-installed | grep -q "$module"; then
-            echo "Installiere $module..."
-            opkg update && opkg install "$module"
-            needsReboot=true
+            logMessage "Installiere $module..."
+            opkg update && opkg install "$module" && logMessage "$module installiert."
         fi
     done
-
-    if [ "$needsReboot" = true ]; then
-        echo "Eines oder mehrere Kernel-Module wurden installiert. Ein Neustart ist erforderlich."
-        reboot
-    fi
 }
 
 setupRcLocal() {
     if [ ! -f "$rcLocalFile" ]; then
-        echo "Erstelle $rcLocalFile..."
+        logMessage "Erstelle $rcLocalFile..."
         echo -e "$rcLocalContent" > "$rcLocalFile"
         chmod +x "$rcLocalFile"
     fi
 }
 
-# Hauptlogik
-checkCompatibility
-
-if [ "$#" -eq 1 ]; then
-    case "$1" in
-        install)
-            scriptAction="INSTALL"
-            ;;
-        uninstall)
-            scriptAction="UNINSTALL"
-            ;;
-        *)
-            echo "Unbekanntes Argument: $1"
-            exit 1
-            ;;
-    esac
-fi
-
+# Hauptlogik basierend auf der Aktion
 case "$scriptAction" in
     INSTALL)
+        logMessage "Beginne mit der Installation..."
         installConfig
         checkAndRestoreOverlays
         updateConfigTxt
@@ -116,18 +82,18 @@ case "$scriptAction" in
         setupRcLocal
         ;;
     UNINSTALL)
-        echo "Deinstallationslogik hier implementieren..."
+        logMessage "Deinstallationslogik hier implementieren..."
         ;;
-    NONE)
-        echo "Keine spezifische Aktion angegeben. Starte Standardinstallation..."
+    *)
+        logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
         installConfig
         checkAndRestoreOverlays
         updateConfigTxt
         checkAndInstallKernelModules
         setupRcLocal
         ;;
-    *)
-        echo "Unbekannte Aktion: $scriptAction"
-        exit 1
-        ;;
 esac
+
+# Skriptende
+logMessage "Skriptausführung abgeschlossen."
+endScript
