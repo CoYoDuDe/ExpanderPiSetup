@@ -12,14 +12,34 @@ configTxt="/u-boot/config.txt"
 rcLocalFile="/data/rc.local"
 rcLocalContent=("echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device" "hwclock -s")
 
+# Überprüfen der Kompatibilität und Vorbereitung der Umgebung
+checkCompatibility
+backupOriginals
+
 # Installationsroutine
 install() {
-    getFileLists "$sourceFileDir"  # Lädt Dateilisten für die Installation
+    getFileLists "$sourceFileDir"
     for file in "${fileListAll[@]}"; do
         updateActiveFile "$sourceFileDir/$file" "/path/to/destination/$file"
     done
 
     updateConfigAndOverlays
+    executeAndAddToRcLocalEntries
+}
+
+# Funktion zum Hinzufügen von Einträgen zu rc.local
+addToRcLocal() {
+    if ! grep -qF -- "${1}" "${rcLocalFile}"; then
+        echo "${1}" >> "${rcLocalFile}"
+    fi
+}
+
+# Funktion zum Ausführen und Hinzufügen der rc.local Einträge
+executeAndAddToRcLocalEntries() {
+    for entry in "${rcLocalContent[@]}"; do
+        eval $entry  # Führt den Befehl sofort aus
+        addToRcLocal "$entry"  # Fügt den Befehl zu rc.local hinzu, falls nicht vorhanden
+    done
 }
 
 # Aktualisieren der config.txt und Überprüfen der Overlays
@@ -37,7 +57,7 @@ updateConfigAndOverlays() {
 
 # Deinstallationsroutine
 uninstall() {
-    getFileLists "$sourceFileDir"  # Lädt Dateilisten für die Deinstallation
+    getFileLists "$sourceFileDir"
     for file in "${fileListAll[@]}"; do
         restoreActiveFile "/path/to/destination/$file"
     done
@@ -60,17 +80,7 @@ elif [ "$scriptAction" == 'UNINSTALL' ]; then
 fi
 
 # GUI-Neustart oder Systemneustart, falls erforderlich
-if $restartGui; then
-    restartGuiService
-fi
-
-if $rebootNeeded; then
-    if yesNoPrompt "Systemneustart jetzt durchführen? (y/n): "; then
-        reboot
-    else
-        logMessage "Ein Neustart ist erforderlich, um die Installation abzuschließen."
-    fi
-fi
+manageRestart
 
 # Abschluss der Skriptausführung
-endScript 'INSTALL_FILES' 'INSTALL_SERVICES'
+endScript
