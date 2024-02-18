@@ -1,33 +1,37 @@
 #!/bin/bash
 
-# Skript zur Verwaltung der dbus-adc.conf und weiteren Konfigurationen auf Raspberry Pi Plattformen für Venus OS
+# Skript zur Verwaltung der dbus-adc.conf und weiteren Konfigurationen auf Raspberry Pi Plattformen fÃ¼r Venus OS
 
 # Pfaddefinitionen
 configFile="/etc/venus/dbus-adc.conf"
-backupConfigFile="${configFile}.old"
-sourceFileDir="/data/VenusOS_ExpanderPi/FileSets"
+backupConfigFile="${configFile}.orig"
+sourceFileDir="/data/ExpanderPiSetup/FileSets"
 overlays=("i2c-rtc.dtbo" "ds1307-rtc.dtbo" "mcp3208.dtbo")
 overlayDir="/u-boot/overlays"
 configTxt="/u-boot/config.txt"
-configTxtBackup="/u-boot/config.txt.old"
+configTxtBackup="/u-boot/config.txt.orig"
 requiredModules=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
 rcLocalFile="/data/rc.local"
-rcLocalBackup="/data/rc.local.old"
+rcLocalBackup="/data/rc.local.orig"
 rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
 
 # SetupHelper-Utilities einbinden
 source "/data/SetupHelper/CommonResources"
 
+# Variablen zur Überprüfung, ob ein Neustart des Services oder des Systemes erforderlich ist
+restartSystemRequired=false
+restartServiceRequired=false
+
 # Funktionen definieren
 checkCompatibility() {
     if [ ! -f /etc/venus/machine ]; then
-        logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
+        logMessage "Kann den Venus-GerÃ€tetyp nicht bestimmen - Skript wird beendet."
         exit 1
     fi
 
     machine=$(cat /etc/venus/machine)
     if [ "$machine" != "raspberrypi2" ] && [ "$machine" != "raspberrypi4" ]; then
-        logMessage "$machine wird nicht unterstützt - Skript wird beendet."
+        logMessage "$machine wird nicht unterstÃŒtzt - Skript wird beendet."
         exit 1
     fi
 }
@@ -38,16 +42,14 @@ backupOriginals() {
     [ -f "$rcLocalFile" ] && cp "$rcLocalFile" "$rcLocalBackup"
 }
 
-restoreBackups() {
-    [ -f "$backupConfigFile" ] && mv "$backupConfigFile" "$configFile"
-    [ -f "$configTxtBackup" ] && mv "$configTxtBackup" "$configTxt"
-    [ -f "$rcLocalBackup" ] && mv "$rcLocalBackup" "$rcLocalFile"
-}
-
 installConfig() {
     logMessage "Installiere dbus-adc.conf..."
     cp "$sourceFileDir/dbus-adc.conf" "$configFile"
     logMessage "dbus-adc.conf erfolgreich installiert."
+    grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt" || sed -i "/^\[all\]/a dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"
+    grep -q "dtoverlay=mcp3208:spi0-0-present" "$configTxt" || sed -i "/^\[all\]/a dtoverlay=mcp3208:spi0-0-present" "$configTxt"
+    logMessage "$configTxt aktualisiert."
+    restartSystemRequired=true
 }
 
 checkAndRestoreOverlays() {
@@ -55,14 +57,9 @@ checkAndRestoreOverlays() {
         if [ ! -f "$overlayDir/$overlay" ]; then
             logMessage "Overlay $overlay fehlt. Wiederherstellung aus $sourceFileDir..."
             cp "$sourceFileDir/$overlay" "$overlayDir/"
+            restartSystemRequired=true
         fi
     done
-}
-
-updateConfigTxt() {
-    grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt" || sed -i "/#### Venus OS Overlays/a dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"
-    grep -q "dtoverlay=mcp3208:spi0-0-present" "$configTxt" || sed -i "/#### Venus OS Overlays/a dtoverlay=mcp3208:spi0-0-present" "$configTxt"
-    logMessage "$configTxt aktualisiert."
 }
 
 checkAndInstallKernelModules() {
@@ -70,6 +67,7 @@ checkAndInstallKernelModules() {
         if ! opkg list-installed | grep -q "$module"; then
             logMessage "Installiere $module..."
             opkg update && opkg install "$module" && logMessage "$module installiert."
+            restartSystemRequired=true
         fi
     done
 }
@@ -85,26 +83,39 @@ setupRcLocal() {
 }
 
 restartService() {
-    echo "Neustart des dbus-adc Dienstes..."
-    svc -d /service/dbus-adc && svc -u /service/dbus-adc
-    echo "dbus-adc Dienst erfolgreich neugestartet."
+    if [ "$restartServiceRequired" = true ] && [ "$restartSystemRequired" != true ]; then
+        logMessage "Neustart des dbus-adc Dienstes..."
+        svc -d /service/dbus-adc && svc -u /service/dbus-adc
+        logMessage "dbus-adc Dienst erfolgreich neugestartet."
+    fi
+}
+
+restartSystem() {
+    if [ "$restartSystemRequired" = true ]; then
+        logMessage "Neustart des Systems..."
+        reboot
+    fi
 }
 
 uninstall() {
-    restoreBackups
+    # Entferne Einträge aus der config.txt
+    sed -i '/dtoverlay=i2c-rtc,ds1307-rtc/d' "$configTxt"
+    sed -i '/dtoverlay=mcp3208:spi0-0-present/d' "$configTxt"
 
+    # Entferne Einträge aus der rc.local
+    sed -i '/ds1307 0x68 > \/sys\/class\/i2c-adapter\/i2c-1\/new_device/d' "$rcLocalFile"
+    sed -i '/hwclock -s/d' "$rcLocalFile"
+
+    # Entferne Dateien aus dem /u-boot/overlays-Ordner
     for overlay in "${overlays[@]}"; do
         [ -f "$overlayDir/$overlay" ] && rm -f "$overlayDir/$overlay"
     done
 
-    for module in "${requiredModules[@]}"; do
-        if opkg list-installed | grep -q "$module"; then
-            logMessage "Deinstalliere $module..."
-            opkg remove "$module" && logMessage "$module deinstalliert."
-        fi
-    done
+    # Entferne die dbus-adc.conf aus /etc/venus
+    [ -f "$configFile" ] && rm -f "$configFile"
 
     logMessage "Deinstallation abgeschlossen."
+    restartSystemRequired=true
 }
 
 # Hauptlogik basierend auf der Aktion
@@ -114,26 +125,27 @@ case "$scriptAction" in
         logMessage "Beginne mit der Installation..."
         installConfig
         checkAndRestoreOverlays
-        updateConfigTxt
         checkAndInstallKernelModules
         setupRcLocal
+        restartSystem
         restartService
         ;;
     UNINSTALL)
         uninstall
+       restartSystem
         ;;
     *)
-        logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
+        logMessage "Keine spezifische Aktion angegeben. FÃŒhre Standardinstallation durch..."
         backupOriginals
         installConfig
         checkAndRestoreOverlays
-        updateConfigTxt
         checkAndInstallKernelModules
         setupRcLocal
+        restartSystem
         restartService
         ;;
 esac
 
 # Skriptende
-logMessage "Skriptausführung abgeschlossen."
+logMessage "SkriptausfÃŒhrung abgeschlossen."
 endScript
