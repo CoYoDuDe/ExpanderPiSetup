@@ -1,86 +1,153 @@
 #!/bin/bash
 
-# Einbinden der SetupHelper CommonResources
-source "/data/SetupHelper/CommonResources"
+# Skript zur Verwaltung der dbus-adc.conf und weiteren Konfigurationen auf Raspberry Pi Plattformen für Venus OS
 
 # Pfaddefinitionen
 configFile="/etc/venus/dbus-adc.conf"
+backupConfigFile="${configFile}.orig"
 sourceFileDir="/data/ExpanderPiSetup/FileSets"
 overlays=("i2c-rtc.dtbo" "ds1307-rtc.dtbo" "mcp3208.dtbo")
 overlayDir="/u-boot/overlays"
 configTxt="/u-boot/config.txt"
+configTxtBackup="/u-boot/config.txt.orig"
+requiredModules=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
 rcLocalFile="/data/rc.local"
-rcLocalContent=("echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device" "hwclock -s")
+rcLocalBackup="/data/rc.local.orig"
+rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
 
-# Überprüfen der Kompatibilität und Vorbereitung der Umgebung
-checkCompatibility
-backupOriginals
+# SetupHelper-Utilities einbinden
+source "/data/SetupHelper/CommonResources"
 
-# Installationsroutine
-install() {
-    getFileLists "$sourceFileDir"
-    for file in "${fileListAll[@]}"; do
-        updateActiveFile "$sourceFileDir/$file" "/path/to/destination/$file"
-    done
+# Variablen zur Überprüfung, ob ein Neustart des Services oder des Systems erforderlich ist
+restartSystemRequired=false
+restartServiceRequired=false
 
-    updateConfigAndOverlays
-    executeAndAddToRcLocalEntries
-}
+# Funktionen definieren
+checkCompatibility() {
+    if [ ! -f /etc/venus/machine ]; then
+        logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
+        exit 1
+    fi
 
-# Funktion zum Hinzufügen von Einträgen zu rc.local
-addToRcLocal() {
-    if ! grep -qF -- "${1}" "${rcLocalFile}"; then
-        echo "${1}" >> "${rcLocalFile}"
+    machine=$(cat /etc/venus/machine)
+    if [ "$machine" != "raspberrypi2" ] && [ "$machine" != "raspberrypi4" ]; then
+        logMessage "$machine wird nicht unterstützt - Skript wird beendet."
+        exit 1
     fi
 }
 
-# Funktion zum Ausführen und Hinzufügen der rc.local Einträge
-executeAndAddToRcLocalEntries() {
-    for entry in "${rcLocalContent[@]}"; do
-        eval $entry  # Führt den Befehl sofort aus
-        addToRcLocal "$entry"  # Fügt den Befehl zu rc.local hinzu, falls nicht vorhanden
-    done
+backupOriginals() {
+    [ -f "$configFile" ] && cp "$configFile" "$backupConfigFile"
+    [ -f "$configTxt" ] && cp "$configTxt" "$configTxtBackup"
+    [ -f "$rcLocalFile" ] && cp "$rcLocalFile" "$rcLocalBackup"
 }
 
-# Aktualisieren der config.txt und Überprüfen der Overlays
-updateConfigAndOverlays() {
-    updateConfigEntry "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"
-    updateConfigEntry "dtoverlay=mcp3208:spi0-0-present" "$configTxt"
+installConfig() {
+    logMessage "Installiere dbus-adc.conf..."
+    cp "$sourceFileDir/dbus-adc.conf" "$configFile"
+    logMessage "dbus-adc.conf erfolgreich installiert."
+    
+    # Füge neue Einträge unterhalb von [all] in config.txt ein
+    sed -i '/^\[all\]/ { n; /^\[/! { s|^|dtoverlay=i2c-rtc,ds1307-rtc\n|; s|^|dtoverlay=mcp3208:spi0-0-present\n|; } }' "$configTxt"
 
+    logMessage "$configTxt aktualisiert."
+    restartSystemRequired=true
+}
+
+checkAndRestoreOverlays() {
     for overlay in "${overlays[@]}"; do
         if [ ! -f "$overlayDir/$overlay" ]; then
-            cp "$sourceFileDir/$overlay" "$overlayDir/$overlay"
-            updateRestartFlags "$overlayDir/$overlay"
+            logMessage "Overlay $overlay fehlt. Wiederherstellung aus $sourceFileDir..."
+            cp "$sourceFileDir/$overlay" "$overlayDir/"
+            restartSystemRequired=true
         fi
     done
 }
 
-# Deinstallationsroutine
+checkAndInstallKernelModules() {
+    for module in "${requiredModules[@]}"; do
+        if ! opkg list-installed | grep -q "$module"; then
+            logMessage "Installiere $module..."
+            opkg update && opkg install "$module" && logMessage "$module installiert."
+            restartSystemRequired=true
+        fi
+    done
+}
+
+setupRcLocal() {
+    if [ -f "$rcLocalFile" ]; then
+        grep -q "$rcLocalContent" "$rcLocalFile" || echo -e "\n$rcLocalContent" >> "$rcLocalFile"
+    else
+        logMessage "Erstelle $rcLocalFile..."
+        echo -e "$rcLocalContent" > "$rcLocalFile"
+    fi
+    chmod +x "$rcLocalFile"
+}
+
+restartService() {
+    if [ "$restartServiceRequired" = true ] && [ "$restartSystemRequired" != true ]; then
+        logMessage "Neustart des dbus-adc Dienstes..."
+        svc -d /service/dbus-adc && svc -u /service/dbus-adc
+        logMessage "dbus-adc Dienst erfolgreich neugestartet."
+    fi
+}
+
+restartSystem() {
+    if [ "$restartSystemRequired" = true ]; then
+        logMessage "Neustart des Systems..."
+        reboot
+    fi
+}
+
 uninstall() {
-    getFileLists "$sourceFileDir"
-    for file in "${fileListAll[@]}"; do
-        restoreActiveFile "/path/to/destination/$file"
+    # Entferne Einträge aus der config.txt
+    sed -i '/dtoverlay=i2c-rtc,ds1307-rtc/d' "$configTxt"
+    sed -i '/dtoverlay=mcp3208:spi0-0-present/d' "$configTxt"
+
+    # Entferne Einträge aus der rc.local
+    sed -i '/ds1307 0x68 > \/sys\/class\/i2c-adapter\/i2c-1\/new_device/d' "$rcLocalFile"
+    sed -i '/hwclock -s/d' "$rcLocalFile"
+
+    # Entferne Dateien aus dem /u-boot/overlays-Ordner
+    for overlay in "${overlays[@]}"; do
+        [ -f "$overlayDir/$overlay" ] && rm -f "$overlayDir/$overlay"
     done
 
-    removeRcLocalEntries
+    # Entferne die dbus-adc.conf aus /etc/venus
+    [ -f "$configFile" ] && rm -f "$configFile"
+
+    logMessage "Deinstallation abgeschlossen."
+    restartSystemRequired=true
 }
 
-# Entfernen spezifischer Einträge aus rc.local
-removeRcLocalEntries() {
-    for content in "${rcLocalContent[@]}"; do
-        sed -i "/$content/d" "$rcLocalFile"
-    done
-}
+# Hauptlogik basierend auf der Aktion
+case "$scriptAction" in
+    INSTALL)
+        backupOriginals
+        logMessage "Beginne mit der Installation..."
+        installConfig
+        checkAndRestoreOverlays
+        checkAndInstallKernelModules
+        setupRcLocal
+        # restartSystem
+        restartService
+        ;;
+    UNINSTALL)
+        uninstall
+       # restartSystem
+        ;;
+    *)
+        logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
+        backupOriginals
+        installConfig
+        checkAndRestoreOverlays
+        checkAndInstallKernelModules
+        setupRcLocal
+        # restartSystem
+        restartService
+        ;;
+esac
 
-# Hauptlogik
-if [ "$scriptAction" == 'INSTALL' ]; then
-    install
-elif [ "$scriptAction" == 'UNINSTALL' ]; then
-    uninstall
-fi
-
-# GUI-Neustart oder Systemneustart, falls erforderlich
-manageRestart
-
-# Abschluss der Skriptausführung
+# Skriptende
+logMessage "Skriptausführung abgeschlossen."
 endScript
