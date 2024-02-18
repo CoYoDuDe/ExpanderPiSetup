@@ -14,16 +14,14 @@ rcLocalContent=("echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device" "hw
 
 # Installationsroutine
 install() {
-    getFileLists "$sourceFileDir"  # Lädt Dateilisten für die Installation
-    for file in "${fileListAll[@]}"; do
-        updateActiveFile "$sourceFileDir/$file" "/path/to/destination/$file"
-    done
+    backupActiveFile "$configFile"
+    backupActiveFile "$configTxt"
+    backupActiveFile "$rcLocalFile"
 
-    updateConfigAndOverlays
-}
+    if [ ! -s "$configFile" ]; then
+        updateActiveFile "$sourceFileDir/dbus-adc.conf" "$configFile"
+    fi
 
-# Aktualisieren der config.txt und Überprüfen der Overlays
-updateConfigAndOverlays() {
     updateConfigEntry "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"
     updateConfigEntry "dtoverlay=mcp3208:spi0-0-present" "$configTxt"
 
@@ -37,11 +35,9 @@ updateConfigAndOverlays() {
 
 # Deinstallationsroutine
 uninstall() {
-    getFileLists "$sourceFileDir"  # Lädt Dateilisten für die Deinstallation
-    for file in "${fileListAll[@]}"; do
-        restoreActiveFile "/path/to/destination/$file"
-    done
-
+    removeConfigEntry "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"
+    removeConfigEntry "dtoverlay=mcp3208:spi0-0-present" "$configTxt"
+    restoreActiveFile "$configFile"
     removeRcLocalEntries
 }
 
@@ -73,4 +69,4 @@ if $rebootNeeded; then
 fi
 
 # Abschluss der Skriptausführung
-endScript 'INSTALL_FILES' 'INSTALL_SERVICES'
+endScript
