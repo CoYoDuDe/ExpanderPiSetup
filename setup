@@ -43,13 +43,24 @@ backupOriginals() {
 }
 
 installConfig() {
-    logMessage "Installiere dbus-adc.conf..."
-    cp "$sourceFileDir/dbus-adc.conf" "$configFile"
-    logMessage "dbus-adc.conf erfolgreich installiert."
-    grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt" || sed -i "/^\[all\]/a dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"
-    grep -q "dtoverlay=mcp3208:spi0-0-present" "$configTxt" || sed -i "/^\[all\]/a dtoverlay=mcp3208:spi0-0-present" "$configTxt"
-    logMessage "$configTxt aktualisiert."
-    restartSystemRequired=true
+    logMessage "Überprüfung der dbus-adc.conf..."
+    if [ ! -s "$configFile" ]; then
+        logMessage "dbus-adc.conf ist leer. Installiere die Konfigurationsdatei..."
+        cp "$sourceFileDir/dbus-adc.conf" "$configFile"
+        logMessage "dbus-adc.conf erfolgreich installiert."
+        restartServiceRequired=true
+    else
+        logMessage "dbus-adc.conf ist bereits konfiguriert. Keine Änderungen vorgenommen."
+    fi
+
+    local configTxtUpdated=false
+    grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt" || { sed -i "/^\[all\]/a dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"; configTxtUpdated=true; }
+    grep -q "dtoverlay=mcp3208:spi0-0-present" "$configTxt" || { sed -i "/^\[all\]/a dtoverlay=mcp3208:spi0-0-present" "$configTxt"; configTxtUpdated=true; }
+
+    if [ "$configTxtUpdated" = true ]; then
+        logMessage "$configTxt aktualisiert."
+        restartSystemRequired=true
+    fi
 }
 
 checkAndRestoreOverlays() {
