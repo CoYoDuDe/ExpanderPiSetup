@@ -37,9 +37,9 @@ checkCompatibility() {
 }
 
 backupOriginals() {
-    [ -f "$configFile" ] && cp "$configFile" "$backupConfigFile"
-    [ -f "$configTxt" ] && cp "$configTxt" "$configTxtBackup"
-    [ -f "$rcLocalFile" ] && cp "$rcLocalFile" "$rcLocalBackup"
+    backupFile "$configFile" "$backupConfigFile"
+    backupFile "$configTxt" "$configTxtBackup"
+    backupFile "$rcLocalFile" "$rcLocalBackup"
 }
 
 installConfig() {
@@ -48,7 +48,12 @@ installConfig() {
     logMessage "dbus-adc.conf erfolgreich installiert."
     
     # Füge neue Einträge unterhalb von [all] in config.txt ein
-    sed -i '/^\[all\]/ { n; /^\[/! { s|^|dtoverlay=i2c-rtc,ds1307-rtc\n|; s|^|dtoverlay=mcp3208:spi0-0-present\n|; } }' "$configTxt"
+    if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"; then
+        echo "dtoverlay=i2c-rtc,ds1307-rtc" >> "$configTxt"
+    fi
+    if ! grep -q "dtoverlay=mcp3208:spi0-0-present" "$configTxt"; then
+        echo "dtoverlay=mcp3208:spi0-0-present" >> "$configTxt"
+    fi
 
     logMessage "$configTxt aktualisiert."
     restartSystemRequired=true
@@ -76,7 +81,9 @@ checkAndInstallKernelModules() {
 
 setupRcLocal() {
     if [ -f "$rcLocalFile" ]; then
-        grep -q "$rcLocalContent" "$rcLocalFile" || echo -e "\n$rcLocalContent" >> "$rcLocalFile"
+        if ! grep -q "$rcLocalContent" "$rcLocalFile"; then
+            echo -e "\n$rcLocalContent" >> "$rcLocalFile"
+        fi
     else
         logMessage "Erstelle $rcLocalFile..."
         echo -e "$rcLocalContent" > "$rcLocalFile"
@@ -125,6 +132,7 @@ case "$scriptAction" in
     INSTALL)
         backupOriginals
         logMessage "Beginne mit der Installation..."
+        checkCompatibility
         installConfig
         checkAndRestoreOverlays
         checkAndInstallKernelModules
@@ -139,6 +147,7 @@ case "$scriptAction" in
     *)
         logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
         backupOriginals
+        checkCompatibility
         installConfig
         checkAndRestoreOverlays
         checkAndInstallKernelModules
@@ -150,4 +159,3 @@ esac
 
 # Skriptende
 logMessage "Skriptausführung abgeschlossen."
-endScript
