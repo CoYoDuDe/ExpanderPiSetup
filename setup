@@ -162,5 +162,8 @@ case "$scriptAction" in
         ;;
 esac
 
-# Skriptende
+# Abschlussmeldung
 logMessage "Skriptausführung abgeschlossen."
+
+# Setzen der Statusvariablen für den SetupHelper
+exit $EXIT_SUCCESS
