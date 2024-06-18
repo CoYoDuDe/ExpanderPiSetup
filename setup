@@ -25,13 +25,13 @@ rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwcl
 checkCompatibility() {
     if [ ! -f /etc/venus/machine ]; then
         logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
-        exit 1
+        exit $EXIT_NO_ACTION
     fi
 
     machine=$(cat /etc/venus/machine)
     if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
         logMessage "$machine wird nicht unterstützt - Skript wird beendet."
-        exit 1
+        exit $EXIT_NO_ACTION
     fi
 }
 
@@ -48,6 +48,7 @@ installConfig() {
         logMessage "dbus-adc.conf erfolgreich installiert."
     else
         logMessage "Fehler: dbus-adc.conf Quelle nicht gefunden."
+        installFailed=true
     fi
     
     # Füge neue Einträge unterhalb von [all] in config.txt ein
@@ -72,6 +73,7 @@ checkAndRestoreOverlays() {
                 rebootNeeded=true
             else
                 logMessage "Fehler: Quelle für Overlay $overlay nicht gefunden."
+                installFailed=true
             fi
         fi
     done
@@ -81,8 +83,13 @@ checkAndInstallKernelModules() {
     for module in "${requiredModules[@]}"; do
         if ! opkg list-installed | grep -q "$module"; then
             logMessage "Installiere $module..."
-            opkg update && opkg install "$module" && logMessage "$module installiert."
-            rebootNeeded=true
+            if opkg update && opkg install "$module"; then
+                logMessage "$module installiert."
+                rebootNeeded=true
+            else
+                logMessage "Fehler bei der Installation von $module."
+                installFailed=true
+            fi
         fi
     done
 }
@@ -132,6 +139,10 @@ case "$scriptAction" in
         checkAndRestoreOverlays
         checkAndInstallKernelModules
         setupRcLocal
+        if [ "$installFailed" = true ]; then
+            logMessage "Installation fehlgeschlagen."
+            exit $EXIT_FAILED
+        fi
         ;;
     UNINSTALL)
         uninstall
@@ -144,6 +155,10 @@ case "$scriptAction" in
         checkAndRestoreOverlays
         checkAndInstallKernelModules
         setupRcLocal
+        if [ "$installFailed" = true ]; then
+            logMessage "Installation fehlgeschlagen."
+            exit $EXIT_FAILED
+        fi
         ;;
 esac
 
