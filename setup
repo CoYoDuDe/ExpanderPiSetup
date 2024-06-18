@@ -9,6 +9,7 @@ standardPromptAndActions='yes'
 
 # Pfaddefinitionen
 configFile="/etc/venus/dbus-adc.conf"
+sourceConfigFile="/data/ExpanderPiSetup/FileSets/configs/dbus-adc.conf"
 backupConfigFile="${configFile}.orig"
 sourceFileDir="/data/ExpanderPiSetup/FileSets"
 overlays=("i2c-rtc.dtbo" "ds1307-rtc.dtbo" "mcp3208.dtbo")
@@ -18,8 +19,7 @@ configTxtBackup="/u-boot/config.txt.orig"
 requiredModules=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
 rcLocalFile="/data/rc.local"
 rcLocalBackup="/data/rc.local.orig"
-rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
-hwclock -s"
+rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
 
 # Funktionen definieren
 checkCompatibility() {
@@ -43,8 +43,12 @@ backupOriginals() {
 
 installConfig() {
     logMessage "Installiere dbus-adc.conf..."
-    cp "$sourceFileDir/configs/dbus-adc.conf" "$configFile"
-    logMessage "dbus-adc.conf erfolgreich installiert."
+    if [ -f "$sourceConfigFile" ]; then
+        cp "$sourceConfigFile" "$configFile"
+        logMessage "dbus-adc.conf erfolgreich installiert."
+    else
+        logMessage "Fehler: dbus-adc.conf Quelle nicht gefunden."
+    fi
     
     # Füge neue Einträge unterhalb von [all] in config.txt ein
     if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"; then
@@ -62,8 +66,13 @@ checkAndRestoreOverlays() {
     for overlay in "${overlays[@]}"; do
         if [ ! -f "$overlayDir/$overlay" ]; then
             logMessage "Overlay $overlay fehlt. Wiederherstellung aus $sourceFileDir/overlays..."
-            cp "$sourceFileDir/overlays/$overlay" "$overlayDir/"
-            rebootNeeded=true
+            if [ -f "$sourceFileDir/overlays/$overlay" ]; then
+                cp "$sourceFileDir/overlays/$overlay" "$overlayDir/"
+                logMessage "Overlay $overlay erfolgreich wiederhergestellt."
+                rebootNeeded=true
+            else
+                logMessage "Fehler: Quelle für Overlay $overlay nicht gefunden."
+            fi
         fi
     done
 }
@@ -81,8 +90,9 @@ checkAndInstallKernelModules() {
 setupRcLocal() {
     if [ -f "$rcLocalFile" ]; then
         if ! grep -q "$rcLocalContent" "$rcLocalFile"; then
-            echo -e "
-$rcLocalContent" >> "$rcLocalFile"
+            echo -e "\n$rcLocalContent" >> "$rcLocalFile"
+        else
+            logMessage "Einträge bereits in $rcLocalFile vorhanden."
         fi
     else
         logMessage "Erstelle $rcLocalFile..."
