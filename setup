@@ -25,13 +25,13 @@ rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwcl
 checkCompatibility() {
     if [ ! -f /etc/venus/machine ]; then
         logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
-        exit $EXIT_NO_ACTION
+        installFailed=true
     fi
 
     machine=$(cat /etc/venus/machine)
     if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
         logMessage "$machine wird nicht unterstützt - Skript wird beendet."
-        exit $EXIT_NO_ACTION
+        installFailed=true
     fi
 }
 
@@ -139,10 +139,6 @@ case "$scriptAction" in
         checkAndRestoreOverlays
         checkAndInstallKernelModules
         setupRcLocal
-        if [ "$installFailed" = true ]; then
-            logMessage "Installation fehlgeschlagen."
-            exit $EXIT_FAILED
-        fi
         ;;
     UNINSTALL)
         uninstall
@@ -155,10 +151,6 @@ case "$scriptAction" in
         checkAndRestoreOverlays
         checkAndInstallKernelModules
         setupRcLocal
-        if [ "$installFailed" = true ]; then
-            logMessage "Installation fehlgeschlagen."
-            exit $EXIT_FAILED
-        fi
         ;;
 esac
 
@@ -166,4 +158,4 @@ esac
 logMessage "Skriptausführung abgeschlossen."
 
 # Setzen der Statusvariablen für den SetupHelper
-exit $EXIT_SUCCESS
+endScript
