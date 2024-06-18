@@ -1,6 +1,11 @@
 #!/bin/bash
 
-# Skript zur Verwaltung der dbus-adc.conf und weiteren Konfigurationen auf Raspberry Pi Plattformen für Venus OS
+# Setup-Skript für ExpanderPiSetup
+# Einbinden der Helper-Ressourcen
+source "/data/SetupHelper/HelperResources/IncludeHelpers"
+
+# Standardaktionen aktivieren
+standardPromptAndActions='yes'
 
 # Pfaddefinitionen
 configFile="/etc/venus/dbus-adc.conf"
@@ -13,14 +18,8 @@ configTxtBackup="/u-boot/config.txt.orig"
 requiredModules=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
 rcLocalFile="/data/rc.local"
 rcLocalBackup="/data/rc.local.orig"
-rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
-
-# SetupHelper-Utilities einbinden
-source "/data/SetupHelper/CommonResources"
-
-# Variablen zur Überprüfung, ob ein Neustart des Services oder des Systems erforderlich ist
-restartSystemRequired=false
-restartServiceRequired=false
+rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
+hwclock -s"
 
 # Funktionen definieren
 checkCompatibility() {
@@ -30,7 +29,7 @@ checkCompatibility() {
     fi
 
     machine=$(cat /etc/venus/machine)
-    if [ "$machine" != "raspberrypi2" ] && [ "$machine" != "raspberrypi4" ]; then
+    if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
         logMessage "$machine wird nicht unterstützt - Skript wird beendet."
         exit 1
     fi
@@ -44,7 +43,7 @@ backupOriginals() {
 
 installConfig() {
     logMessage "Installiere dbus-adc.conf..."
-    cp "$sourceFileDir/dbus-adc.conf" "$configFile"
+    cp "$sourceFileDir/configs/dbus-adc.conf" "$configFile"
     logMessage "dbus-adc.conf erfolgreich installiert."
     
     # Füge neue Einträge unterhalb von [all] in config.txt ein
@@ -56,15 +55,15 @@ installConfig() {
     fi
 
     logMessage "$configTxt aktualisiert."
-    restartSystemRequired=true
+    rebootNeeded=true
 }
 
 checkAndRestoreOverlays() {
     for overlay in "${overlays[@]}"; do
         if [ ! -f "$overlayDir/$overlay" ]; then
-            logMessage "Overlay $overlay fehlt. Wiederherstellung aus $sourceFileDir..."
-            cp "$sourceFileDir/$overlay" "$overlayDir/"
-            restartSystemRequired=true
+            logMessage "Overlay $overlay fehlt. Wiederherstellung aus $sourceFileDir/overlays..."
+            cp "$sourceFileDir/overlays/$overlay" "$overlayDir/"
+            rebootNeeded=true
         fi
     done
 }
@@ -74,7 +73,7 @@ checkAndInstallKernelModules() {
         if ! opkg list-installed | grep -q "$module"; then
             logMessage "Installiere $module..."
             opkg update && opkg install "$module" && logMessage "$module installiert."
-            restartSystemRequired=true
+            rebootNeeded=true
         fi
     done
 }
@@ -82,28 +81,14 @@ checkAndInstallKernelModules() {
 setupRcLocal() {
     if [ -f "$rcLocalFile" ]; then
         if ! grep -q "$rcLocalContent" "$rcLocalFile"; then
-            echo -e "\n$rcLocalContent" >> "$rcLocalFile"
+            echo -e "
+$rcLocalContent" >> "$rcLocalFile"
         fi
     else
         logMessage "Erstelle $rcLocalFile..."
         echo -e "$rcLocalContent" > "$rcLocalFile"
     fi
     chmod +x "$rcLocalFile"
-}
-
-restartService() {
-    if [ "$restartServiceRequired" = true ] && [ "$restartSystemRequired" != true ]; then
-        logMessage "Neustart des dbus-adc Dienstes..."
-        svc -d /service/dbus-adc && svc -u /service/dbus-adc
-        logMessage "dbus-adc Dienst erfolgreich neugestartet."
-    fi
-}
-
-restartSystem() {
-    if [ "$restartSystemRequired" = true ]; then
-        logMessage "Neustart des Systems..."
-        reboot
-    fi
 }
 
 uninstall() {
@@ -124,7 +109,7 @@ uninstall() {
     [ -f "$configFile" ] && rm -f "$configFile"
 
     logMessage "Deinstallation abgeschlossen."
-    restartSystemRequired=true
+    rebootNeeded=true
 }
 
 # Hauptlogik basierend auf der Aktion
@@ -137,12 +122,9 @@ case "$scriptAction" in
         checkAndRestoreOverlays
         checkAndInstallKernelModules
         setupRcLocal
-        restartSystem
-        restartService
         ;;
     UNINSTALL)
         uninstall
-        restartSystem
         ;;
     *)
         logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
@@ -152,8 +134,6 @@ case "$scriptAction" in
         checkAndRestoreOverlays
         checkAndInstallKernelModules
         setupRcLocal
-        restartSystem
-        restartService
         ;;
 esac
 
