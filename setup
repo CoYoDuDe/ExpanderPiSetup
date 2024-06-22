@@ -44,14 +44,17 @@ backupOriginals() {
 installConfig() {
     logMessage "Installiere dbus-adc.conf..."
     if [ -f "$sourceConfigFile" ]; then
-        cp "$sourceConfigFile" "$configFile"
-        logMessage "dbus-adc.conf erfolgreich installiert."
+        if ! cmp -s "$sourceConfigFile" "$configFile"; then
+            cp "$sourceConfigFile" "$configFile"
+            logMessage "dbus-adc.conf erfolgreich installiert."
+        else
+            logMessage "dbus-adc.conf ist bereits aktuell."
+        fi
     else
         logMessage "Fehler: dbus-adc.conf Quelle nicht gefunden."
         installFailed=true
     fi
     
-    # Füge neue Einträge unterhalb von [all] in config.txt ein
     if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"; then
         echo "dtoverlay=i2c-rtc,ds1307-rtc" >> "$configTxt"
     fi
@@ -75,6 +78,8 @@ checkAndRestoreOverlays() {
                 logMessage "Fehler: Quelle für Overlay $overlay nicht gefunden."
                 installFailed=true
             fi
+        else
+            logMessage "Overlay $overlay ist bereits vorhanden."
         fi
     done
 }
@@ -90,6 +95,8 @@ checkAndInstallKernelModules() {
                 logMessage "Fehler bei der Installation von $module."
                 installFailed=true
             fi
+        else
+            logMessage "$module ist bereits installiert."
         fi
     done
 }
@@ -98,42 +105,38 @@ setupRcLocal() {
     if [ -f "$rcLocalFile" ]; then
         if ! grep -q "$rcLocalContent" "$rcLocalFile"; then
             echo -e "\n$rcLocalContent" >> "$rcLocalFile"
+            logMessage "Einträge zu $rcLocalFile hinzugefügt."
         else
             logMessage "Einträge bereits in $rcLocalFile vorhanden."
         fi
     else
         logMessage "Erstelle $rcLocalFile..."
         echo -e "$rcLocalContent" > "$rcLocalFile"
+        logMessage "$rcLocalFile erstellt."
     fi
     chmod +x "$rcLocalFile"
 }
 
 uninstall() {
-    # Entferne Einträge aus der config.txt
     sed -i '/dtoverlay=i2c-rtc,ds1307-rtc/d' "$configTxt"
     sed -i '/dtoverlay=mcp3208:spi0-0-present/d' "$configTxt"
 
-    # Entferne Einträge aus der rc.local
     sed -i '/ds1307 0x68 > \/sys\/class\/i2c-adapter\/i2c-1\/new_device/d' "$rcLocalFile"
     sed -i '/hwclock -s/d' "$rcLocalFile"
 
-    # Entferne Dateien aus dem /u-boot/overlays-Ordner
     for overlay in "${overlays[@]}"; do
         [ -f "$overlayDir/$overlay" ] && rm -f "$overlayDir/$overlay"
     done
 
-    # Entferne die dbus-adc.conf aus /etc/venus
     [ -f "$configFile" ] && rm -f "$configFile"
 
     logMessage "Deinstallation abgeschlossen."
     rebootNeeded=true
 }
 
-# Hauptlogik basierend auf der Aktion
 case "$scriptAction" in
-    INSTALL)
+    INSTALL|CHECK)
         backupOriginals
-        logMessage "Beginne mit der Installation..."
         checkCompatibility
         installConfig
         checkAndRestoreOverlays
@@ -154,8 +157,5 @@ case "$scriptAction" in
         ;;
 esac
 
-# Abschlussmeldung
 logMessage "Skriptausführung abgeschlossen."
-
-# Setzen der Statusvariablen für den SetupHelper
 endScript
