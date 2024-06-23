@@ -71,7 +71,7 @@ restore_originals() {
 # Konfigurationsdateien installieren
 install_config() {
     logMessage "Installiere dbus-adc.conf..."
-    if [ -f "$SOURCE_CONFIG_FILE" ]; then
+    if [ -f "$SOURCE_CONFIG_FILE" ];then
         if ! cmp -s "$SOURCE_CONFIG_FILE" "$CONFIG_FILE"; then
             cp "$SOURCE_CONFIG_FILE" "$CONFIG_FILE"
             logMessage "dbus-adc.conf erfolgreich installiert."
@@ -142,9 +142,9 @@ remove_overlays() {
 # Kernel-Module prüfen und installieren
 check_and_install_kernel_modules() {
     for module in "${REQUIRED_MODULES[@]}"; do
-        if ! opkg list-installed | grep -q "$module"; dann
+        if ! opkg list-installed | grep -q "$module"; then
             logMessage "Installiere $module..."
-            if opkg update && opkg install "$module"; dann
+            if opkg update && opkg install "$module"; then
                 logMessage "$module installiert."
                 rebootNeeded=true
             else
@@ -160,9 +160,9 @@ check_and_install_kernel_modules() {
 # Kernel-Module deinstallieren
 remove_kernel_modules() {
     for module in "${REQUIRED_MODULES[@]}"; do
-        if opkg list-installed | grep -q "$module"; dann
+        if opkg list-installed | grep -q "$module"; then
             logMessage "Entferne $module..."
-            if opkg remove "$module"; dann
+            if opkg remove "$module"; then
                 logMessage "$module entfernt."
                 rebootNeeded=true
             else
