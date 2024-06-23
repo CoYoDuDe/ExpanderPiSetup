@@ -7,45 +7,59 @@ source "/data/SetupHelper/HelperResources/IncludeHelpers"
 # Standardaktionen aktivieren
 standardPromptAndActions='yes'
 
+# Installationsverzeichnis festlegen
+ROOT_PATH=/data/ExpanderPiSetup
+
 # Pfaddefinitionen
-configFile="/etc/venus/dbus-adc.conf"
-sourceConfigFile="/data/ExpanderPiSetup/FileSets/configs/dbus-adc.conf"
-backupConfigFile="${configFile}.orig"
-sourceFileDir="/data/ExpanderPiSetup/FileSets"
-overlays=("i2c-rtc.dtbo" "ds1307-rtc.dtbo" "mcp3208.dtbo")
-overlayDir="/u-boot/overlays"
-configTxt="/u-boot/config.txt"
-configTxtBackup="/u-boot/config.txt.orig"
-requiredModules=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
-rcLocalFile="/data/rc.local"
-rcLocalBackup="/data/rc.local.orig"
-rcLocalContent="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
+CONFIG_FILE="/etc/venus/dbus-adc.conf"
+SOURCE_CONFIG_FILE="${ROOT_PATH}/FileSets/configs/dbus-adc.conf"
+BACKUP_CONFIG_FILE="${CONFIG_FILE}.orig"
+SOURCE_FILE_DIR="${ROOT_PATH}/FileSets"
+OVERLAYS=("i2c-rtc.dtbo" "ds1307-rtc.dtbo" "mcp3208.dtbo")
+OVERLAY_DIR="/u-boot/overlays"
+CONFIG_TXT="/u-boot/config.txt"
+CONFIG_TXT_BACKUP="/u-boot/config.txt.orig"
+REQUIRED_MODULES=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
+RC_LOCAL_FILE="/data/rc.local"
+RC_LOCAL_BACKUP="/data/rc.local.orig"
+RC_LOCAL_CONTENT="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
 
 # Funktionen definieren
-checkCompatibility() {
+add_entry_to_rc_local() {
+    local ENTRY="$1"
+    [ ! -f "$RC_LOCAL_FILE" ] && echo "$ENTRY" > "$RC_LOCAL_FILE" || [ ! "$(grep "$ENTRY" "$RC_LOCAL_FILE")" ] && echo "$ENTRY" >> "$RC_LOCAL_FILE"
+    chmod +x "$RC_LOCAL_FILE"
+}
+
+remove_entry_from_rc_local() {
+    local ENTRY="$1"
+    [ -f "$RC_LOCAL_FILE" ] && sed -i "/^$(echo "$ENTRY" | sed 's/[\/&]/\\&/g')$/d" "$RC_LOCAL_FILE"
+}
+
+check_compatibility() {
     if [ ! -f /etc/venus/machine ]; then
         logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
         installFailed=true
     fi
 
-    machine=$(cat /etc/venus/machine)
+    local machine=$(cat /etc/venus/machine)
     if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
         logMessage "$machine wird nicht unterstützt - Skript wird beendet."
         installFailed=true
     fi
 }
 
-backupOriginals() {
-    backupFile "$configFile" "$backupConfigFile"
-    backupFile "$configTxt" "$configTxtBackup"
-    backupFile "$rcLocalFile" "$rcLocalBackup"
+backup_originals() {
+    backupFile "$CONFIG_FILE" "$BACKUP_CONFIG_FILE"
+    backupFile "$CONFIG_TXT" "$CONFIG_TXT_BACKUP"
+    backupFile "$RC_LOCAL_FILE" "$RC_LOCAL_BACKUP"
 }
 
-installConfig() {
+install_config() {
     logMessage "Installiere dbus-adc.conf..."
-    if [ -f "$sourceConfigFile" ]; then
-        if ! cmp -s "$sourceConfigFile" "$configFile"; then
-            cp "$sourceConfigFile" "$configFile"
+    if [ -f "$SOURCE_CONFIG_FILE" ]; then
+        if ! cmp -s "$SOURCE_CONFIG_FILE" "$CONFIG_FILE"; then
+            cp "$SOURCE_CONFIG_FILE" "$CONFIG_FILE"
             logMessage "dbus-adc.conf erfolgreich installiert."
         else
             logMessage "dbus-adc.conf ist bereits aktuell."
@@ -55,23 +69,23 @@ installConfig() {
         installFailed=true
     fi
     
-    if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$configTxt"; then
-        echo "dtoverlay=i2c-rtc,ds1307-rtc" >> "$configTxt"
+    if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$CONFIG_TXT"; then
+        echo "dtoverlay=i2c-rtc,ds1307-rtc" >> "$CONFIG_TXT"
     fi
-    if ! grep -q "dtoverlay=mcp3208:spi0-0-present" "$configTxt"; then
-        echo "dtoverlay=mcp3208:spi0-0-present" >> "$configTxt"
+    if ! grep -q "dtoverlay=mcp3208:spi0-0-present" "$CONFIG_TXT"; then
+        echo "dtoverlay=mcp3208:spi0-0-present" >> "$CONFIG_TXT"
     fi
 
-    logMessage "$configTxt aktualisiert."
+    logMessage "$CONFIG_TXT aktualisiert."
     rebootNeeded=true
 }
 
-checkAndRestoreOverlays() {
-    for overlay in "${overlays[@]}"; do
-        if [ ! -f "$overlayDir/$overlay" ]; then
-            logMessage "Overlay $overlay fehlt. Wiederherstellung aus $sourceFileDir/overlays..."
-            if [ -f "$sourceFileDir/overlays/$overlay" ]; then
-                cp "$sourceFileDir/overlays/$overlay" "$overlayDir/"
+check_and_restore_overlays() {
+    for overlay in "${OVERLAYS[@]}"; do
+        if [ ! -f "$OVERLAY_DIR/$overlay" ]; then
+            logMessage "Overlay $overlay fehlt. Wiederherstellung aus $SOURCE_FILE_DIR/overlays..."
+            if [ -f "$SOURCE_FILE_DIR/overlays/$overlay" ]; then
+                cp "$SOURCE_FILE_DIR/overlays/$overlay" "$OVERLAY_DIR/"
                 logMessage "Overlay $overlay erfolgreich wiederhergestellt."
                 rebootNeeded=true
             else
@@ -84,8 +98,8 @@ checkAndRestoreOverlays() {
     done
 }
 
-checkAndInstallKernelModules() {
-    for module in "${requiredModules[@]}"; do
+check_and_install_kernel_modules() {
+    for module in "${REQUIRED_MODULES[@]}"; do
         if ! opkg list-installed | grep -q "$module"; then
             logMessage "Installiere $module..."
             if opkg update && opkg install "$module"; then
@@ -101,34 +115,22 @@ checkAndInstallKernelModules() {
     done
 }
 
-setupRcLocal() {
-    if [ -f "$rcLocalFile" ]; then
-        if ! grep -q "$rcLocalContent" "$rcLocalFile"; then
-            echo -e "\n$rcLocalContent" >> "$rcLocalFile"
-            logMessage "Einträge zu $rcLocalFile hinzugefügt."
-        else
-            logMessage "Einträge bereits in $rcLocalFile vorhanden."
-        fi
-    else
-        logMessage "Erstelle $rcLocalFile..."
-        echo -e "$rcLocalContent" > "$rcLocalFile"
-        logMessage "$rcLocalFile erstellt."
-    fi
-    chmod +x "$rcLocalFile"
+setup_rc_local() {
+    add_entry_to_rc_local "$RC_LOCAL_CONTENT"
 }
 
 uninstall() {
-    sed -i '/dtoverlay=i2c-rtc,ds1307-rtc/d' "$configTxt"
-    sed -i '/dtoverlay=mcp3208:spi0-0-present/d' "$configTxt"
+    sed -i '/dtoverlay=i2c-rtc,ds1307-rtc/d' "$CONFIG_TXT"
+    sed -i '/dtoverlay=mcp3208:spi0-0-present/d' "$CONFIG_TXT"
 
-    sed -i '/ds1307 0x68 > \/sys\/class\/i2c-adapter\/i2c-1\/new_device/d' "$rcLocalFile"
-    sed -i '/hwclock -s/d' "$rcLocalFile"
+    remove_entry_from_rc_local "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
+    remove_entry_from_rc_local "hwclock -s"
 
-    for overlay in "${overlays[@]}"; do
-        [ -f "$overlayDir/$overlay" ] && rm -f "$overlayDir/$overlay"
+    for overlay in "${OVERLAYS[@]}"; do
+        [ -f "$OVERLAY_DIR/$overlay" ] && rm -f "$OVERLAY_DIR/$overlay"
     done
 
-    [ -f "$configFile" ] && rm -f "$configFile"
+    [ -f "$CONFIG_FILE" ] && rm -f "$CONFIG_FILE"
 
     logMessage "Deinstallation abgeschlossen."
     rebootNeeded=true
@@ -136,24 +138,24 @@ uninstall() {
 
 case "$scriptAction" in
     INSTALL|CHECK)
-        backupOriginals
-        checkCompatibility
-        installConfig
-        checkAndRestoreOverlays
-        checkAndInstallKernelModules
-        setupRcLocal
+        backup_originals
+        check_compatibility
+        install_config
+        check_and_restore_overlays
+        check_and_install_kernel_modules
+        setup_rc_local
         ;;
     UNINSTALL)
         uninstall
         ;;
     *)
         logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
-        backupOriginals
-        checkCompatibility
-        installConfig
-        checkAndRestoreOverlays
-        checkAndInstallKernelModules
-        setupRcLocal
+        backup_originals
+        check_compatibility
+        install_config
+        check_and_restore_overlays
+        check_and_install_kernel_modules
+        setup_rc_local
         ;;
 esac
 
