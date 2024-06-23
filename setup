@@ -24,37 +24,51 @@ RC_LOCAL_FILE="/data/rc.local"
 RC_LOCAL_BACKUP="/data/rc.local.orig"
 RC_LOCAL_CONTENT="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
 
+# Kompatibilität prüfen
+if [ ! -f /etc/venus/machine ]; then
+    logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
+    setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "Kann den Venus-Gerätetyp nicht bestimmen."
+fi
+
+machine=$(cat /etc/venus/machine)
+if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
+    logMessage "$machine wird nicht unterstützt - Skript wird beendet."
+    setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "$machine wird nicht unterstützt."
+fi
+
 # Funktionen definieren
+
+## Einträge in rc.local hinzufügen und entfernen
+# Eintrag in rc.local hinzufügen
 add_entry_to_rc_local() {
     local ENTRY="$1"
     [ ! -f "$RC_LOCAL_FILE" ] && echo "$ENTRY" > "$RC_LOCAL_FILE" || [ ! "$(grep "$ENTRY" "$RC_LOCAL_FILE")" ] && echo "$ENTRY" >> "$RC_LOCAL_FILE"
     chmod +x "$RC_LOCAL_FILE"
 }
 
+# Eintrag aus rc.local entfernen
 remove_entry_from_rc_local() {
     local ENTRY="$1"
     [ -f "$RC_LOCAL_FILE" ] && sed -i "/^$(echo "$ENTRY" | sed 's/[\/&]/\\&/g')$/d" "$RC_LOCAL_FILE"
 }
 
-check_compatibility() {
-    if [ ! -f /etc/venus/machine ]; then
-        logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
-        setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "Kann den Venus-Gerätetyp nicht bestimmen."
-    fi
-
-    local machine=$(cat /etc/venus/machine)
-    if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
-        logMessage "$machine wird nicht unterstützt - Skript wird beendet."
-        setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "$machine wird nicht unterstützt."
-    fi
-}
-
+## Originaldateien sichern und wiederherstellen
+# Originaldateien sichern
 backup_originals() {
     backupFile "$CONFIG_FILE" "$BACKUP_CONFIG_FILE"
     backupFile "$CONFIG_TXT" "$CONFIG_TXT_BACKUP"
     backupFile "$RC_LOCAL_FILE" "$RC_LOCAL_BACKUP"
 }
 
+# Originaldateien wiederherstellen
+restore_originals() {
+    restoreFile "$BACKUP_CONFIG_FILE" "$CONFIG_FILE"
+    restoreFile "$CONFIG_TXT_BACKUP" "$CONFIG_TXT"
+    restoreFile "$RC_LOCAL_BACKUP" "$RC_LOCAL_FILE"
+}
+
+## Konfigurationsdateien installieren und deinstallieren
+# Konfigurationsdateien installieren
 install_config() {
     logMessage "Installiere dbus-adc.conf..."
     if [ -f "$SOURCE_CONFIG_FILE" ]; then
@@ -69,7 +83,7 @@ install_config() {
         logMessage "Fehler: dbus-adc.conf Quelle nicht gefunden."
         setInstallFailed $EXIT_FILE_SET_ERROR "Fehler: dbus-adc.conf Quelle nicht gefunden."
     fi
-    
+
     if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$CONFIG_TXT"; then
         echo "dtoverlay=i2c-rtc,ds1307-rtc" >> "$CONFIG_TXT"
         filesUpdated=true
@@ -83,6 +97,21 @@ install_config() {
     rebootNeeded=true
 }
 
+# Konfigurationsdateien deinstallieren
+uninstall_config() {
+    sed -i '/dtoverlay=i2c-rtc,ds1307-rtc/d' "$CONFIG_TXT"
+    sed -i '/dtoverlay=mcp3208:spi0-0-present/d' "$CONFIG_TXT"
+
+    remove_entry_from_rc_local "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
+    remove_entry_from_rc_local "hwclock -s"
+
+    [ -f "$CONFIG_FILE" ] && rm -f "$CONFIG_FILE"
+
+    logMessage "Konfigurationsdateien deinstalliert."
+}
+
+## Overlays prüfen und wiederherstellen bzw. entfernen
+# Overlays prüfen und wiederherstellen
 check_and_restore_overlays() {
     for overlay in "${OVERLAYS[@]}"; do
         if [ ! -f "$OVERLAY_DIR/$overlay" ]; then
@@ -101,11 +130,21 @@ check_and_restore_overlays() {
     done
 }
 
+# Overlays entfernen
+remove_overlays() {
+    for overlay in "${OVERLAYS[@]}"; do
+        [ -f "$OVERLAY_DIR/$overlay" ] && rm -f "$OVERLAY_DIR/$overlay"
+    done
+    logMessage "Overlays entfernt."
+}
+
+## Kernel-Module prüfen und installieren bzw. deinstallieren
+# Kernel-Module prüfen und installieren
 check_and_install_kernel_modules() {
     for module in "${REQUIRED_MODULES[@]}"; do
-        if ! opkg list-installed | grep -q "$module"; then
+        if ! opkg list-installed | grep -q "$module"; dann
             logMessage "Installiere $module..."
-            if opkg update && opkg install "$module"; then
+            if opkg update && opkg install "$module"; dann
                 logMessage "$module installiert."
                 rebootNeeded=true
             else
@@ -118,43 +157,54 @@ check_and_install_kernel_modules() {
     done
 }
 
+# Kernel-Module deinstallieren
+remove_kernel_modules() {
+    for module in "${REQUIRED_MODULES[@]}"; do
+        if opkg list-installed | grep -q "$module"; dann
+            logMessage "Entferne $module..."
+            if opkg remove "$module"; dann
+                logMessage "$module entfernt."
+                rebootNeeded=true
+            else
+                logMessage "Fehler beim Entfernen von $module."
+                setInstallFailed $EXIT_ERROR "Fehler beim Entfernen von $module."
+            fi
+        else
+            logMessage "$module ist nicht installiert."
+        fi
+    done
+}
+
+## rc.local einrichten und zurücksetzen
+# rc.local einrichten
 setup_rc_local() {
     add_entry_to_rc_local "$RC_LOCAL_CONTENT"
 }
 
-uninstall() {
-    sed -i '/dtoverlay=i2c-rtc,ds1307-rtc/d' "$CONFIG_TXT"
-    sed -i '/dtoverlay=mcp3208:spi0-0-present/d' "$CONFIG_TXT"
-
+# rc.local zurücksetzen
+reset_rc_local() {
     remove_entry_from_rc_local "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
     remove_entry_from_rc_local "hwclock -s"
-
-    for overlay in "${OVERLAYS[@]}"; do
-        [ -f "$OVERLAY_DIR/$overlay" ] && rm -f "$OVERLAY_DIR/$overlay"
-    done
-
-    [ -f "$CONFIG_FILE" ] && rm -f "$CONFIG_FILE"
-
-    logMessage "Deinstallation abgeschlossen."
-    rebootNeeded=true
 }
 
 case "$scriptAction" in
     INSTALL|CHECK)
         backup_originals
-        check_compatibility
         install_config
         check_and_restore_overlays
         check_and_install_kernel_modules
         setup_rc_local
         ;;
     UNINSTALL)
-        uninstall
+        restore_originals
+        uninstall_config
+        remove_overlays
+        remove_kernel_modules
+        reset_rc_local
         ;;
     *)
         logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
         backup_originals
-        check_compatibility
         install_config
         check_and_restore_overlays
         check_and_install_kernel_modules
