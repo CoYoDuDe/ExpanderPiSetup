@@ -42,7 +42,13 @@ fi
 # Eintrag in rc.local hinzufügen
 add_entry_to_rc_local() {
     local ENTRY="$1"
-    [ ! -f "$RC_LOCAL_FILE" ] && echo "$ENTRY" > "$RC_LOCAL_FILE" || [ ! "$(grep "$ENTRY" "$RC_LOCAL_FILE")" ] && echo "$ENTRY" >> "$RC_LOCAL_FILE"
+    if [ ! -f "$RC_LOCAL_FILE" ]; then
+        echo "$ENTRY" > "$RC_LOCAL_FILE"
+    else
+        if ! grep -qF "$ENTRY" "$RC_LOCAL_FILE"; then
+            echo "$ENTRY" >> "$RC_LOCAL_FILE"
+        fi
+    fi
     chmod +x "$RC_LOCAL_FILE"
 }
 
