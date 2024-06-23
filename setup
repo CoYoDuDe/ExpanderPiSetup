@@ -39,13 +39,13 @@ remove_entry_from_rc_local() {
 check_compatibility() {
     if [ ! -f /etc/venus/machine ]; then
         logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
-        installFailed=true
+        setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "Kann den Venus-Gerätetyp nicht bestimmen."
     fi
 
     local machine=$(cat /etc/venus/machine)
     if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
         logMessage "$machine wird nicht unterstützt - Skript wird beendet."
-        installFailed=true
+        setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "$machine wird nicht unterstützt."
     fi
 }
 
@@ -67,7 +67,7 @@ install_config() {
         fi
     else
         logMessage "Fehler: dbus-adc.conf Quelle nicht gefunden."
-        installFailed=true
+        setInstallFailed $EXIT_FILE_SET_ERROR "Fehler: dbus-adc.conf Quelle nicht gefunden."
     fi
     
     if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$CONFIG_TXT"; then
@@ -93,7 +93,7 @@ check_and_restore_overlays() {
                 rebootNeeded=true
             else
                 logMessage "Fehler: Quelle für Overlay $overlay nicht gefunden."
-                installFailed=true
+                setInstallFailed $EXIT_FILE_SET_ERROR "Fehler: Quelle für Overlay $overlay nicht gefunden."
             fi
         else
             logMessage "Overlay $overlay ist bereits vorhanden."
@@ -110,7 +110,7 @@ check_and_install_kernel_modules() {
                 rebootNeeded=true
             else
                 logMessage "Fehler bei der Installation von $module."
-                installFailed=true
+                setInstallFailed $EXIT_ERROR "Fehler bei der Installation von $module."
             fi
         else
             logMessage "$module ist bereits installiert."
