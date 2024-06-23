@@ -55,6 +55,7 @@ remove_entry_from_rc_local() {
 ## Originaldateien sichern und wiederherstellen
 # Originaldateien sichern
 backup_originals() {
+    logMessage "Sichere Originaldateien..."
     backupFile "$CONFIG_FILE" "$BACKUP_CONFIG_FILE"
     backupFile "$CONFIG_TXT" "$CONFIG_TXT_BACKUP"
     backupFile "$RC_LOCAL_FILE" "$RC_LOCAL_BACKUP"
@@ -62,6 +63,7 @@ backup_originals() {
 
 # Originaldateien wiederherstellen
 restore_originals() {
+    logMessage "Stelle Originaldateien wieder her..."
     restoreFile "$BACKUP_CONFIG_FILE" "$CONFIG_FILE"
     restoreFile "$CONFIG_TXT_BACKUP" "$CONFIG_TXT"
     restoreFile "$RC_LOCAL_BACKUP" "$RC_LOCAL_FILE"
@@ -71,7 +73,7 @@ restore_originals() {
 # Konfigurationsdateien installieren
 install_config() {
     logMessage "Installiere dbus-adc.conf..."
-    if [ -f "$SOURCE_CONFIG_FILE" ];then
+    if [ -f "$SOURCE_CONFIG_FILE" ]; then
         if ! cmp -s "$SOURCE_CONFIG_FILE" "$CONFIG_FILE"; then
             cp "$SOURCE_CONFIG_FILE" "$CONFIG_FILE"
             logMessage "dbus-adc.conf erfolgreich installiert."
@@ -84,6 +86,7 @@ install_config() {
         setInstallFailed $EXIT_FILE_SET_ERROR "Fehler: dbus-adc.conf Quelle nicht gefunden."
     fi
 
+    logMessage "Aktualisiere $CONFIG_TXT..."
     if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$CONFIG_TXT"; then
         echo "dtoverlay=i2c-rtc,ds1307-rtc" >> "$CONFIG_TXT"
         filesUpdated=true
@@ -99,6 +102,7 @@ install_config() {
 
 # Konfigurationsdateien deinstallieren
 uninstall_config() {
+    logMessage "Entferne Konfigurationsdateien..."
     sed -i '/dtoverlay=i2c-rtc,ds1307-rtc/d' "$CONFIG_TXT"
     sed -i '/dtoverlay=mcp3208:spi0-0-present/d' "$CONFIG_TXT"
 
@@ -113,6 +117,7 @@ uninstall_config() {
 ## Overlays prüfen und wiederherstellen bzw. entfernen
 # Overlays prüfen und wiederherstellen
 check_and_restore_overlays() {
+    logMessage "Prüfe und stelle Overlays wieder her..."
     for overlay in "${OVERLAYS[@]}"; do
         if [ ! -f "$OVERLAY_DIR/$overlay" ]; then
             logMessage "Overlay $overlay fehlt. Wiederherstellung aus $SOURCE_FILE_DIR/overlays..."
@@ -132,6 +137,7 @@ check_and_restore_overlays() {
 
 # Overlays entfernen
 remove_overlays() {
+    logMessage "Entferne Overlays..."
     for overlay in "${OVERLAYS[@]}"; do
         [ -f "$OVERLAY_DIR/$overlay" ] && rm -f "$OVERLAY_DIR/$overlay"
     done
@@ -141,6 +147,7 @@ remove_overlays() {
 ## Kernel-Module prüfen und installieren bzw. deinstallieren
 # Kernel-Module prüfen und installieren
 check_and_install_kernel_modules() {
+    logMessage "Prüfe und installiere Kernel-Module..."
     for module in "${REQUIRED_MODULES[@]}"; do
         if ! opkg list-installed | grep -q "$module"; then
             logMessage "Installiere $module..."
@@ -159,6 +166,7 @@ check_and_install_kernel_modules() {
 
 # Kernel-Module deinstallieren
 remove_kernel_modules() {
+    logMessage "Entferne Kernel-Module..."
     for module in "${REQUIRED_MODULES[@]}"; do
         if opkg list-installed | grep -q "$module"; then
             logMessage "Entferne $module..."
@@ -178,11 +186,13 @@ remove_kernel_modules() {
 ## rc.local einrichten und zurücksetzen
 # rc.local einrichten
 setup_rc_local() {
+    logMessage "Richte rc.local ein..."
     add_entry_to_rc_local "$RC_LOCAL_CONTENT"
 }
 
 # rc.local zurücksetzen
 reset_rc_local() {
+    logMessage "Setze rc.local zurück..."
     remove_entry_from_rc_local "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
     remove_entry_from_rc_local "hwclock -s"
 }
