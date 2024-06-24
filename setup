@@ -193,7 +193,8 @@ remove_kernel_modules() {
 # rc.local einrichten
 setup_rc_local() {
     logMessage "Richte rc.local ein..."
-    add_entry_to_rc_local "$RC_LOCAL_CONTENT"
+    add_entry_to_rc_local "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
+    add_entry_to_rc_local "hwclock -s"
 }
 
 # rc.local zurücksetzen
