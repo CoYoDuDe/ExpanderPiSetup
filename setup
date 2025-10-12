@@ -525,10 +525,12 @@ install_config() {
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
             local saved_label="${saved_channel_labels[channel]}"
             local saved_type="${saved_channel_types[channel]}"
-            if [ -n "$saved_type" ] && [ "$saved_type" != "none" ]; then
+
+            if [ -n "$saved_type" ] || [ "$saved_type" = "none" ]; then
                 channel_types[channel]="$saved_type"
             fi
-            if [ -n "$saved_label" ]; then
+
+            if [ -n "$saved_label" ] || [ "$saved_type" = "none" ]; then
                 channel_labels[channel]="$saved_label"
             fi
         done
