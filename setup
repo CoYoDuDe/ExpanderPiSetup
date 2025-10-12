@@ -25,6 +25,9 @@ RC_LOCAL_FILE="/data/rc.local"
 RC_LOCAL_BACKUP="/data/rc.local.orig"
 RC_LOCAL_CONTENT="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
 
+# Status, ob "opkg update" bereits erfolgreich ausgeführt wurde
+OPKG_UPDATE_PERFORMED=false
+
 # Statusflags für Sicherungen und Wiederherstellungen
 configBackupExisted=false
 [ -f "$BACKUP_CONFIG_FILE" ] && configBackupExisted=true
@@ -339,11 +342,16 @@ check_and_install_kernel_modules() {
         return
     fi
 
-    logMessage "Aktualisiere Paketquellen..."
-    if ! opkg update; then
-        logMessage "Fehler bei der Aktualisierung der Paketquellen."
-        setInstallFailed $EXIT_ERROR "Fehler bei der Aktualisierung der Paketquellen."
-        return
+    if [ "$OPKG_UPDATE_PERFORMED" != "true" ]; then
+        logMessage "Aktualisiere Paketquellen..."
+        if ! opkg update; then
+            logMessage "Fehler bei der Aktualisierung der Paketquellen."
+            setInstallFailed $EXIT_ERROR "Fehler bei der Aktualisierung der Paketquellen."
+            return
+        fi
+        OPKG_UPDATE_PERFORMED=true
+    else
+        logMessage "Paketquellen bereits aktualisiert; überspringe erneutes opkg update."
     fi
 
     for module in "${missing_modules[@]}"; do
