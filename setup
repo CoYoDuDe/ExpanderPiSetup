@@ -273,18 +273,35 @@ remove_overlays() {
 # Kernel-Module prüfen und installieren
 check_and_install_kernel_modules() {
     logMessage "Prüfe und installiere Kernel-Module..."
+    local missing_modules=()
+
     for module in "${REQUIRED_MODULES[@]}"; do
-        if ! opkg list-installed | grep -q "$module"; then
-            logMessage "Installiere $module..."
-            if opkg update && opkg install "$module"; then
-                logMessage "$module installiert."
-                rebootNeeded=true
-            else
-                logMessage "Fehler bei der Installation von $module."
-                setInstallFailed $EXIT_ERROR "Fehler bei der Installation von $module."
-            fi
-        else
+        if opkg list-installed | grep -q "$module"; then
             logMessage "$module ist bereits installiert."
+        else
+            missing_modules+=("$module")
+        fi
+    done
+
+    if [ ${#missing_modules[@]} -eq 0 ]; then
+        return
+    fi
+
+    logMessage "Aktualisiere Paketquellen..."
+    if ! opkg update; then
+        logMessage "Fehler bei der Aktualisierung der Paketquellen."
+        setInstallFailed $EXIT_ERROR "Fehler bei der Aktualisierung der Paketquellen."
+        return
+    fi
+
+    for module in "${missing_modules[@]}"; do
+        logMessage "Installiere $module..."
+        if opkg install "$module"; then
+            logMessage "$module installiert."
+            rebootNeeded=true
+        else
+            logMessage "Fehler bei der Installation von $module."
+            setInstallFailed $EXIT_ERROR "Fehler bei der Installation von $module."
         fi
     done
 }
