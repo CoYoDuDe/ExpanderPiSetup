@@ -249,10 +249,10 @@ prompt_sensor_label() {
 
         local trimmed_input
         trimmed_input="$(printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-        local lowered_input
-        lowered_input="$(printf '%s' "$trimmed_input" | tr '[:upper:]' '[:lower:]')"
+        local normalized_input
+        normalized_input="$(printf '%s' "$trimmed_input" | tr '[:upper:]' '[:lower:]')"
 
-        case "$lowered_input" in
+        case "$normalized_input" in
             ""|"-"|"none"|"leer"|"kein"|"keine"|"aus")
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
                     if yesNoPrompt "Kanal ${channel} ohne Sensor belassen (y/n)? "; then
@@ -269,17 +269,17 @@ prompt_sensor_label() {
                 ;;
         esac
 
-        if [[ "$lowered_input" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
+        if [[ "$trimmed_input" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
             if declare -F yesNoPrompt >/dev/null 2>&1; then
-                if yesNoPrompt "Sensor '${lowered_input}' für Kanal ${channel} übernehmen (y/n)? "; then
-                    echo "$lowered_input"
+                if yesNoPrompt "Sensor '${trimmed_input}' für Kanal ${channel} übernehmen (y/n)? "; then
+                    echo "$trimmed_input"
                     return 0
                 else
                     logMessage "Eingabe verworfen. Bitte erneut angeben."
                     continue
                 fi
             else
-                echo "$lowered_input"
+                echo "$trimmed_input"
                 return 0
             fi
         fi
