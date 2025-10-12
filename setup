@@ -42,6 +42,9 @@ configBackupExisted=false
 [ -f "$BACKUP_CONFIG_FILE" ] && configBackupExisted=true
 configRestorePerformed=false
 configTxtRestorePerformed=false
+rcLocalBackupAvailable=false
+[ -f "$RC_LOCAL_BACKUP" ] && rcLocalBackupAvailable=true
+rcLocalRestorePerformed=false
 
 # Kompatibilität prüfen
 if [ ! -f /etc/venus/machine ]; then
@@ -197,7 +200,23 @@ restore_originals() {
             logMessage "Keine Sicherung der config.txt gefunden; setze auf manuelle Bereinigung."
         fi
     fi
-    restoreFile "$RC_LOCAL_BACKUP" "$RC_LOCAL_FILE"
+    if [ -f "$RC_LOCAL_BACKUP" ]; then
+        rcLocalBackupAvailable=true
+    else
+        rcLocalBackupAvailable=false
+    fi
+
+    if restoreFile "$RC_LOCAL_BACKUP" "$RC_LOCAL_FILE"; then
+        rcLocalRestorePerformed=true
+        logMessage "rc.local wurde erfolgreich aus der Sicherung wiederhergestellt."
+    else
+        rcLocalRestorePerformed=false
+        if [ "$rcLocalBackupAvailable" = true ]; then
+            logMessage "Warnung: Wiederherstellung der rc.local aus der Sicherung ist fehlgeschlagen."
+        else
+            logMessage "Keine Sicherung der rc.local gefunden; setze auf gezielte Bereinigung."
+        fi
+    fi
 }
 
 ## Benutzerinteraktion für die dbus-adc Konfiguration
@@ -981,13 +1000,24 @@ reset_rc_local() {
         return
     fi
 
+    if [ "$rcLocalRestorePerformed" = true ]; then
+        logMessage "rc.local wurde bereits unverändert aus der Sicherung übernommen; keine weitere Bereinigung erforderlich."
+        return
+    fi
+
     local entries=(
         "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
         "hwclock -s"
     )
     local backup_exists=false
-    if [ -f "$RC_LOCAL_BACKUP" ]; then
+    if [ "$rcLocalBackupAvailable" = true ] || [ -f "$RC_LOCAL_BACKUP" ]; then
         backup_exists=true
+    fi
+
+    if [ "$backup_exists" = true ]; then
+        logMessage "Sicherung der rc.local ist vorhanden; vergleiche mit bekannten Setup-Einträgen."
+    else
+        logMessage "Keine Sicherung der rc.local verfügbar; nutze Setup-Markierungen zur Bereinigung."
     fi
 
     local removed_entries=()
@@ -1019,14 +1049,21 @@ reset_rc_local() {
         fi
 
         local removal_reasons=()
+        local removal_allowed=false
+        if [ "$backup_exists" = false ]; then
+            removal_allowed=true
+            removal_reasons+=("keine Sicherung verfügbar")
+        fi
         if [ "$marked_by_setup" -eq 1 ]; then
+            removal_allowed=true
             removal_reasons+=("Setup-Markierung")
         fi
         if [ "$backup_exists" = true ] && [ "$present_in_backup" -eq 0 ]; then
+            removal_allowed=true
             removal_reasons+=("nicht in Sicherung enthalten")
         fi
 
-        if [ ${#removal_reasons[@]} -gt 0 ]; then
+        if [ "$removal_allowed" = true ]; then
             remove_entry_from_rc_local "$entry"
             local removal_reason="${removal_reasons[0]}"
             if [ ${#removal_reasons[@]} -gt 1 ]; then
@@ -1054,8 +1091,10 @@ reset_rc_local() {
 
     if [ ${#removed_entries[@]} -gt 0 ]; then
         logMessage "Folgende rc.local Einträge wurden entfernt: ${removed_entries[*]}"
+        logMessage "rc.local wurde gezielt um Setup-Einträge bereinigt."
     else
         logMessage "Es wurden keine rc.local Einträge entfernt."
+        logMessage "rc.local blieb nach der Prüfung unverändert."
     fi
 
     if [ ${#kept_entries[@]} -gt 0 ]; then
