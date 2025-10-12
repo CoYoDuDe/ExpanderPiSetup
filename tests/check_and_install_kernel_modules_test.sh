@@ -38,8 +38,19 @@ PY
 }
 
 eval "$(load_function "check_and_install_kernel_modules")"
+eval "$(load_function "remove_kernel_modules")"
 
 eval "$(grep '^REQUIRED_MODULES=' "$SETUP_FILE")"
+
+TEST_TEMP_DIR="$(mktemp -d)"
+MODULE_STATE_DIR="${TEST_TEMP_DIR}/state"
+MODULE_TRACK_FILE="${MODULE_STATE_DIR}/installed_kernel_modules.list"
+
+cleanup() {
+    rm -rf "$TEST_TEMP_DIR"
+}
+
+trap cleanup EXIT
 
 log_entries=()
 logMessage() {
@@ -60,6 +71,8 @@ TEST_UPDATE_RESULT=0
 TEST_INSTALLED_MODULES=()
 TEST_INSTALL_CALLS=()
 declare -A TEST_INSTALL_SUCCESS=()
+TEST_REMOVE_CALLS=()
+declare -A TEST_REMOVE_SUCCESS=()
 
 opkg() {
     case "$1" in
@@ -85,6 +98,36 @@ opkg() {
             if [[ "$rc" -ne 0 ]]; then
                 return "$rc"
             fi
+            local already_present=0
+            for installed in "${TEST_INSTALLED_MODULES[@]}"; do
+                if [[ "$installed" == "$module" ]]; then
+                    already_present=1
+                    break
+                fi
+            done
+            if [[ "$already_present" -eq 0 ]]; then
+                TEST_INSTALLED_MODULES+=("$module")
+            fi
+            return 0
+            ;;
+        remove)
+            shift
+            local module="$1"
+            TEST_REMOVE_CALLS+=("$module")
+            local rc=0
+            if [[ -n "${TEST_REMOVE_SUCCESS[$module]+x}" ]]; then
+                rc="${TEST_REMOVE_SUCCESS[$module]}"
+            fi
+            if [[ "$rc" -ne 0 ]]; then
+                return "$rc"
+            fi
+            local remaining=()
+            for installed in "${TEST_INSTALLED_MODULES[@]}"; do
+                if [[ "$installed" != "$module" ]]; then
+                    remaining+=("$installed")
+                fi
+            done
+            TEST_INSTALLED_MODULES=("${remaining[@]}")
             return 0
             ;;
         *)
@@ -104,6 +147,9 @@ reset_state() {
     TEST_INSTALL_CALLS=()
     TEST_INSTALLED_MODULES=()
     TEST_INSTALL_SUCCESS=()
+    TEST_REMOVE_CALLS=()
+    TEST_REMOVE_SUCCESS=()
+    rm -rf "$MODULE_STATE_DIR"
 }
 
 assert_equals() {
@@ -139,3 +185,41 @@ assert_equals true "$rebootNeeded" "Ein fehlendes Modul erfordert einen Neustart
 assert_equals 0 "${#install_failed_messages[@]}" "Es dürfen keine Fehler gemeldet werden"
 
 echo "Szenario 'mindestens ein Modul fehlt' erfolgreich"
+
+# Prüfen, dass das Modul-Tracking die Installation erfasst hat
+if [[ ! -f "$MODULE_TRACK_FILE" ]]; then
+    echo "FEHLER: Tracking-Datei für Kernel-Module wurde nicht erstellt" >&2
+    exit 1
+fi
+
+mapfile -t tracked_modules < "$MODULE_TRACK_FILE"
+if [[ "${#tracked_modules[@]}" -ne 1 || "${tracked_modules[0]}" != "${REQUIRED_MODULES[1]}" ]]; then
+    echo "FEHLER: Unerwarteter Inhalt der Tracking-Datei: ${tracked_modules[*]}" >&2
+    exit 1
+fi
+
+echo "Tracking der Installation erfolgreich verifiziert"
+
+# Szenario: Nur markierte Module werden entfernt
+reset_state
+TEST_INSTALLED_MODULES=("${REQUIRED_MODULES[@]}")
+mkdir -p "$MODULE_STATE_DIR"
+printf '%s\n' "${REQUIRED_MODULES[1]}" > "$MODULE_TRACK_FILE"
+remove_kernel_modules
+
+assert_equals 1 "${#TEST_REMOVE_CALLS[@]}" "Es darf nur ein markiertes Modul entfernt werden"
+assert_equals "${REQUIRED_MODULES[1]}" "${TEST_REMOVE_CALLS[0]}" "Nur das markierte Modul darf entfernt werden"
+assert_equals true "$rebootNeeded" "Das Entfernen eines Moduls muss einen Neustart erfordern"
+assert_equals 0 "${#install_failed_messages[@]}" "Es dürfen keine Fehler gemeldet werden"
+
+if [[ -f "$MODULE_TRACK_FILE" ]]; then
+    echo "FEHLER: Tracking-Datei muss nach erfolgreicher Entfernung leer sein" >&2
+    exit 1
+fi
+
+if ! printf '%s\n' "${log_entries[@]}" | grep -q "Folgende Module wurden nicht zum Entfernen markiert und bleiben erhalten: ${REQUIRED_MODULES[0]}"; then
+    echo "FEHLER: Logeintrag für behaltenes Modul fehlt" >&2
+    exit 1
+fi
+
+echo "Szenario 'markierte Module entfernen' erfolgreich"
