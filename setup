@@ -12,7 +12,6 @@ ROOT_PATH=/data/ExpanderPiSetup
 
 # Pfaddefinitionen
 CONFIG_FILE="/etc/venus/dbus-adc.conf"
-SOURCE_CONFIG_FILE="${ROOT_PATH}/FileSets/configs/dbus-adc.conf"
 BACKUP_CONFIG_FILE="${CONFIG_FILE}.orig"
 SOURCE_FILE_DIR="${ROOT_PATH}/FileSets"
 OVERLAYS=("i2c-rtc.dtbo" "ds1307-rtc.dtbo" "mcp3208.dtbo")
@@ -30,6 +29,8 @@ RC_LOCAL_CONTENT="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhw
 USER_CONFIG_FILE="${ROOT_PATH}/dbus-adc.user.conf"
 DEFAULT_VREF_FALLBACK="1.3"
 DEFAULT_SCALE_FALLBACK="4095"
+DEFAULT_CHANNEL_TYPES=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
+DEFAULT_CHANNEL_LABELS=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
 TOTAL_ADC_CHANNELS=8
 ADC_DEVICE_LINE="device iio:device0"
 
@@ -234,21 +235,32 @@ prompt_numeric_value() {
 prompt_sensor_label() {
     local channel="$1"
     local default_value="$2"
+    local require_non_empty="${3:-false}"
     local prompt_text="Sensorbezeichnung für Kanal ${channel}"
     local input=""
 
     while true; do
         if [ -n "$default_value" ]; then
-            read -rp "${prompt_text} (${default_value}, leer für keinen Sensor): " input
+            read -rp "${prompt_text} (${default_value}): " input
         else
-            read -rp "${prompt_text} (leer für keinen Sensor): " input
+            read -rp "${prompt_text}: " input
         fi
 
         if [ -z "$input" ]; then
             input="$default_value"
         fi
 
-        if [ -z "$input" ]; then
+        local trimmed_input
+        trimmed_input="$(printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+        local lowered_input
+        lowered_input="$(printf '%s' "$trimmed_input" | tr '[:upper:]' '[:lower:]')"
+
+        if [ -z "$trimmed_input" ] || [[ "$lowered_input" =~ ^(-|none|leer|kein|keine|aus)$ ]]; then
+            if [ "$require_non_empty" = "true" ]; then
+                logMessage "Bitte eine Sensorbezeichnung für Kanal ${channel} angeben."
+                continue
+            fi
+
             if declare -F yesNoPrompt >/dev/null 2>&1; then
                 if yesNoPrompt "Kanal ${channel} ohne Sensor belassen (y/n)? "; then
                     echo ""
@@ -263,44 +275,140 @@ prompt_sensor_label() {
             fi
         fi
 
-        local trimmed_input
-        trimmed_input="$(printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-        local lowered_input
-        lowered_input="$(printf '%s' "$trimmed_input" | tr '[:upper:]' '[:lower:]')"
+        if [[ "$trimmed_input" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
+            local normalized_input
+            normalized_input="$(printf '%s' "$trimmed_input" | tr '[:upper:]' '[:lower:]')"
 
-        case "$lowered_input" in
-            ""|"-"|"none"|"leer"|"kein"|"keine"|"aus")
-                if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if yesNoPrompt "Kanal ${channel} ohne Sensor belassen (y/n)? "; then
-                        echo ""
-                        return 0
-                    else
-                        logMessage "Bitte Sensorbezeichnung erneut angeben."
-                        continue
-                    fi
-                else
-                    echo ""
-                    return 0
-                fi
-                ;;
-        esac
-
-        if [[ "$lowered_input" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
             if declare -F yesNoPrompt >/dev/null 2>&1; then
-                if yesNoPrompt "Sensor '${lowered_input}' für Kanal ${channel} übernehmen (y/n)? "; then
-                    echo "$lowered_input"
+                if yesNoPrompt "Sensor '${normalized_input}' für Kanal ${channel} übernehmen (y/n)? "; then
+                    echo "$normalized_input"
                     return 0
                 else
                     logMessage "Eingabe verworfen. Bitte erneut angeben."
                     continue
                 fi
             else
-                echo "$lowered_input"
+                echo "$normalized_input"
                 return 0
             fi
         fi
 
-        logMessage "Ungültige Eingabe für Kanal ${channel}. Bitte nur Buchstaben, Zahlen sowie '._:/-' verwenden oder leer lassen."
+        logMessage "Ungültige Eingabe für Kanal ${channel}. Bitte nur Buchstaben, Zahlen sowie '._:/-' verwenden."
+    done
+}
+
+prompt_channel_assignment() {
+    local channel="$1"
+    local default_type="$2"
+    local default_label="$3"
+
+    local normalized_default_type
+    case "$default_type" in
+        ""|"none")
+            normalized_default_type="none"
+            ;;
+        tank|temp|custom|none)
+            normalized_default_type="$default_type"
+            ;;
+        *)
+            normalized_default_type="custom"
+            ;;
+    esac
+
+    local prompt_suffix=""
+    case "$normalized_default_type" in
+        tank)
+            prompt_suffix="tank"
+            ;;
+        temp)
+            prompt_suffix="temp"
+            ;;
+        custom)
+            if [ -n "$default_label" ]; then
+                prompt_suffix="benutzerdefiniert (${default_label})"
+            else
+                prompt_suffix="benutzerdefiniert"
+            fi
+            ;;
+        none)
+            prompt_suffix="leer"
+            ;;
+    esac
+
+    while true; do
+        local reply=""
+        if [ -n "$prompt_suffix" ]; then
+            read -rp "Sensortyp für Kanal ${channel} [${prompt_suffix}]: " reply
+        else
+            read -rp "Sensortyp für Kanal ${channel}: " reply
+        fi
+
+        if [ -z "$reply" ]; then
+            reply="$normalized_default_type"
+        fi
+
+        reply="$(printf '%s' "$reply" | tr '[:upper:]' '[:lower:]')"
+
+        case "$reply" in
+            ""|"none"|"leer"|"aus"|"kein"|"keine"|"0")
+                if declare -F yesNoPrompt >/dev/null 2>&1; then
+                    if yesNoPrompt "Kanal ${channel} ohne Sensor übernehmen (y/n)? "; then
+                        printf 'none|\n'
+                        return 0
+                    else
+                        logMessage "Bitte Auswahl erneut treffen."
+                        continue
+                    fi
+                else
+                    printf 'none|\n'
+                    return 0
+                fi
+                ;;
+            tank|t|tank-sensor|tanksensor)
+                if declare -F yesNoPrompt >/dev/null 2>&1; then
+                    if ! yesNoPrompt "Kanal ${channel} als Tank-Sensor übernehmen (y/n)? "; then
+                        logMessage "Bitte Auswahl erneut treffen."
+                        continue
+                    fi
+                fi
+                printf 'tank|tank\n'
+                return 0
+                ;;
+            temp|temperatur|temperature|tempsensor|temp-sensor)
+                if declare -F yesNoPrompt >/dev/null 2>&1; then
+                    if ! yesNoPrompt "Kanal ${channel} als Temperatur-Sensor übernehmen (y/n)? "; then
+                        logMessage "Bitte Auswahl erneut treffen."
+                        continue
+                    fi
+                fi
+                printf 'temp|temp\n'
+                return 0
+                ;;
+            custom|benutzerdefiniert|user|label|sensor)
+                local custom_label
+                custom_label="$(prompt_sensor_label "$channel" "$default_label" true)"
+                if [ -z "$custom_label" ]; then
+                    logMessage "Benutzerdefinierte Sensorbezeichnung darf nicht leer sein."
+                    continue
+                fi
+                printf 'custom|%s\n' "$custom_label"
+                return 0
+                ;;
+            *)
+                if [[ "$reply" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
+                    if declare -F yesNoPrompt >/dev/null 2>&1; then
+                        if ! yesNoPrompt "Kanal ${channel} als '${reply}' übernehmen (y/n)? "; then
+                            logMessage "Bitte Auswahl erneut treffen."
+                            continue
+                        fi
+                    fi
+                    printf 'custom|%s\n' "$reply"
+                    return 0
+                fi
+
+                logMessage "Ungültige Auswahl für Kanal ${channel}. Gültig sind 'tank', 'temp', 'custom' oder eine eigene Bezeichnung."
+                ;;
+        esac
     done
 }
 
@@ -312,46 +420,20 @@ install_config() {
 
     local default_vref="$DEFAULT_VREF_FALLBACK"
     local default_scale="$DEFAULT_SCALE_FALLBACK"
-    local -a default_channels
-    local -a channel_values
-    local -a saved_channels
+    local -a default_channel_types=("${DEFAULT_CHANNEL_TYPES[@]}")
+    local -a default_channel_labels=("${DEFAULT_CHANNEL_LABELS[@]}")
+    local -a channel_types
+    local -a channel_labels
+    local -a saved_channel_types
+    local -a saved_channel_labels
     local channel
 
     for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-        default_channels[channel]=""
-        channel_values[channel]=""
-        saved_channels[channel]=""
+        channel_types[channel]="${default_channel_types[channel]}"
+        channel_labels[channel]="${default_channel_labels[channel]}"
+        saved_channel_types[channel]=""
+        saved_channel_labels[channel]=""
     done
-
-    if [ -f "$SOURCE_CONFIG_FILE" ]; then
-        while read -r key value _; do
-            case "$key" in
-                ''|\#*)
-                    continue
-                    ;;
-                device)
-                    continue
-                    ;;
-                vref)
-                    if [ -n "$value" ]; then
-                        default_vref="$value"
-                    fi
-                    ;;
-                scale)
-                    if [ -n "$value" ]; then
-                        default_scale="$value"
-                    fi
-                    ;;
-                *)
-                    if [[ "$value" =~ ^[0-7]$ ]]; then
-                        default_channels[value]="$key"
-                    fi
-                    ;;
-            esac
-        done < "$SOURCE_CONFIG_FILE"
-    else
-        logMessage "Warnung: ${SOURCE_CONFIG_FILE} wurde nicht gefunden. Verwende Fallback-Standardwerte."
-    fi
 
     local saved_vref=""
     local saved_scale=""
@@ -361,8 +443,38 @@ install_config() {
         saved_vref="${USER_VREF:-}"
         saved_scale="${USER_SCALE:-}"
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-            local var_name="USER_CHANNEL_${channel}"
-            saved_channels[channel]="${!var_name}"
+            local label_var="USER_CHANNEL_${channel}"
+            local type_var="USER_CHANNEL_${channel}_TYPE"
+            local saved_label=""
+            local saved_type=""
+
+            if eval "[[ -v ${label_var} ]]" 2>/dev/null; then
+                saved_label="$(eval "printf '%s' \"\${$label_var}\"")"
+            fi
+
+            if eval "[[ -v ${type_var} ]]" 2>/dev/null; then
+                saved_type="$(eval "printf '%s' \"\${$type_var}\"")"
+            fi
+
+            if [ -z "$saved_type" ]; then
+                case "$saved_label" in
+                    tank)
+                        saved_type="tank"
+                        ;;
+                    temp)
+                        saved_type="temp"
+                        ;;
+                    "")
+                        saved_type="none"
+                        ;;
+                    *)
+                        saved_type="custom"
+                        ;;
+                esac
+            fi
+
+            saved_channel_labels[channel]="$saved_label"
+            saved_channel_types[channel]="$saved_type"
         done
     fi
 
@@ -370,9 +482,10 @@ install_config() {
     if [ -n "$saved_vref" ] || [ -n "$saved_scale" ]; then
         local summary=""
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-            local value="${saved_channels[channel]}"
-            if [ -n "$value" ]; then
-                summary+="${value}→${channel}, "
+            local type_value="${saved_channel_types[channel]}"
+            local label_value="${saved_channel_labels[channel]}"
+            if [ -n "$label_value" ]; then
+                summary+="Kanal ${channel}: ${label_value} (${type_value}), "
             else
                 summary+="Kanal ${channel}: leer, "
             fi
@@ -410,10 +523,13 @@ install_config() {
         vref_value="${saved_vref:-$default_vref}"
         scale_value="${saved_scale:-$default_scale}"
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-            if [ -n "${saved_channels[channel]}" ]; then
-                channel_values[channel]="${saved_channels[channel]}"
-            else
-                channel_values[channel]="${default_channels[channel]}"
+            local saved_label="${saved_channel_labels[channel]}"
+            local saved_type="${saved_channel_types[channel]}"
+            if [ -n "$saved_type" ] && [ "$saved_type" != "none" ]; then
+                channel_types[channel]="$saved_type"
+            fi
+            if [ -n "$saved_label" ]; then
+                channel_labels[channel]="$saved_label"
             fi
         done
         logMessage "Gespeicherte Konfiguration wird erneut angewendet."
@@ -424,18 +540,30 @@ install_config() {
         scale_value="$(prompt_numeric_value "Skalierungsfaktor (Scale)" "$prompt_scale_default" '^[0-9]+$' "Bitte eine ganze Zahl für den Skalierungsfaktor angeben.")"
 
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-            local default_choice="${saved_channels[channel]}"
-            if [ -z "$default_choice" ]; then
-                default_choice="${default_channels[channel]}"
+            local default_type="${saved_channel_types[channel]}"
+            local default_label="${saved_channel_labels[channel]}"
+
+            if [ -z "$default_type" ] || [ "$default_type" = "none" ]; then
+                default_type="${channel_types[channel]}"
             fi
-            channel_values[channel]="$(prompt_sensor_label "$channel" "$default_choice")"
+            if [ -z "$default_label" ]; then
+                default_label="${channel_labels[channel]}"
+            fi
+
+            local response
+            response="$(prompt_channel_assignment "$channel" "$default_type" "$default_label")"
+            local selected_type="${response%%|*}"
+            local selected_label="${response#*|}"
+
+            channel_types[channel]="${selected_type:-none}"
+            channel_labels[channel]="$selected_label"
         done
     fi
 
     local mapping_summary=""
     for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-        if [ -n "${channel_values[channel]}" ]; then
-            mapping_summary+="${channel_values[channel]}→${channel}, "
+        if [ -n "${channel_labels[channel]}" ]; then
+            mapping_summary+="Kanal ${channel}: ${channel_labels[channel]} (${channel_types[channel]}), "
         else
             mapping_summary+="Kanal ${channel}: leer, "
         fi
@@ -458,8 +586,8 @@ install_config() {
         echo "scale ${scale_value}"
         echo
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-            if [ -n "${channel_values[channel]}" ]; then
-                echo "${channel_values[channel]} ${channel}"
+            if [ -n "${channel_labels[channel]}" ]; then
+                echo "${channel_labels[channel]} ${channel}"
             fi
         done
     } > "$temp_config"
@@ -484,8 +612,11 @@ install_config() {
         echo "USER_VREF=\"${vref_value}\""
         echo "USER_SCALE=\"${scale_value}\""
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-            local value="${channel_values[channel]}"
+            local value="${channel_labels[channel]}"
+            local type_value="${channel_types[channel]}"
             echo "USER_CHANNEL_${channel}=\"${value}\""
+            echo "USER_CHANNEL_${channel}_TYPE=\"${type_value}\""
+            echo "USER_CHANNEL_${channel}_LABEL=\"${value}\""
         done
     } > "$USER_CONFIG_FILE"
 
