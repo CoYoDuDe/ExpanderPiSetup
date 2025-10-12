@@ -23,6 +23,7 @@ CONFIG_TXT_BACKUP="/u-boot/config.txt.orig"
 REQUIRED_MODULES=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
 MODULE_STATE_DIR="${ROOT_PATH}/state"
 MODULE_TRACK_FILE="${MODULE_STATE_DIR}/installed_kernel_modules.list"
+RC_LOCAL_STATE_FILE="${MODULE_STATE_DIR}/rc_local_entries.list"
 RC_LOCAL_FILE="/data/rc.local"
 RC_LOCAL_BACKUP="/data/rc.local.orig"
 RC_LOCAL_CONTENT="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
@@ -58,14 +59,29 @@ fi
 # Eintrag in rc.local hinzufügen
 add_entry_to_rc_local() {
     local ENTRY="$1"
+    local entry_added=0
     if [ ! -f "$RC_LOCAL_FILE" ]; then
         echo "$ENTRY" > "$RC_LOCAL_FILE"
+        entry_added=1
     else
-        if ! grep -qF "$ENTRY" "$RC_LOCAL_FILE"; then
+        if ! grep -qF -- "$ENTRY" "$RC_LOCAL_FILE"; then
             echo "$ENTRY" >> "$RC_LOCAL_FILE"
+            entry_added=1
         fi
     fi
     chmod +x "$RC_LOCAL_FILE"
+
+    if [ "$entry_added" -eq 1 ]; then
+        mkdir -p "$(dirname "$RC_LOCAL_STATE_FILE")"
+        if [ ! -f "$RC_LOCAL_STATE_FILE" ]; then
+            printf '%s\n' "$ENTRY" > "$RC_LOCAL_STATE_FILE"
+        elif ! grep -qFx -- "$ENTRY" "$RC_LOCAL_STATE_FILE"; then
+            printf '%s\n' "$ENTRY" >> "$RC_LOCAL_STATE_FILE"
+        fi
+        logMessage "rc.local Eintrag \"$ENTRY\" wurde hinzugefügt und als durch das Setup verwaltet markiert."
+    else
+        logMessage "rc.local Eintrag \"$ENTRY\" war bereits vorhanden und bleibt unverändert."
+    fi
 }
 
 # Eintrag aus rc.local entfernen
@@ -812,8 +828,95 @@ setup_rc_local() {
 # rc.local zurücksetzen
 reset_rc_local() {
     logMessage "Setze rc.local zurück..."
-    remove_entry_from_rc_local "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
-    remove_entry_from_rc_local "hwclock -s"
+    if [ ! -f "$RC_LOCAL_FILE" ]; then
+        logMessage "rc.local ist nicht vorhanden; es wurden keine Änderungen vorgenommen."
+        return
+    fi
+
+    local entries=(
+        "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
+        "hwclock -s"
+    )
+    local backup_exists=false
+    if [ -f "$RC_LOCAL_BACKUP" ]; then
+        backup_exists=true
+    fi
+
+    local removed_entries=()
+    local kept_entries=()
+    local absent_entries=()
+
+    local entry
+    for entry in "${entries[@]}"; do
+        if ! grep -qF -- "$entry" "$RC_LOCAL_FILE"; then
+            logMessage "rc.local Eintrag \"$entry\" ist nicht vorhanden; keine Aktion erforderlich."
+            absent_entries+=("$entry")
+            continue
+        fi
+
+        local present_in_backup=0
+        if [ "$backup_exists" = true ] && grep -qF -- "$entry" "$RC_LOCAL_BACKUP"; then
+            present_in_backup=1
+        fi
+
+        local marked_by_setup=0
+        if [ -f "$RC_LOCAL_STATE_FILE" ] && grep -qFx -- "$entry" "$RC_LOCAL_STATE_FILE"; then
+            marked_by_setup=1
+        fi
+
+        if [ "$present_in_backup" -eq 1 ]; then
+            logMessage "rc.local Eintrag \"$entry\" bleibt bestehen, da er bereits in der Sicherung enthalten war."
+            kept_entries+=("$entry")
+            continue
+        fi
+
+        local removal_reasons=()
+        if [ "$marked_by_setup" -eq 1 ]; then
+            removal_reasons+=("Setup-Markierung")
+        fi
+        if [ "$backup_exists" = true ] && [ "$present_in_backup" -eq 0 ]; then
+            removal_reasons+=("nicht in Sicherung enthalten")
+        fi
+
+        if [ ${#removal_reasons[@]} -gt 0 ]; then
+            remove_entry_from_rc_local "$entry"
+            local removal_reason="${removal_reasons[0]}"
+            if [ ${#removal_reasons[@]} -gt 1 ]; then
+                local reason_index
+                for reason_index in "${removal_reasons[@]:1}"; do
+                    removal_reason+=", ${reason_index}"
+                done
+            fi
+            logMessage "rc.local Eintrag \"$entry\" wurde entfernt (${removal_reason})."
+            removed_entries+=("$entry")
+            if [ -f "$RC_LOCAL_STATE_FILE" ]; then
+                local escaped_entry
+                escaped_entry=$(printf '%s\n' "$entry" | sed 's/[\/&]/\\&/g')
+                sed -i "/^${escaped_entry}$/d" "$RC_LOCAL_STATE_FILE"
+            fi
+        else
+            logMessage "rc.local Eintrag \"$entry\" bleibt bestehen, da kein Nachweis für eine Setup-Herkunft vorliegt."
+            kept_entries+=("$entry")
+        fi
+    done
+
+    if [ -f "$RC_LOCAL_STATE_FILE" ] && [ ! -s "$RC_LOCAL_STATE_FILE" ]; then
+        rm -f "$RC_LOCAL_STATE_FILE"
+    fi
+
+    if [ ${#removed_entries[@]} -gt 0 ]; then
+        logMessage "Folgende rc.local Einträge wurden entfernt: ${removed_entries[*]}"
+    else
+        logMessage "Es wurden keine rc.local Einträge entfernt."
+    fi
+
+    if [ ${#kept_entries[@]} -gt 0 ]; then
+        logMessage "Folgende rc.local Einträge blieben erhalten: ${kept_entries[*]}"
+    fi
+
+    if [ ${#absent_entries[@]} -gt 0 ]; then
+        logMessage "Folgende erwartete rc.local Einträge waren bereits entfernt: ${absent_entries[*]}"
+    fi
 }
 
 case "$scriptAction" in
