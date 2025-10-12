@@ -24,6 +24,11 @@ RC_LOCAL_FILE="/data/rc.local"
 RC_LOCAL_BACKUP="/data/rc.local.orig"
 RC_LOCAL_CONTENT="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
 
+# Statusflags für Sicherungen und Wiederherstellungen
+configBackupExisted=false
+[ -f "$BACKUP_CONFIG_FILE" ] && configBackupExisted=true
+configRestorePerformed=false
+
 # Kompatibilität prüfen
 if [ ! -f /etc/venus/machine ]; then
     logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
@@ -63,6 +68,7 @@ remove_entry_from_rc_local() {
 backup_originals() {
     logMessage "Sichere Originaldateien..."
     backupFile "$CONFIG_FILE" "$BACKUP_CONFIG_FILE"
+    [ -f "$BACKUP_CONFIG_FILE" ] && configBackupExisted=true
     backupFile "$CONFIG_TXT" "$CONFIG_TXT_BACKUP"
     backupFile "$RC_LOCAL_FILE" "$RC_LOCAL_BACKUP"
 }
@@ -70,7 +76,11 @@ backup_originals() {
 # Originaldateien wiederherstellen
 restore_originals() {
     logMessage "Stelle Originaldateien wieder her..."
-    restoreFile "$BACKUP_CONFIG_FILE" "$CONFIG_FILE"
+    if restoreFile "$BACKUP_CONFIG_FILE" "$CONFIG_FILE"; then
+        configRestorePerformed=true
+    else
+        configRestorePerformed=false
+    fi
     restoreFile "$CONFIG_TXT_BACKUP" "$CONFIG_TXT"
     restoreFile "$RC_LOCAL_BACKUP" "$RC_LOCAL_FILE"
 }
@@ -115,7 +125,20 @@ uninstall_config() {
     remove_entry_from_rc_local "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
     remove_entry_from_rc_local "hwclock -s"
 
-    [ -f "$CONFIG_FILE" ] && rm -f "$CONFIG_FILE"
+    if [ "$configBackupExisted" = true ] && [ "$configRestorePerformed" = true ]; then
+        if [ -f "$CONFIG_FILE" ]; then
+            logMessage "dbus-adc.conf wurde aus der Sicherung wiederhergestellt und bleibt bestehen."
+        else
+            logMessage "Hinweis: dbus-adc.conf sollte erhalten bleiben, ist aber nicht vorhanden."
+        fi
+    else
+        if [ -f "$CONFIG_FILE" ]; then
+            rm -f "$CONFIG_FILE"
+            logMessage "dbus-adc.conf entfernt (keine Sicherung vorhanden oder Wiederherstellung fehlgeschlagen)."
+        else
+            logMessage "dbus-adc.conf war nicht vorhanden und musste nicht entfernt werden."
+        fi
+    fi
 
     logMessage "Konfigurationsdateien deinstalliert."
 }
