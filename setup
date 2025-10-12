@@ -401,7 +401,11 @@ prompt_channel_assignment() {
                         continue
                     fi
                 fi
-                printf 'tank|tank\n'
+                local tank_label="$default_label"
+                if [ -z "$tank_label" ]; then
+                    tank_label="tank"
+                fi
+                printf 'tank|%s\n' "$tank_label"
                 return 0
                 ;;
             temp|temperatur|temperature|tempsensor|temp-sensor)
@@ -411,7 +415,11 @@ prompt_channel_assignment() {
                         continue
                     fi
                 fi
-                printf 'temp|temp\n'
+                local temp_label="$default_label"
+                if [ -z "$temp_label" ]; then
+                    temp_label="temp"
+                fi
+                printf 'temp|%s\n' "$temp_label"
                 return 0
                 ;;
             custom|benutzerdefiniert|user|label|sensor)
