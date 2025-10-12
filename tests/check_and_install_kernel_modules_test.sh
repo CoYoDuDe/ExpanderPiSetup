@@ -53,6 +53,7 @@ setInstallFailed() {
 
 EXIT_ERROR=1
 rebootNeeded=false
+OPKG_UPDATE_PERFORMED=false
 
 TEST_UPDATE_CALLS=0
 TEST_UPDATE_RESULT=0
@@ -97,6 +98,7 @@ reset_state() {
     log_entries=()
     install_failed_messages=()
     rebootNeeded=false
+    OPKG_UPDATE_PERFORMED=false
     TEST_UPDATE_CALLS=0
     TEST_UPDATE_RESULT=0
     TEST_INSTALL_CALLS=()
