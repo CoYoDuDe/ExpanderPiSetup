@@ -17,6 +17,7 @@ BACKUP_CONFIG_FILE="${CONFIG_FILE}.orig"
 SOURCE_FILE_DIR="${ROOT_PATH}/FileSets"
 OVERLAYS=("i2c-rtc.dtbo" "ds1307-rtc.dtbo" "mcp3208.dtbo")
 OVERLAY_DIR="/u-boot/overlays"
+OVERLAY_STATE_DIR="${ROOT_PATH}/overlay_state"
 CONFIG_TXT="/u-boot/config.txt"
 CONFIG_TXT_BACKUP="/u-boot/config.txt.orig"
 REQUIRED_MODULES=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
@@ -63,6 +64,32 @@ remove_entry_from_rc_local() {
     [ -f "$RC_LOCAL_FILE" ] && sed -i "/^$(echo "$ENTRY" | sed 's/[\/&]/\\&/g')$/d" "$RC_LOCAL_FILE"
 }
 
+# Hilfsfunktionen zum Verwalten des Overlay-Status
+set_overlay_state_value() {
+    local state_file="$1"
+    local key="$2"
+    local value="$3"
+
+    if [ -f "$state_file" ]; then
+        if grep -q "^${key}=" "$state_file"; then
+            sed -i "s/^${key}=.*/${key}=${value}/" "$state_file"
+            return
+        fi
+    fi
+
+    mkdir -p "$(dirname "$state_file")"
+    echo "${key}=${value}" >> "$state_file"
+}
+
+get_overlay_state_value() {
+    local state_file="$1"
+    local key="$2"
+
+    if [ -f "$state_file" ]; then
+        grep -E "^${key}=" "$state_file" | tail -n1 | cut -d'=' -f2-
+    fi
+}
+
 ## Originaldateien sichern und wiederherstellen
 # Originaldateien sichern
 backup_originals() {
@@ -71,6 +98,31 @@ backup_originals() {
     [ -f "$BACKUP_CONFIG_FILE" ] && configBackupExisted=true
     backupFile "$CONFIG_TXT" "$CONFIG_TXT_BACKUP"
     backupFile "$RC_LOCAL_FILE" "$RC_LOCAL_BACKUP"
+
+    mkdir -p "$OVERLAY_STATE_DIR"
+    for overlay in "${OVERLAYS[@]}"; do
+        local overlay_path="$OVERLAY_DIR/$overlay"
+        local state_file="$OVERLAY_STATE_DIR/${overlay}.state"
+        local backup_file="$OVERLAY_STATE_DIR/${overlay}.orig"
+
+        rm -f "$backup_file"
+        : > "$state_file"
+
+        if [ -f "$overlay_path" ]; then
+            if cp "$overlay_path" "$backup_file"; then
+                logMessage "Overlay $overlay wurde gesichert."
+                set_overlay_state_value "$state_file" "original" "present"
+            else
+                logMessage "Fehler beim Sichern von Overlay $overlay."
+                setInstallFailed $EXIT_ERROR "Fehler beim Sichern von Overlay $overlay."
+            fi
+        else
+            logMessage "Overlay $overlay war vor der Installation nicht vorhanden."
+            set_overlay_state_value "$state_file" "original" "absent"
+        fi
+
+        set_overlay_state_value "$state_file" "installed_by_setup" "false"
+    done
 }
 
 # Originaldateien wiederherstellen
@@ -148,12 +200,18 @@ uninstall_config() {
 check_and_restore_overlays() {
     logMessage "Prüfe und stelle Overlays wieder her..."
     for overlay in "${OVERLAYS[@]}"; do
+        local state_file="$OVERLAY_STATE_DIR/${overlay}.state"
         if [ ! -f "$OVERLAY_DIR/$overlay" ]; then
             logMessage "Overlay $overlay fehlt. Wiederherstellung aus $SOURCE_FILE_DIR/overlays..."
             if [ -f "$SOURCE_FILE_DIR/overlays/$overlay" ]; then
-                cp "$SOURCE_FILE_DIR/overlays/$overlay" "$OVERLAY_DIR/"
-                logMessage "Overlay $overlay erfolgreich wiederhergestellt."
-                rebootNeeded=true
+                if cp "$SOURCE_FILE_DIR/overlays/$overlay" "$OVERLAY_DIR/"; then
+                    logMessage "Overlay $overlay erfolgreich wiederhergestellt."
+                    set_overlay_state_value "$state_file" "installed_by_setup" "true"
+                    rebootNeeded=true
+                else
+                    logMessage "Fehler beim Wiederherstellen von Overlay $overlay."
+                    setInstallFailed $EXIT_ERROR "Fehler beim Wiederherstellen von Overlay $overlay."
+                fi
             else
                 logMessage "Fehler: Quelle für Overlay $overlay nicht gefunden."
                 setInstallFailed $EXIT_FILE_SET_ERROR "Fehler: Quelle für Overlay $overlay nicht gefunden."
@@ -168,9 +226,47 @@ check_and_restore_overlays() {
 remove_overlays() {
     logMessage "Entferne Overlays..."
     for overlay in "${OVERLAYS[@]}"; do
-        [ -f "$OVERLAY_DIR/$overlay" ] && rm -f "$OVERLAY_DIR/$overlay"
+        local overlay_path="$OVERLAY_DIR/$overlay"
+        local state_file="$OVERLAY_STATE_DIR/${overlay}.state"
+        local backup_file="$OVERLAY_STATE_DIR/${overlay}.orig"
+        local original_state="$(get_overlay_state_value "$state_file" "original")"
+        local installed_by_setup="$(get_overlay_state_value "$state_file" "installed_by_setup")"
+
+        if [ -f "$backup_file" ]; then
+            if cp "$backup_file" "$overlay_path"; then
+                logMessage "Overlay $overlay wurde aus der Sicherung wiederhergestellt."
+                set_overlay_state_value "$state_file" "installed_by_setup" "false"
+            else
+                logMessage "Fehler beim Wiederherstellen von Overlay $overlay aus der Sicherung."
+                setInstallFailed $EXIT_ERROR "Fehler beim Wiederherstellen von Overlay $overlay aus der Sicherung."
+            fi
+        else
+            if [ "$installed_by_setup" = "true" ]; then
+                if [ -f "$overlay_path" ]; then
+                    if rm -f "$overlay_path"; then
+                        logMessage "Overlay $overlay wurde entfernt (durch das Setup bereitgestellt)."
+                    else
+                        logMessage "Fehler beim Entfernen von Overlay $overlay."
+                        setInstallFailed $EXIT_ERROR "Fehler beim Entfernen von Overlay $overlay."
+                    fi
+                else
+                    logMessage "Overlay $overlay war nicht mehr vorhanden (bereits entfernt)."
+                fi
+                set_overlay_state_value "$state_file" "installed_by_setup" "false"
+            else
+                if [ -f "$overlay_path" ]; then
+                    if [ "$original_state" = "present" ]; then
+                        logMessage "Overlay $overlay bleibt erhalten (gehörte nicht zum Setup)."
+                    else
+                        logMessage "Overlay $overlay ist vorhanden, aber wurde nicht vom Setup verwaltet."
+                    fi
+                else
+                    logMessage "Overlay $overlay war nicht vorhanden und musste nicht entfernt werden."
+                fi
+            fi
+        fi
     done
-    logMessage "Overlays entfernt."
+    logMessage "Overlay-Verarbeitung abgeschlossen."
 }
 
 ## Kernel-Module prüfen und installieren bzw. deinstallieren
