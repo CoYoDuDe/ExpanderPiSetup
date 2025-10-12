@@ -1051,7 +1051,6 @@ reset_rc_local() {
         local removal_reasons=()
         local removal_allowed=false
         if [ "$backup_exists" = false ]; then
-            removal_allowed=true
             removal_reasons+=("keine Sicherung verfügbar")
         fi
         if [ "$marked_by_setup" -eq 1 ]; then
