@@ -241,10 +241,21 @@ remove_overlays() {
                 setInstallFailed $EXIT_ERROR "Fehler beim Wiederherstellen von Overlay $overlay aus der Sicherung."
             fi
         else
+            local should_remove=false
+            local removal_reason=""
+
             if [ "$installed_by_setup" = "true" ]; then
+                should_remove=true
+                removal_reason="(durch das Setup bereitgestellt)"
+            elif [ -z "$installed_by_setup" ] && [ -z "$original_state" ]; then
+                should_remove=true
+                removal_reason="(keine Zustandsinformationen verfügbar, entferne vorsorglich)"
+            fi
+
+            if $should_remove; then
                 if [ -f "$overlay_path" ]; then
                     if rm -f "$overlay_path"; then
-                        logMessage "Overlay $overlay wurde entfernt (durch das Setup bereitgestellt)."
+                        logMessage "Overlay $overlay wurde entfernt ${removal_reason}."
                     else
                         logMessage "Fehler beim Entfernen von Overlay $overlay."
                         setInstallFailed $EXIT_ERROR "Fehler beim Entfernen von Overlay $overlay."
