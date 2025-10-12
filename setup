@@ -21,6 +21,8 @@ OVERLAY_STATE_DIR="${ROOT_PATH}/overlay_state"
 CONFIG_TXT="/u-boot/config.txt"
 CONFIG_TXT_BACKUP="/u-boot/config.txt.orig"
 REQUIRED_MODULES=("kernel-module-rtc-ds1307" "kernel-module-mcp320x")
+MODULE_STATE_DIR="${ROOT_PATH}/state"
+MODULE_TRACK_FILE="${MODULE_STATE_DIR}/installed_kernel_modules.list"
 RC_LOCAL_FILE="/data/rc.local"
 RC_LOCAL_BACKUP="/data/rc.local.orig"
 RC_LOCAL_CONTENT="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
@@ -329,10 +331,11 @@ remove_overlays() {
 check_and_install_kernel_modules() {
     logMessage "Prüfe und installiere Kernel-Module..."
     local missing_modules=()
+    local newly_installed=()
 
     for module in "${REQUIRED_MODULES[@]}"; do
         if opkg list-installed | grep -q "$module"; then
-            logMessage "$module ist bereits installiert."
+            logMessage "$module ist bereits installiert und bleibt unverändert."
         else
             missing_modules+=("$module")
         fi
@@ -359,30 +362,148 @@ check_and_install_kernel_modules() {
         if opkg install "$module"; then
             logMessage "$module installiert."
             rebootNeeded=true
+            if [ ! -d "$MODULE_STATE_DIR" ]; then
+                mkdir -p "$MODULE_STATE_DIR"
+            fi
+            if [ ! -f "$MODULE_TRACK_FILE" ]; then
+                : > "$MODULE_TRACK_FILE"
+            fi
+            if ! grep -Fxq "$module" "$MODULE_TRACK_FILE"; then
+                echo "$module" >> "$MODULE_TRACK_FILE"
+                logMessage "$module wurde für eine spätere Deinstallation markiert."
+            else
+                logMessage "$module war bereits als durch das Setup installiert markiert."
+            fi
+            newly_installed+=("$module")
         else
             logMessage "Fehler bei der Installation von $module."
             setInstallFailed $EXIT_ERROR "Fehler bei der Installation von $module."
         fi
     done
+
+    if [ ${#newly_installed[@]} -gt 0 ]; then
+        logMessage "Neu installierte Kernel-Module: ${newly_installed[*]}"
+    else
+        logMessage "Keine neuen Kernel-Module erforderlich; bestehende Installationen bleiben erhalten."
+    fi
 }
 
 # Kernel-Module deinstallieren
 remove_kernel_modules() {
-    logMessage "Entferne Kernel-Module..."
-    for module in "${REQUIRED_MODULES[@]}"; do
+    logMessage "Entferne Kernel-Module, die vom Setup installiert wurden..."
+
+    if [ ! -f "$MODULE_TRACK_FILE" ]; then
+        for module in "${REQUIRED_MODULES[@]}"; do
+            logMessage "Modul $module wurde nicht zum Entfernen markiert und bleibt unverändert."
+        done
+        logMessage "Keine markierten Kernel-Module gefunden; es wurde nichts entfernt."
+        return
+    fi
+
+    local marked_modules=()
+    mapfile -t marked_modules < "$MODULE_TRACK_FILE"
+
+    local filtered_marked=()
+    local entry
+    for entry in "${marked_modules[@]}"; do
+        if [ -n "$entry" ]; then
+            filtered_marked+=("$entry")
+        fi
+    done
+    marked_modules=("${filtered_marked[@]}")
+
+    if [ ${#marked_modules[@]} -eq 0 ]; then
+        for module in "${REQUIRED_MODULES[@]}"; do
+            logMessage "Modul $module wurde nicht zum Entfernen markiert und bleibt unverändert."
+        done
+        logMessage "Die Markierungsliste ist leer; es wurde nichts entfernt."
+        return
+    fi
+
+    local removed_modules=()
+    local failed_removals=()
+    local already_absent_modules=()
+
+    for module in "${marked_modules[@]}"; do
         if opkg list-installed | grep -q "$module"; then
-            logMessage "Entferne $module..."
+            logMessage "Entferne markiertes Modul $module..."
             if opkg remove "$module"; then
                 logMessage "$module entfernt."
+                removed_modules+=("$module")
                 rebootNeeded=true
             else
                 logMessage "Fehler beim Entfernen von $module."
                 setInstallFailed $EXIT_ERROR "Fehler beim Entfernen von $module."
+                failed_removals+=("$module")
             fi
         else
-            logMessage "$module ist nicht installiert."
+            logMessage "Markiertes Modul $module ist nicht installiert und bleibt unverändert."
+            already_absent_modules+=("$module")
         fi
     done
+
+    if [ ${#removed_modules[@]} -gt 0 ] || [ ${#already_absent_modules[@]} -gt 0 ]; then
+        local remaining_marked=()
+        for module in "${marked_modules[@]}"; do
+            local remove_entry=0
+            for removed in "${removed_modules[@]}"; do
+                if [ "$module" = "$removed" ]; then
+                    remove_entry=1
+                    break
+                fi
+            done
+            if [ "$remove_entry" -eq 0 ]; then
+                local missing_entry=0
+                for missing in "${already_absent_modules[@]}"; do
+                    if [ "$module" = "$missing" ]; then
+                        missing_entry=1
+                        break
+                    fi
+                done
+                if [ "$missing_entry" -eq 0 ]; then
+                    remaining_marked+=("$module")
+                fi
+            fi
+        done
+
+        if [ ${#remaining_marked[@]} -gt 0 ]; then
+            printf '%s\n' "${remaining_marked[@]}" > "$MODULE_TRACK_FILE"
+        else
+            rm -f "$MODULE_TRACK_FILE"
+        fi
+    fi
+
+    if [ ${#removed_modules[@]} -gt 0 ]; then
+        logMessage "Folgende markierte Module wurden entfernt: ${removed_modules[*]}"
+    else
+        logMessage "Es wurden keine markierten Module entfernt."
+    fi
+
+    if [ ${#already_absent_modules[@]} -gt 0 ]; then
+        logMessage "Folgende markierte Module waren bereits nicht installiert: ${already_absent_modules[*]}"
+    fi
+
+    if [ ${#failed_removals[@]} -gt 0 ]; then
+        logMessage "Folgende markierte Module konnten nicht entfernt werden und bleiben installiert: ${failed_removals[*]}"
+    fi
+
+    local unmarked_modules=()
+    for module in "${REQUIRED_MODULES[@]}"; do
+        local is_marked=0
+        for marked in "${marked_modules[@]}"; do
+            if [ "$module" = "$marked" ]; then
+                is_marked=1
+                break
+            fi
+        done
+        if [ "$is_marked" -eq 0 ]; then
+            unmarked_modules+=("$module")
+        fi
+    done
+
+    if [ ${#unmarked_modules[@]} -gt 0 ]; then
+        logMessage "Folgende Module wurden nicht zum Entfernen markiert und bleiben erhalten: ${unmarked_modules[*]}"
+    fi
 }
 
 ## rc.local einrichten und zurücksetzen
