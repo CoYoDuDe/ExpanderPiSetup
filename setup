@@ -104,24 +104,36 @@ backup_originals() {
         local overlay_path="$OVERLAY_DIR/$overlay"
         local state_file="$OVERLAY_STATE_DIR/${overlay}.state"
         local backup_file="$OVERLAY_STATE_DIR/${overlay}.orig"
+        local absent_marker="$OVERLAY_STATE_DIR/${overlay}.absent"
+        local timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
-        rm -f "$backup_file"
+        rm -f "$backup_file" "$absent_marker"
         : > "$state_file"
 
         if [ -f "$overlay_path" ]; then
             if cp "$overlay_path" "$backup_file"; then
-                logMessage "Overlay $overlay wurde gesichert."
+                local checksum="unbekannt"
+                if command -v sha256sum >/dev/null 2>&1; then
+                    checksum="$(sha256sum "$overlay_path" | awk '{print $1}')"
+                fi
+                logMessage "Overlay $overlay wurde gesichert (Checksumme: $checksum)."
                 set_overlay_state_value "$state_file" "original" "present"
+                set_overlay_state_value "$state_file" "original_checksum" "$checksum"
+                set_overlay_state_value "$state_file" "original_recorded_at" "$timestamp"
             else
                 logMessage "Fehler beim Sichern von Overlay $overlay."
                 setInstallFailed $EXIT_ERROR "Fehler beim Sichern von Overlay $overlay."
             fi
         else
-            logMessage "Overlay $overlay war vor der Installation nicht vorhanden."
+            logMessage "Overlay $overlay war vor der Installation nicht vorhanden. Markiere Zustand als 'absent'."
+            : > "$absent_marker"
             set_overlay_state_value "$state_file" "original" "absent"
+            set_overlay_state_value "$state_file" "original_checksum" "nicht_vorhanden"
+            set_overlay_state_value "$state_file" "original_recorded_at" "$timestamp"
         fi
 
         set_overlay_state_value "$state_file" "installed_by_setup" "false"
+        set_overlay_state_value "$state_file" "last_action" "backup_recorded"
     done
 }
 
@@ -256,44 +268,52 @@ check_and_restore_overlays() {
 
 # Overlays entfernen
 remove_overlays() {
-    logMessage "Entferne Overlays..."
+    logMessage "Entferne oder stelle Overlays wieder her..."
     for overlay in "${OVERLAYS[@]}"; do
         local overlay_path="$OVERLAY_DIR/$overlay"
         local state_file="$OVERLAY_STATE_DIR/${overlay}.state"
         local backup_file="$OVERLAY_STATE_DIR/${overlay}.orig"
+        local absent_marker="$OVERLAY_STATE_DIR/${overlay}.absent"
         local original_state="$(get_overlay_state_value "$state_file" "original")"
         local installed_by_setup="$(get_overlay_state_value "$state_file" "installed_by_setup")"
+        local recorded_checksum="$(get_overlay_state_value "$state_file" "original_checksum")"
 
         if [ -f "$backup_file" ]; then
             if cp "$backup_file" "$overlay_path"; then
-                logMessage "Overlay $overlay wurde aus der Sicherung wiederhergestellt."
+                logMessage "Overlay $overlay wurde auf den ursprünglichen Zustand zurückgesetzt (Checksumme: ${recorded_checksum:-unbekannt})."
                 set_overlay_state_value "$state_file" "installed_by_setup" "false"
+                set_overlay_state_value "$state_file" "last_action" "restored_from_backup"
+                rm -f "$absent_marker"
             else
                 logMessage "Fehler beim Wiederherstellen von Overlay $overlay aus der Sicherung."
                 setInstallFailed $EXIT_ERROR "Fehler beim Wiederherstellen von Overlay $overlay aus der Sicherung."
             fi
         else
-            if [ "$installed_by_setup" = "true" ]; then
+            if [ "$installed_by_setup" = "true" ] && [ -f "$absent_marker" ]; then
                 if [ -f "$overlay_path" ]; then
                     if rm -f "$overlay_path"; then
-                        logMessage "Overlay $overlay wurde entfernt (durch das Setup bereitgestellt)."
+                        logMessage "Overlay $overlay (vom Setup bereitgestellt) wurde entfernt, da es ursprünglich fehlte."
+                        set_overlay_state_value "$state_file" "last_action" "removed_setup_overlay"
                     else
                         logMessage "Fehler beim Entfernen von Overlay $overlay."
                         setInstallFailed $EXIT_ERROR "Fehler beim Entfernen von Overlay $overlay."
                     fi
                 else
-                    logMessage "Overlay $overlay war nicht mehr vorhanden (bereits entfernt)."
+                    logMessage "Overlay $overlay war bereits entfernt; keine Aktion erforderlich."
+                    set_overlay_state_value "$state_file" "last_action" "already_absent"
                 fi
                 set_overlay_state_value "$state_file" "installed_by_setup" "false"
             else
                 if [ -f "$overlay_path" ]; then
                     if [ "$original_state" = "present" ]; then
-                        logMessage "Overlay $overlay bleibt erhalten (gehörte nicht zum Setup)."
+                        logMessage "Overlay $overlay bleibt unverändert, da es nicht vom Setup verwaltet wurde."
                     else
-                        logMessage "Overlay $overlay ist vorhanden, aber wurde nicht vom Setup verwaltet."
+                        logMessage "Overlay $overlay bleibt bestehen; keine Sicherung oder Setup-Verwaltung vorhanden."
                     fi
+                    set_overlay_state_value "$state_file" "last_action" "left_untouched"
                 else
-                    logMessage "Overlay $overlay war nicht vorhanden und musste nicht entfernt werden."
+                    logMessage "Overlay $overlay ist nicht vorhanden; keine Aktion erforderlich."
+                    set_overlay_state_value "$state_file" "last_action" "not_present"
                 fi
             fi
         fi
