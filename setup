@@ -772,6 +772,8 @@ remove_overlays() {
         if [ -f "$backup_file" ]; then
             if cp "$backup_file" "$overlay_path"; then
                 logMessage "Overlay $overlay wurde auf den ursprünglichen Zustand zurückgesetzt (Checksumme: ${recorded_checksum:-unbekannt})."
+                rebootNeeded=true
+                logMessage "Neustartbedarf gesetzt, da Overlay $overlay aus der Sicherung wiederhergestellt wurde."
                 set_overlay_state_value "$state_file" "installed_by_setup" "false"
                 set_overlay_state_value "$state_file" "last_action" "restored_from_backup"
                 rm -f "$absent_marker"
@@ -784,6 +786,8 @@ remove_overlays() {
                 if [ -f "$overlay_path" ]; then
                     if rm -f "$overlay_path"; then
                         logMessage "Overlay $overlay (vom Setup bereitgestellt) wurde entfernt, da es ursprünglich fehlte."
+                        rebootNeeded=true
+                        logMessage "Neustartbedarf gesetzt, da Overlay $overlay entfernt wurde."
                         set_overlay_state_value "$state_file" "last_action" "removed_setup_overlay"
                     else
                         logMessage "Fehler beim Entfernen von Overlay $overlay."
