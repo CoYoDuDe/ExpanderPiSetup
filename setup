@@ -130,9 +130,22 @@ restore_originals() {
     logMessage "Stelle Originaldateien wieder her..."
     if restoreFile "$BACKUP_CONFIG_FILE" "$CONFIG_FILE"; then
         configRestorePerformed=true
+        logMessage "Originale dbus-adc.conf wurde erfolgreich wiederhergestellt."
     else
         configRestorePerformed=false
+        if [ -f "$BACKUP_CONFIG_FILE" ]; then
+            logMessage "Warnung: Wiederherstellung der dbus-adc.conf aus der Sicherung ist fehlgeschlagen."
+        else
+            logMessage "Keine Sicherung der dbus-adc.conf gefunden; Setup-Version bleibt bestehen."
+        fi
     fi
+
+    if [ -f "$BACKUP_CONFIG_FILE" ]; then
+        configBackupExisted=true
+    else
+        configBackupExisted=false
+    fi
+
     restoreFile "$CONFIG_TXT_BACKUP" "$CONFIG_TXT"
     restoreFile "$RC_LOCAL_BACKUP" "$RC_LOCAL_FILE"
 }
@@ -177,16 +190,35 @@ uninstall_config() {
     remove_entry_from_rc_local "echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
     remove_entry_from_rc_local "hwclock -s"
 
-    if [ "$configBackupExisted" = true ] && [ "$configRestorePerformed" = true ]; then
+    local backup_file_present=false
+    [ -f "$BACKUP_CONFIG_FILE" ] && backup_file_present=true
+
+    if [ "$configRestorePerformed" = true ]; then
         if [ -f "$CONFIG_FILE" ]; then
-            logMessage "dbus-adc.conf wurde aus der Sicherung wiederhergestellt und bleibt bestehen."
+            logMessage "Originale dbus-adc.conf wurde wiederhergestellt und bleibt erhalten."
         else
-            logMessage "Hinweis: dbus-adc.conf sollte erhalten bleiben, ist aber nicht vorhanden."
+            logMessage "Warnung: Wiederhergestellte dbus-adc.conf wurde nicht gefunden."
+        fi
+
+        if [ "$backup_file_present" = true ]; then
+            logMessage "Sicherungsdatei dbus-adc.conf.orig ist weiterhin vorhanden."
+        else
+            logMessage "Sicherungsdatei dbus-adc.conf.orig wurde bereits entfernt."
         fi
     else
+        if [ "$backup_file_present" = true ]; then
+            logMessage "Sicherungsdatei dbus-adc.conf.orig ist vorhanden, konnte jedoch nicht wiederhergestellt werden."
+        else
+            logMessage "Keine Sicherung der dbus-adc.conf verfügbar; entferne Setup-Version."
+        fi
+
         if [ -f "$CONFIG_FILE" ]; then
-            rm -f "$CONFIG_FILE"
-            logMessage "dbus-adc.conf entfernt (keine Sicherung vorhanden oder Wiederherstellung fehlgeschlagen)."
+            if rm -f "$CONFIG_FILE"; then
+                logMessage "dbus-adc.conf aus dem Setup wurde entfernt."
+            else
+                logMessage "Fehler beim Entfernen der dbus-adc.conf."
+                setInstallFailed $EXIT_ERROR "Fehler beim Entfernen der dbus-adc.conf."
+            fi
         else
             logMessage "dbus-adc.conf war nicht vorhanden und musste nicht entfernt werden."
         fi
