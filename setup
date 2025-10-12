@@ -26,6 +26,11 @@ MODULE_TRACK_FILE="${MODULE_STATE_DIR}/installed_kernel_modules.list"
 RC_LOCAL_FILE="/data/rc.local"
 RC_LOCAL_BACKUP="/data/rc.local.orig"
 RC_LOCAL_CONTENT="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhwclock -s"
+USER_CONFIG_FILE="${ROOT_PATH}/dbus-adc.user.conf"
+DEFAULT_VREF_FALLBACK="1.3"
+DEFAULT_SCALE_FALLBACK="4095"
+TOTAL_ADC_CHANNELS=8
+ADC_DEVICE_LINE="device iio:device0"
 
 # Status, ob "opkg update" bereits erfolgreich ausgeführt wurde
 OPKG_UPDATE_PERFORMED=false
@@ -167,21 +172,311 @@ restore_originals() {
     restoreFile "$RC_LOCAL_BACKUP" "$RC_LOCAL_FILE"
 }
 
+## Benutzerinteraktion für die dbus-adc Konfiguration
+prompt_numeric_value() {
+    local prompt_text="$1"
+    local default_value="$2"
+    local validation_regex="$3"
+    local error_message="$4"
+    local value=""
+
+    while true; do
+        if [ -n "$default_value" ]; then
+            read -rp "${prompt_text} [${default_value}]: " value
+        else
+            read -rp "${prompt_text}: " value
+        fi
+
+        if [ -z "$value" ]; then
+            value="$default_value"
+        fi
+
+        if [ -z "$value" ]; then
+            logMessage "$error_message"
+            continue
+        fi
+
+        if [[ "$value" =~ $validation_regex ]]; then
+            if declare -F yesNoPrompt >/dev/null 2>&1; then
+                if yesNoPrompt "Wert '${value}' übernehmen (y/n)? "; then
+                    echo "$value"
+                    return 0
+                else
+                    logMessage "Eingabe verworfen. Bitte erneut eingeben."
+                    continue
+                fi
+            else
+                echo "$value"
+                return 0
+            fi
+        fi
+
+        logMessage "$error_message"
+    done
+}
+
+prompt_sensor_label() {
+    local channel="$1"
+    local default_value="$2"
+    local prompt_text="Sensorbezeichnung für Kanal ${channel}"
+    local input=""
+
+    while true; do
+        if [ -n "$default_value" ]; then
+            read -rp "${prompt_text} (${default_value}, leer für keinen Sensor): " input
+        else
+            read -rp "${prompt_text} (leer für keinen Sensor): " input
+        fi
+
+        if [ -z "$input" ]; then
+            input="$default_value"
+        fi
+
+        if [ -z "$input" ]; then
+            if declare -F yesNoPrompt >/dev/null 2>&1; then
+                if yesNoPrompt "Kanal ${channel} ohne Sensor belassen (y/n)? "; then
+                    echo ""
+                    return 0
+                else
+                    logMessage "Bitte Sensorbezeichnung erneut angeben."
+                    continue
+                fi
+            else
+                echo ""
+                return 0
+            fi
+        fi
+
+        local trimmed_input
+        trimmed_input="$(printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+        local lowered_input
+        lowered_input="$(printf '%s' "$trimmed_input" | tr '[:upper:]' '[:lower:]')"
+
+        case "$lowered_input" in
+            ""|"-"|"none"|"leer"|"kein"|"keine"|"aus")
+                if declare -F yesNoPrompt >/dev/null 2>&1; then
+                    if yesNoPrompt "Kanal ${channel} ohne Sensor belassen (y/n)? "; then
+                        echo ""
+                        return 0
+                    else
+                        logMessage "Bitte Sensorbezeichnung erneut angeben."
+                        continue
+                    fi
+                else
+                    echo ""
+                    return 0
+                fi
+                ;;
+        esac
+
+        if [[ "$lowered_input" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
+            if declare -F yesNoPrompt >/dev/null 2>&1; then
+                if yesNoPrompt "Sensor '${lowered_input}' für Kanal ${channel} übernehmen (y/n)? "; then
+                    echo "$lowered_input"
+                    return 0
+                else
+                    logMessage "Eingabe verworfen. Bitte erneut angeben."
+                    continue
+                fi
+            else
+                echo "$lowered_input"
+                return 0
+            fi
+        fi
+
+        logMessage "Ungültige Eingabe für Kanal ${channel}. Bitte nur Buchstaben, Zahlen sowie '._:/-' verwenden oder leer lassen."
+    done
+}
+
 ## Konfigurationsdateien installieren und deinstallieren
 # Konfigurationsdateien installieren
 install_config() {
     logMessage "Installiere dbus-adc.conf..."
+    mkdir -p "$ROOT_PATH"
+
+    local default_vref="$DEFAULT_VREF_FALLBACK"
+    local default_scale="$DEFAULT_SCALE_FALLBACK"
+    local -a default_channels
+    local -a channel_values
+    local -a saved_channels
+    local channel
+
+    for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        default_channels[channel]=""
+        channel_values[channel]=""
+        saved_channels[channel]=""
+    done
+
     if [ -f "$SOURCE_CONFIG_FILE" ]; then
-        if ! cmp -s "$SOURCE_CONFIG_FILE" "$CONFIG_FILE"; then
-            cp "$SOURCE_CONFIG_FILE" "$CONFIG_FILE"
-            logMessage "dbus-adc.conf erfolgreich installiert."
+        while read -r key value _; do
+            case "$key" in
+                ''|\#*)
+                    continue
+                    ;;
+                device)
+                    continue
+                    ;;
+                vref)
+                    if [ -n "$value" ]; then
+                        default_vref="$value"
+                    fi
+                    ;;
+                scale)
+                    if [ -n "$value" ]; then
+                        default_scale="$value"
+                    fi
+                    ;;
+                *)
+                    if [[ "$value" =~ ^[0-7]$ ]]; then
+                        default_channels[value]="$key"
+                    fi
+                    ;;
+            esac
+        done < "$SOURCE_CONFIG_FILE"
+    else
+        logMessage "Warnung: ${SOURCE_CONFIG_FILE} wurde nicht gefunden. Verwende Fallback-Standardwerte."
+    fi
+
+    local saved_vref=""
+    local saved_scale=""
+    if [ -f "$USER_CONFIG_FILE" ]; then
+        # shellcheck source=/dev/null
+        source "$USER_CONFIG_FILE"
+        saved_vref="${USER_VREF:-}"
+        saved_scale="${USER_SCALE:-}"
+        for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+            local var_name="USER_CHANNEL_${channel}"
+            saved_channels[channel]="${!var_name}"
+        done
+    fi
+
+    local use_saved=false
+    if [ -n "$saved_vref" ] || [ -n "$saved_scale" ]; then
+        local summary=""
+        for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+            local value="${saved_channels[channel]}"
+            if [ -n "$value" ]; then
+                summary+="${value}→${channel}, "
+            else
+                summary+="Kanal ${channel}: leer, "
+            fi
+        done
+        summary="${summary%, }"
+
+        logMessage "Gefundene gespeicherte Werte: Vref=${saved_vref:-nicht gesetzt}, Scale=${saved_scale:-nicht gesetzt}."
+        logMessage "Gespeicherte Kanalzuordnung: ${summary}"
+        if declare -F yesNoPrompt >/dev/null 2>&1; then
+            if yesNoPrompt "Gespeicherte Konfiguration wiederverwenden (y/n)? "; then
+                use_saved=true
+            fi
+        else
+            local response=""
+            while true; do
+                read -rp "Gespeicherte Konfiguration wiederverwenden (y/n)? " response
+                case "$response" in
+                    [yY]*)
+                        use_saved=true
+                        break
+                        ;;
+                    [nN]*)
+                        use_saved=false
+                        break
+                        ;;
+                esac
+            done
+        fi
+    fi
+
+    local vref_value=""
+    local scale_value=""
+
+    if $use_saved; then
+        vref_value="${saved_vref:-$default_vref}"
+        scale_value="${saved_scale:-$default_scale}"
+        for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+            if [ -n "${saved_channels[channel]}" ]; then
+                channel_values[channel]="${saved_channels[channel]}"
+            else
+                channel_values[channel]="${default_channels[channel]}"
+            fi
+        done
+        logMessage "Gespeicherte Konfiguration wird erneut angewendet."
+    else
+        local prompt_vref_default="${saved_vref:-$default_vref}"
+        local prompt_scale_default="${saved_scale:-$default_scale}"
+        vref_value="$(prompt_numeric_value "Referenzspannung (Vref)" "$prompt_vref_default" '^[0-9]+([.][0-9]+)?$' "Bitte eine gültige Zahl für Vref eingeben.")"
+        scale_value="$(prompt_numeric_value "Skalierungsfaktor (Scale)" "$prompt_scale_default" '^[0-9]+$' "Bitte eine ganze Zahl für den Skalierungsfaktor angeben.")"
+
+        for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+            local default_choice="${saved_channels[channel]}"
+            if [ -z "$default_choice" ]; then
+                default_choice="${default_channels[channel]}"
+            fi
+            channel_values[channel]="$(prompt_sensor_label "$channel" "$default_choice")"
+        done
+    fi
+
+    local mapping_summary=""
+    for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        if [ -n "${channel_values[channel]}" ]; then
+            mapping_summary+="${channel_values[channel]}→${channel}, "
+        else
+            mapping_summary+="Kanal ${channel}: leer, "
+        fi
+    done
+    mapping_summary="${mapping_summary%, }"
+
+    logMessage "Verwende Vref=${vref_value}, Scale=${scale_value}."
+    logMessage "Kanalzuordnung: ${mapping_summary}"
+
+    local temp_config
+    if ! temp_config="$(mktemp)"; then
+        logMessage "Fehler: Konnte temporäre Datei für dbus-adc.conf nicht erstellen."
+        setInstallFailed $EXIT_ERROR "mktemp für dbus-adc.conf fehlgeschlagen."
+        return
+    fi
+
+    {
+        echo "$ADC_DEVICE_LINE"
+        echo "vref ${vref_value}"
+        echo "scale ${scale_value}"
+        echo
+        for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+            if [ -n "${channel_values[channel]}" ]; then
+                echo "${channel_values[channel]} ${channel}"
+            fi
+        done
+    } > "$temp_config"
+
+    local config_changed=true
+    if [ -f "$CONFIG_FILE" ] && cmp -s "$temp_config" "$CONFIG_FILE"; then
+        config_changed=false
+        logMessage "dbus-adc.conf ist bereits aktuell; keine Änderungen erforderlich."
+    else
+        if cp "$temp_config" "$CONFIG_FILE"; then
+            logMessage "dbus-adc.conf mit den neuen Werten geschrieben."
             filesUpdated=true
         else
-            logMessage "dbus-adc.conf ist bereits aktuell."
+            logMessage "Fehler beim Schreiben der dbus-adc.conf."
+            setInstallFailed $EXIT_ERROR "Fehler beim Schreiben der dbus-adc.conf."
         fi
-    else
-        logMessage "Fehler: dbus-adc.conf Quelle nicht gefunden."
-        setInstallFailed $EXIT_FILE_SET_ERROR "Fehler: dbus-adc.conf Quelle nicht gefunden."
+    fi
+
+    rm -f "$temp_config"
+
+    {
+        echo "USER_VREF=\"${vref_value}\""
+        echo "USER_SCALE=\"${scale_value}\""
+        for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+            local value="${channel_values[channel]}"
+            echo "USER_CHANNEL_${channel}=\"${value}\""
+        done
+    } > "$USER_CONFIG_FILE"
+
+    logMessage "Benutzerkonfiguration unter ${USER_CONFIG_FILE} gespeichert."
+
+    if ! $config_changed; then
+        logMessage "Bestehende Konfiguration musste nicht überschrieben werden."
     fi
 
     logMessage "Aktualisiere $CONFIG_TXT..."
