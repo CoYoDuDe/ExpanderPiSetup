@@ -582,10 +582,13 @@ install_config() {
             local default_type="${saved_channel_types[channel]}"
             local default_label="${saved_channel_labels[channel]}"
 
-            if [ -z "$default_type" ] || [ "$default_type" = "none" ]; then
+            if [ -z "$default_type" ]; then
                 default_type="${channel_types[channel]}"
             fi
-            if [ -z "$default_label" ]; then
+
+            if [ "$default_type" = "none" ]; then
+                default_label=""
+            elif [ -z "$default_label" ]; then
                 default_label="${channel_labels[channel]}"
             fi
 
