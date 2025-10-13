@@ -138,8 +138,42 @@ backup_originals() {
         local absent_marker="$OVERLAY_STATE_DIR/${overlay}.absent"
         local timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
-        rm -f "$backup_file" "$absent_marker"
+        local previous_original_state="$(get_overlay_state_value "$state_file" "original")"
+        local previous_original_checksum="$(get_overlay_state_value "$state_file" "original_checksum")"
+        local previous_original_recorded_at="$(get_overlay_state_value "$state_file" "original_recorded_at")"
+        local overlay_previously_absent="false"
+        if [ "$previous_original_state" = "absent" ]; then
+            overlay_previously_absent="true"
+        fi
+
+        if [ "$overlay_previously_absent" = "true" ]; then
+            rm -f "$backup_file"
+        else
+            rm -f "$backup_file" "$absent_marker"
+        fi
         : > "$state_file"
+
+        if [ "$overlay_previously_absent" = "true" ]; then
+            if [ ! -f "$absent_marker" ]; then
+                : > "$absent_marker"
+            fi
+
+            logMessage "Overlay $overlay war zuvor als 'absent' markiert. Historie wird beibehalten."
+            set_overlay_state_value "$state_file" "original" "absent"
+            if [ -n "$previous_original_checksum" ]; then
+                set_overlay_state_value "$state_file" "original_checksum" "$previous_original_checksum"
+            else
+                set_overlay_state_value "$state_file" "original_checksum" "nicht_vorhanden"
+            fi
+            if [ -n "$previous_original_recorded_at" ]; then
+                set_overlay_state_value "$state_file" "original_recorded_at" "$previous_original_recorded_at"
+            else
+                set_overlay_state_value "$state_file" "original_recorded_at" "$timestamp"
+            fi
+            set_overlay_state_value "$state_file" "installed_by_setup" "true"
+            set_overlay_state_value "$state_file" "last_action" "absent_preserved"
+            continue
+        fi
 
         if [ -f "$overlay_path" ]; then
             if cp "$overlay_path" "$backup_file"; then
@@ -772,6 +806,31 @@ remove_overlays() {
         local original_state="$(get_overlay_state_value "$state_file" "original")"
         local installed_by_setup="$(get_overlay_state_value "$state_file" "installed_by_setup")"
         local recorded_checksum="$(get_overlay_state_value "$state_file" "original_checksum")"
+
+        local overlay_marked_absent="false"
+        if [ -f "$absent_marker" ] || [ "$original_state" = "absent" ]; then
+            overlay_marked_absent="true"
+        fi
+
+        if [ "$overlay_marked_absent" = "true" ] && [ "$installed_by_setup" = "true" ]; then
+            if [ -f "$overlay_path" ]; then
+                if rm -f "$overlay_path"; then
+                    logMessage "Overlay $overlay (vom Setup bereitgestellt) wurde entfernt, da es ursprünglich fehlte."
+                    rebootNeeded=true
+                    logMessage "Neustartbedarf gesetzt, da Overlay $overlay entfernt wurde."
+                    set_overlay_state_value "$state_file" "last_action" "removed_setup_overlay"
+                else
+                    logMessage "Fehler beim Entfernen von Overlay $overlay."
+                    setInstallFailed $EXIT_ERROR "Fehler beim Entfernen von Overlay $overlay."
+                fi
+            else
+                logMessage "Overlay $overlay war bereits entfernt; keine Aktion erforderlich."
+                set_overlay_state_value "$state_file" "last_action" "already_absent"
+            fi
+            rm -f "$backup_file"
+            set_overlay_state_value "$state_file" "installed_by_setup" "false"
+            continue
+        fi
 
         if [ -f "$backup_file" ]; then
             if cp "$backup_file" "$overlay_path"; then
