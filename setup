@@ -146,10 +146,25 @@ backup_originals() {
             overlay_previously_absent="true"
         fi
 
+        local overlay_currently_present="false"
+        if [ -f "$overlay_path" ]; then
+            overlay_currently_present="true"
+        fi
+
+        local retain_existing_backup="false"
+        if [ "$previous_original_state" = "present" ] && [ "$overlay_currently_present" = "false" ] && [ -f "$backup_file" ]; then
+            retain_existing_backup="true"
+        fi
+
         if [ "$overlay_previously_absent" = "true" ]; then
-            rm -f "$backup_file"
+            if [ "$retain_existing_backup" != "true" ]; then
+                rm -f "$backup_file"
+            fi
         else
-            rm -f "$backup_file" "$absent_marker"
+            if [ "$retain_existing_backup" != "true" ]; then
+                rm -f "$backup_file"
+            fi
+            rm -f "$absent_marker"
         fi
         : > "$state_file"
 
@@ -175,7 +190,25 @@ backup_originals() {
             continue
         fi
 
-        if [ -f "$overlay_path" ]; then
+        if [ "$retain_existing_backup" = "true" ]; then
+            logMessage "Overlay $overlay fehlt aktuell; vorhandenes Backup wird beibehalten."
+            set_overlay_state_value "$state_file" "original" "present"
+            if [ -n "$previous_original_checksum" ]; then
+                set_overlay_state_value "$state_file" "original_checksum" "$previous_original_checksum"
+            else
+                set_overlay_state_value "$state_file" "original_checksum" "unbekannt"
+            fi
+            if [ -n "$previous_original_recorded_at" ]; then
+                set_overlay_state_value "$state_file" "original_recorded_at" "$previous_original_recorded_at"
+            else
+                set_overlay_state_value "$state_file" "original_recorded_at" "$timestamp"
+            fi
+            set_overlay_state_value "$state_file" "installed_by_setup" "false"
+            set_overlay_state_value "$state_file" "last_action" "backup_retained_missing_overlay"
+            continue
+        fi
+
+        if [ "$overlay_currently_present" = "true" ]; then
             if cp "$overlay_path" "$backup_file"; then
                 local checksum="unbekannt"
                 if command -v sha256sum >/dev/null 2>&1; then
@@ -185,6 +218,8 @@ backup_originals() {
                 set_overlay_state_value "$state_file" "original" "present"
                 set_overlay_state_value "$state_file" "original_checksum" "$checksum"
                 set_overlay_state_value "$state_file" "original_recorded_at" "$timestamp"
+                set_overlay_state_value "$state_file" "installed_by_setup" "false"
+                set_overlay_state_value "$state_file" "last_action" "backup_recorded"
             else
                 logMessage "Fehler beim Sichern von Overlay $overlay."
                 setInstallFailed $EXIT_ERROR "Fehler beim Sichern von Overlay $overlay."
@@ -195,10 +230,9 @@ backup_originals() {
             set_overlay_state_value "$state_file" "original" "absent"
             set_overlay_state_value "$state_file" "original_checksum" "nicht_vorhanden"
             set_overlay_state_value "$state_file" "original_recorded_at" "$timestamp"
+            set_overlay_state_value "$state_file" "installed_by_setup" "false"
+            set_overlay_state_value "$state_file" "last_action" "original_absent_recorded"
         fi
-
-        set_overlay_state_value "$state_file" "installed_by_setup" "false"
-        set_overlay_state_value "$state_file" "last_action" "backup_recorded"
     done
 }
 
