@@ -65,14 +65,14 @@ fi
 add_entry_to_rc_local() {
     local ENTRY="$1"
     local entry_added=0
+
     if [ ! -f "$RC_LOCAL_FILE" ]; then
-        echo "$ENTRY" > "$RC_LOCAL_FILE"
+        printf '#!/bin/sh\n\n' > "$RC_LOCAL_FILE"
+    fi
+
+    if ! grep -qF -- "$ENTRY" "$RC_LOCAL_FILE"; then
+        printf '%s\n' "$ENTRY" >> "$RC_LOCAL_FILE"
         entry_added=1
-    else
-        if ! grep -qF -- "$ENTRY" "$RC_LOCAL_FILE"; then
-            echo "$ENTRY" >> "$RC_LOCAL_FILE"
-            entry_added=1
-        fi
     fi
     chmod +x "$RC_LOCAL_FILE"
 
