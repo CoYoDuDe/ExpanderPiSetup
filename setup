@@ -1029,11 +1029,19 @@ install_config() {
         logMessage "$CONFIG_TXT unverändert."
     fi
 
-    if [ "$dbus_config_copied" = true ] || [ "$config_txt_changed" = true ]; then
+    if [ "$config_changed" = true ] || [ "$config_txt_changed" = true ]; then
         rebootNeeded=true
-        logMessage "Neustartbedarf gesetzt, da Konfigurationsdateien geändert wurden."
+        local restart_reason="Konfigurationsdateien geändert"
+        if [ "$config_changed" = true ] && [ "$config_txt_changed" != true ]; then
+            restart_reason="dbus-adc.conf geändert"
+        elif [ "$config_changed" != true ] && [ "$config_txt_changed" = true ]; then
+            restart_reason="$CONFIG_TXT geändert"
+        elif [ "$config_changed" = true ] && [ "$config_txt_changed" = true ]; then
+            restart_reason="dbus-adc.conf und $CONFIG_TXT geändert"
+        fi
+        logMessage "Neustartbedarf gesetzt, da ${restart_reason}."
     else
-        logMessage "Neustartbedarf bleibt unverändert, da keine relevanten Änderungen vorgenommen wurden."
+        logMessage "Neustart nicht erforderlich: dbus-adc.conf und $CONFIG_TXT blieben unverändert."
     fi
 }
 
