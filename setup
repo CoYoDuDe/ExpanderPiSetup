@@ -7,6 +7,39 @@ source "/data/SetupHelper/HelperResources/IncludeHelpers"
 # Standardaktionen aktivieren
 standardPromptAndActions='yes'
 
+# Nicht-interaktiven Modus erkennen
+nonInteractiveMode=false
+if [ "${SETUPHELPER_NONINTERACTIVE:-}" != "" ]; then
+    case "${SETUPHELPER_NONINTERACTIVE,,}" in
+        1|true|yes|y|on)
+            nonInteractiveMode=true
+            ;;
+    esac
+fi
+if [ "${SETUPHELPER_FORCE_NONINTERACTIVE:-}" != "" ]; then
+    case "${SETUPHELPER_FORCE_NONINTERACTIVE,,}" in
+        1|true|yes|y|on)
+            nonInteractiveMode=true
+            ;;
+        0|false|no|n|off)
+            nonInteractiveMode=false
+            ;;
+    esac
+fi
+if [ "${SETUPHELPER_MODE:-}" != "" ]; then
+    case "${SETUPHELPER_MODE,,}" in
+        batch|noninteractive)
+            nonInteractiveMode=true
+            ;;
+    esac
+fi
+if [ "$nonInteractiveMode" = false ] && [ ! -t 0 ]; then
+    nonInteractiveMode=true
+fi
+if [ "$nonInteractiveMode" = true ]; then
+    logMessage "Nicht-interaktiver Modus erkannt. Benutzerabfragen werden übersprungen."
+fi
+
 # Installationsverzeichnis festlegen
 ROOT_PATH=/data/ExpanderPiSetup
 
@@ -287,13 +320,105 @@ restore_originals() {
     fi
 }
 
+## Hilfsfunktionen für Benutzereingaben
+normalize_channel_label() {
+    local input="$1"
+    local fallback="$2"
+
+    local trimmed
+    trimmed="$(printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+    if [ -z "$trimmed" ]; then
+        trimmed="$fallback"
+    fi
+
+    local lowered
+    lowered="$(printf '%s' "$trimmed" | tr '[:upper:]' '[:lower:]')"
+
+    if [[ "$lowered" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
+        printf '%s' "$lowered"
+        return 0
+    fi
+
+    local sanitized
+    sanitized="$(printf '%s' "$lowered" | tr -cd '[:alnum:]_.:/-')"
+
+    if [ -z "$sanitized" ]; then
+        sanitized="$fallback"
+    fi
+
+    sanitized="$(printf '%s' "$sanitized" | tr '[:upper:]' '[:lower:]')"
+
+    if [[ "$sanitized" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
+        printf '%s' "$sanitized"
+    else
+        printf '%s' "$(printf '%s' "$fallback" | tr '[:upper:]' '[:lower:]')"
+    fi
+}
+
+is_truthy() {
+    local value="$1"
+    case "${value,,}" in
+        1|true|yes|y|on)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
 ## Benutzerinteraktion für die dbus-adc Konfiguration
 prompt_numeric_value() {
     local prompt_text="$1"
     local default_value="$2"
     local validation_regex="$3"
     local error_message="$4"
+    local env_var_name="${5:-}"
     local value=""
+
+    if [ "$nonInteractiveMode" = true ]; then
+        local candidate="$default_value"
+        local source="Standardwert"
+        if [ -n "$env_var_name" ]; then
+            local env_value="${!env_var_name:-}"
+            if [ -n "$env_value" ]; then
+                candidate="$env_value"
+                source="Umgebungsvariable ${env_var_name}"
+            fi
+        fi
+
+        if [[ "$candidate" =~ $validation_regex ]]; then
+            logMessage "Nicht-interaktiv: verwende ${source} (${candidate}) für ${prompt_text}."
+            echo "$candidate"
+            return 0
+        fi
+
+        logMessage "Nicht-interaktiv: ${source} '${candidate}' ist ungültig für ${prompt_text}. Verwende Fallback '${default_value}'."
+
+        if [ -n "$default_value" ] && [[ "$default_value" =~ $validation_regex ]]; then
+            echo "$default_value"
+            return 0
+        fi
+
+        local fallback_candidate=""
+        case "$env_var_name" in
+            EXPANDERPI_VREF)
+                fallback_candidate="$DEFAULT_VREF_FALLBACK"
+                ;;
+            EXPANDERPI_SCALE)
+                fallback_candidate="$DEFAULT_SCALE_FALLBACK"
+                ;;
+        esac
+
+        if [ -n "$fallback_candidate" ] && [[ "$fallback_candidate" =~ $validation_regex ]]; then
+            logMessage "Nicht-interaktiv: setze ${prompt_text} auf Skriptstandard ${fallback_candidate}."
+            echo "$fallback_candidate"
+            return 0
+        fi
+
+        logMessage "Nicht-interaktiv: Konnte keinen gültigen Wert für ${prompt_text} bestimmen. Setze auf '0'."
+        echo "0"
+        return 0
+    fi
 
     while true; do
         if [ -n "$default_value" ]; then
@@ -336,6 +461,30 @@ prompt_sensor_label() {
     local require_non_empty="${3:-false}"
     local prompt_text="Sensorbezeichnung für Kanal ${channel}"
     local input=""
+
+    if [ "$nonInteractiveMode" = true ]; then
+        local env_var_name="EXPANDERPI_CHANNEL_${channel}_LABEL"
+        local candidate="${!env_var_name:-$default_value}"
+        local fallback="sensor_${channel}"
+
+        if [ "$require_non_empty" = false ] && [ -z "$candidate" ]; then
+            logMessage "Nicht-interaktiv: Kanal ${channel} bleibt ohne Sensor."
+            echo ""
+            return 0
+        fi
+
+        if [ -z "$candidate" ]; then
+            candidate="$fallback"
+            logMessage "Nicht-interaktiv: verwende Platzhalter '${candidate}' für Kanal ${channel}."
+        else
+            logMessage "Nicht-interaktiv: verwende Umgebungswert '${candidate}' für Kanal ${channel}."
+        fi
+
+        local normalized
+        normalized="$(normalize_channel_label "$candidate" "$fallback")"
+        echo "$normalized"
+        return 0
+    fi
 
     while true; do
         if [ -n "$default_value" ]; then
@@ -399,6 +548,111 @@ prompt_channel_assignment() {
     local channel="$1"
     local default_type="$2"
     local default_label="$3"
+
+    if [ "$nonInteractiveMode" = true ]; then
+        local env_var_base="EXPANDERPI_CHANNEL_${channel}"
+        local env_value="${!env_var_base:-}"
+        local env_type_var="${env_var_base}_TYPE"
+        local env_label_var="${env_var_base}_LABEL"
+        local env_type="${!env_type_var:-}"
+        local env_label="${!env_label_var:-}"
+
+        local raw_type=""
+        local raw_label=""
+
+        if [ -n "$env_value" ]; then
+            local IFS='|:;, '
+            read -r raw_type raw_label <<< "$env_value"
+        fi
+
+        if [ -z "$raw_type" ] && [ -n "$env_type" ]; then
+            raw_type="$env_type"
+        fi
+
+        if [ -z "$raw_label" ] && [ -n "$env_label" ]; then
+            raw_label="$env_label"
+        fi
+
+        if [ -z "$raw_type" ]; then
+            raw_type="$default_type"
+        fi
+
+        local normalized_type
+        local normalized_label="${raw_label}"
+        local log_source="automatisch"
+
+        if [ -n "$env_value" ] || [ -n "$env_type" ]; then
+            log_source="Umgebungsvariablen"
+        elif [ -n "$default_type" ]; then
+            log_source="Standardwerte"
+        fi
+
+        case "${raw_type,,}" in
+            ""|none|leer|aus|kein|keine|0)
+                normalized_type="none"
+                normalized_label=""
+                logMessage "Nicht-interaktiv: ${log_source} führen dazu, dass Kanal ${channel} leer bleibt."
+                printf 'none|\n'
+                return 0
+                ;;
+            tank|t|tank-sensor|tanksensor)
+                normalized_type="tank"
+                local tank_fallback="tank"
+                if [ -z "$normalized_label" ]; then
+                    if [ -n "$default_label" ]; then
+                        normalized_label="$default_label"
+                    else
+                        normalized_label="$tank_fallback"
+                    fi
+                fi
+                normalized_label="$(normalize_channel_label "$normalized_label" "$tank_fallback")"
+                logMessage "Nicht-interaktiv: Kanal ${channel} als Tank-Sensor (${normalized_label})."
+                printf 'tank|%s\n' "$normalized_label"
+                return 0
+                ;;
+            temp|temperatur|temperature|tempsensor|temp-sensor)
+                normalized_type="temp"
+                local temp_fallback="temp"
+                if [ -z "$normalized_label" ]; then
+                    if [ -n "$default_label" ]; then
+                        normalized_label="$default_label"
+                    else
+                        normalized_label="$temp_fallback"
+                    fi
+                fi
+                normalized_label="$(normalize_channel_label "$normalized_label" "$temp_fallback")"
+                logMessage "Nicht-interaktiv: Kanal ${channel} als Temperatur-Sensor (${normalized_label})."
+                printf 'temp|%s\n' "$normalized_label"
+                return 0
+                ;;
+            custom|benutzerdefiniert|user|label|sensor)
+                normalized_type="custom"
+                local custom_fallback="sensor_${channel}"
+                if [ -z "$normalized_label" ]; then
+                    if [ -n "$default_label" ]; then
+                        normalized_label="$default_label"
+                    else
+                        normalized_label="$custom_fallback"
+                    fi
+                fi
+                normalized_label="$(normalize_channel_label "$normalized_label" "$custom_fallback")"
+                logMessage "Nicht-interaktiv: Kanal ${channel} als benutzerdefiniert (${normalized_label})."
+                printf 'custom|%s\n' "$normalized_label"
+                return 0
+                ;;
+            *)
+                normalized_type="custom"
+                local generic_fallback="sensor_${channel}"
+                if [ -z "$normalized_label" ]; then
+                    normalized_label="$raw_type"
+                fi
+                normalized_label="$(normalize_channel_label "$normalized_label" "$generic_fallback")"
+                logMessage "Nicht-interaktiv: Kanal ${channel} als benutzerdefiniert (${normalized_label})."
+                printf 'custom|%s\n' "$normalized_label"
+                return 0
+                ;;
+        esac
+    fi
 
     local normalized_default_type
     case "$default_type" in
@@ -600,25 +854,41 @@ install_config() {
 
         logMessage "Gefundene gespeicherte Werte: Vref=${saved_vref:-nicht gesetzt}, Scale=${saved_scale:-nicht gesetzt}."
         logMessage "Gespeicherte Kanalzuordnung: ${summary}"
-        if declare -F yesNoPrompt >/dev/null 2>&1; then
-            if yesNoPrompt "Gespeicherte Konfiguration wiederverwenden (y/n)? "; then
+        if [ "$nonInteractiveMode" = true ]; then
+            local use_saved_env="${EXPANDERPI_USE_SAVED:-}"
+            if [ -n "$use_saved_env" ]; then
+                if is_truthy "$use_saved_env"; then
+                    use_saved=true
+                    logMessage "Nicht-interaktiv: verwende gespeicherte Konfiguration gemäß EXPANDERPI_USE_SAVED=${use_saved_env}."
+                else
+                    use_saved=false
+                    logMessage "Nicht-interaktiv: verwerfe gespeicherte Konfiguration gemäß EXPANDERPI_USE_SAVED=${use_saved_env}."
+                fi
+            else
                 use_saved=true
+                logMessage "Nicht-interaktiv: verwende automatisch die gespeicherten Werte."
             fi
         else
-            local response=""
-            while true; do
-                read -rp "Gespeicherte Konfiguration wiederverwenden (y/n)? " response
-                case "$response" in
-                    [yY]*)
-                        use_saved=true
-                        break
-                        ;;
-                    [nN]*)
-                        use_saved=false
-                        break
-                        ;;
-                esac
-            done
+            if declare -F yesNoPrompt >/dev/null 2>&1; then
+                if yesNoPrompt "Gespeicherte Konfiguration wiederverwenden (y/n)? "; then
+                    use_saved=true
+                fi
+            else
+                local response=""
+                while true; do
+                    read -rp "Gespeicherte Konfiguration wiederverwenden (y/n)? " response
+                    case "$response" in
+                        [yY]*)
+                            use_saved=true
+                            break
+                            ;;
+                        [nN]*)
+                            use_saved=false
+                            break
+                            ;;
+                    esac
+                done
+            fi
         fi
     fi
 
@@ -643,8 +913,8 @@ install_config() {
     else
         local prompt_vref_default="${saved_vref:-$default_vref}"
         local prompt_scale_default="${saved_scale:-$default_scale}"
-        vref_value="$(prompt_numeric_value "Referenzspannung (Vref)" "$prompt_vref_default" '^[0-9]+([.][0-9]+)?$' "Bitte eine gültige Zahl für Vref eingeben.")"
-        scale_value="$(prompt_numeric_value "Skalierungsfaktor (Scale)" "$prompt_scale_default" '^[0-9]+$' "Bitte eine ganze Zahl für den Skalierungsfaktor angeben.")"
+        vref_value="$(prompt_numeric_value "Referenzspannung (Vref)" "$prompt_vref_default" '^[0-9]+([.][0-9]+)?$' "Bitte eine gültige Zahl für Vref eingeben." "EXPANDERPI_VREF")"
+        scale_value="$(prompt_numeric_value "Skalierungsfaktor (Scale)" "$prompt_scale_default" '^[0-9]+$' "Bitte eine ganze Zahl für den Skalierungsfaktor angeben." "EXPANDERPI_SCALE")"
 
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
             local default_type="${saved_channel_types[channel]}"
