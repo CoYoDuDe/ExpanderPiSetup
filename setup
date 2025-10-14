@@ -973,6 +973,7 @@ install_config() {
     } > "$temp_config"
 
     local config_changed=true
+    local dbus_config_copied=false
     if [ -f "$CONFIG_FILE" ] && cmp -s "$temp_config" "$CONFIG_FILE"; then
         config_changed=false
         logMessage "dbus-adc.conf ist bereits aktuell; keine Änderungen erforderlich."
@@ -980,6 +981,7 @@ install_config() {
         if cp "$temp_config" "$CONFIG_FILE"; then
             logMessage "dbus-adc.conf mit den neuen Werten geschrieben."
             filesUpdated=true
+            dbus_config_copied=true
         else
             logMessage "Fehler beim Schreiben der dbus-adc.conf."
             setInstallFailed $EXIT_ERROR "Fehler beim Schreiben der dbus-adc.conf."
@@ -1007,17 +1009,32 @@ install_config() {
     fi
 
     logMessage "Aktualisiere $CONFIG_TXT..."
+    local config_txt_changed=false
     if ! grep -q "dtoverlay=i2c-rtc,ds1307-rtc" "$CONFIG_TXT"; then
         echo "dtoverlay=i2c-rtc,ds1307-rtc" >> "$CONFIG_TXT"
         filesUpdated=true
+        config_txt_changed=true
+        logMessage "dtoverlay=i2c-rtc,ds1307-rtc zu $CONFIG_TXT hinzugefügt."
     fi
     if ! grep -q "dtoverlay=mcp3208:spi0-0-present" "$CONFIG_TXT"; then
         echo "dtoverlay=mcp3208:spi0-0-present" >> "$CONFIG_TXT"
         filesUpdated=true
+        config_txt_changed=true
+        logMessage "dtoverlay=mcp3208:spi0-0-present zu $CONFIG_TXT hinzugefügt."
     fi
 
-    logMessage "$CONFIG_TXT aktualisiert."
-    rebootNeeded=true
+    if [ "$config_txt_changed" = true ]; then
+        logMessage "$CONFIG_TXT aktualisiert."
+    else
+        logMessage "$CONFIG_TXT unverändert."
+    fi
+
+    if [ "$dbus_config_copied" = true ] || [ "$config_txt_changed" = true ]; then
+        rebootNeeded=true
+        logMessage "Neustartbedarf gesetzt, da Konfigurationsdateien geändert wurden."
+    else
+        logMessage "Neustartbedarf bleibt unverändert, da keine relevanten Änderungen vorgenommen wurden."
+    fi
 }
 
 # Konfigurationsdateien deinstallieren
