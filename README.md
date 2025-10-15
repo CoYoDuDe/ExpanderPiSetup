@@ -2,6 +2,25 @@
 
 Diese Erweiterung ergänzt das ExpanderPi-Setup um eine SetupHelper-Seite im gewohnten Stil der Victron-Oberfläche. Die QML-Seite nutzt die Mb-Komponenten des Venus-UI-Frameworks, speichert Werte direkt im D-Bus (`com.victronenergy.settings/Settings/ExpanderPi/DbusAdc`) und startet anschließend das Installationsskript im `setup`-Modus. Damit lassen sich Vref, Scale sowie alle acht Kanäle des DBus-ADC ohne Shell-Zugriff pflegen.
 
+## Installation und Voraussetzungen
+
+Die Erweiterung setzt einen funktionsfähigen SetupHelper voraus. Installiere oder aktualisiere ihn zunächst, indem du das aktuelle Release ins Gerät lädst und das Setup ausrollst:
+
+```
+wget https://updates.victronenergy.com/feeds/venus/release/SetupHelper.tar.gz
+tar -xzf SetupHelper.tar.gz -C /data
+/data/SetupHelper/setup
+```
+
+Nach Abschluss der SetupHelper-Installation steht die Blind-Install-Routine zur Verfügung. Kopiere anschließend dieses Repository – beispielsweise per `scp` – in den benutzerdefinierten Bereich und stoße die Paketinstallation an:
+
+```
+/data/SetupHelper/custom/ExpanderPiSetup/setup blind-install
+/data/SetupHelper/custom/ExpanderPiSetup/setup package-manager install
+```
+
+Beachte, dass sämtliche Befehle innerhalb des SetupHelper-Kontextes laufen müssen. Ohne den SetupHelper lassen sich weder die Blind-Install-Automatik noch der Paketmanager nutzen.
+
 ## QML-Seite
 
 * **Datei:** `FileSets/VersionIndependent/opt/victronenergy/gui/qml/PageSettingsExpanderPiDbusAdc.qml`
