@@ -1,0 +1,21 @@
+--- a/opt/victronenergy/gui/qml/PageSettings.qml
++++ b/opt/victronenergy/gui/qml/PageSettings.qml
+@@ -125,6 +125,12 @@
+                 MbSubMenu {
+                         description: qsTr("I/O")
+                         subpage: ioSettings
+                         show: ioSettings.haveSubMenus
+                         PageSettingsIo { id: ioSettings }
+                 }
+ 
++                MbSubMenu {
++                        description: qsTr("ExpanderPi DBus-ADC")
++                        subpage: Component { PageSettingsExpanderPiDbusAdc {} }
++                        showAccessLevel: User.AccessInstaller
++                }
++
+                 /*
+                 MbSubMenu {
+                         description: qsTr("Backup & Restore")
+                         subpage: Component { PageSettingsBackup {} }
+                 }

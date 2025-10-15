@@ -67,6 +67,86 @@ DEFAULT_CHANNEL_LABELS=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
 TOTAL_ADC_CHANNELS=8
 ADC_DEVICE_LINE="device iio:device0"
 
+python_command=""
+
+detect_python() {
+    if [ -n "$python_command" ]; then
+        return 0
+    fi
+
+    if command -v python3 >/dev/null 2>&1; then
+        python_command="python3"
+        return 0
+    fi
+
+    if command -v python >/dev/null 2>&1; then
+        python_command="python"
+        return 0
+    fi
+
+    return 1
+}
+
+load_gui_configuration() {
+    if ! detect_python; then
+        return 1
+    fi
+
+    local python_output
+    python_output="$("$python_command" <<'PY'
+import shlex
+import sys
+
+try:
+    import dbus
+except Exception:
+    sys.exit(1)
+
+service = "com.victronenergy.settings"
+root = "/Settings/ExpanderPi/DbusAdc"
+
+bus = dbus.SystemBus()
+
+def get_value(path):
+    try:
+        obj = bus.get_object(service, path)
+        value = obj.GetValue(dbus_interface="com.victronenergy.BusItem")
+    except Exception:
+        return ""
+
+    if value is None:
+        return ""
+
+    if isinstance(value, (dbus.Double, dbus.Int32, dbus.Int64, dbus.UInt32, dbus.UInt64)):
+        return str(value)
+
+    return str(value)
+
+values = {}
+values["EXPANDERPI_VREF"] = get_value(root + "/Vref")
+values["EXPANDERPI_SCALE"] = get_value(root + "/Scale")
+
+for idx in range(8):
+    base = f"{root}/Channel{idx}"
+    values[f"EXPANDERPI_CHANNEL_{idx}_TYPE"] = get_value(base + "/Type")
+    values[f"EXPANDERPI_CHANNEL_{idx}_LABEL"] = get_value(base + "/Label")
+
+if not any(values.values()):
+    sys.exit(1)
+
+for key, val in values.items():
+    print(f"{key}={shlex.quote(val)}")
+PY
+)" || return 1
+
+    if [ -z "$python_output" ]; then
+        return 1
+    fi
+
+    eval "$python_output"
+    return 0
+}
+
 # Status, ob "opkg update" bereits erfolgreich ausgeführt wurde
 OPKG_UPDATE_PERFORMED=false
 
@@ -835,6 +915,32 @@ install_config() {
 
             saved_channel_labels[channel]="$saved_label"
             saved_channel_types[channel]="$saved_type"
+        done
+    fi
+
+    if load_gui_configuration; then
+        logMessage "Übernehme Werte aus der SetupHelper-Oberfläche für die nicht-interaktive Ausführung."
+        nonInteractiveMode=true
+        if [ -n "${EXPANDERPI_VREF:-}" ]; then
+            saved_vref="${EXPANDERPI_VREF}";
+        fi
+        if [ -n "${EXPANDERPI_SCALE:-}" ]; then
+            saved_scale="${EXPANDERPI_SCALE}";
+        fi
+
+        for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+            local gui_type_var="EXPANDERPI_CHANNEL_${channel}_TYPE"
+            local gui_label_var="EXPANDERPI_CHANNEL_${channel}_LABEL"
+            local gui_type="${!gui_type_var:-}"
+            local gui_label="${!gui_label_var:-}"
+
+            if [ -n "$gui_type" ]; then
+                saved_channel_types[channel]="$gui_type"
+            fi
+
+            if [ -n "$gui_label" ]; then
+                saved_channel_labels[channel]="$gui_label"
+            fi
         done
     fi
 
