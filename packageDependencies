@@ -1,3 +1,2 @@
-# Patcht /u-boot/config.txt und /data/rc.local zur Aktivierung der RTC- und MCP3208-Unterstützung.
-kernel-module-rtc-ds1307	installed
-kernel-module-mcp320x	installed
+requiredPackages=SetupHelper,kernel-module-rtc-ds1307,kernel-module-mcp320x
+conflictingPackages=GuiMods
