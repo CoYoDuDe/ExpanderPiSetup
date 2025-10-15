@@ -62,8 +62,8 @@ RC_LOCAL_CONTENT="echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device\nhw
 USER_CONFIG_FILE="${ROOT_PATH}/dbus-adc.user.conf"
 DEFAULT_VREF_FALLBACK="1.3"
 DEFAULT_SCALE_FALLBACK="4095"
-DEFAULT_CHANNEL_TYPES=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
-DEFAULT_CHANNEL_LABELS=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
+DEFAULT_CHANNEL_TYPES_FALLBACK=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
+DEFAULT_CHANNEL_LABELS_FALLBACK=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
 TOTAL_ADC_CHANNELS=8
 ADC_DEVICE_LINE="device iio:device0"
 
@@ -144,6 +144,97 @@ PY
     fi
 
     eval "$python_output"
+    return 0
+}
+
+parse_default_adc_configuration() {
+    local template_file="$1"
+    local -n _out_vref="$2"
+    local -n _out_scale="$3"
+    local -n _out_types="$4"
+    local -n _out_labels="$5"
+
+    _out_vref=""
+    _out_scale=""
+    _out_types=()
+    _out_labels=()
+
+    if [ ! -f "$template_file" ]; then
+        return 1
+    fi
+
+    local line=""
+    local -a parsed_types=()
+    local -a parsed_labels=()
+    local read_any=false
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="${line%%#*}"
+        line="${line%$'\r'}"
+        line="${line#${line%%[![:space:]]*}}"
+        line="${line%${line##*[![:space:]]}}"
+
+        if [ -z "$line" ]; then
+            continue
+        fi
+
+        read_any=true
+        set -- $line
+
+        case "$1" in
+            device)
+                continue
+                ;;
+            vref)
+                if [ $# -ge 2 ]; then
+                    _out_vref="$2"
+                fi
+                continue
+                ;;
+            scale)
+                if [ $# -ge 2 ]; then
+                    _out_scale="$2"
+                fi
+                continue
+                ;;
+        esac
+
+        local type="$1"
+        shift
+        local index=""
+        if [ $# -gt 0 ]; then
+            index="$1"
+            shift
+        fi
+
+        if [[ ! "$index" =~ ^[0-9]+$ ]]; then
+            continue
+        fi
+
+        local label="$type"
+        if [ $# -gt 0 ]; then
+            label="$*"
+        fi
+
+        parsed_types[index]="$type"
+        parsed_labels[index]="$label"
+    done <"$template_file"
+
+    if [ "$read_any" = false ]; then
+        return 1
+    fi
+
+    for (( i=0; i<TOTAL_ADC_CHANNELS; i++ )); do
+        if [ -n "${parsed_types[i]+set}" ]; then
+            _out_types[i]="${parsed_types[i]}"
+            if [ -n "${parsed_labels[i]+set}" ] && [ -n "${parsed_labels[i]}" ]; then
+                _out_labels[i]="${parsed_labels[i]}"
+            else
+                _out_labels[i]="${parsed_types[i]}"
+            fi
+        fi
+    done
+
     return 0
 }
 
@@ -858,10 +949,63 @@ install_config() {
     logMessage "Installiere dbus-adc.conf..."
     mkdir -p "$ROOT_PATH"
 
-    local default_vref="$DEFAULT_VREF_FALLBACK"
-    local default_scale="$DEFAULT_SCALE_FALLBACK"
-    local -a default_channel_types=("${DEFAULT_CHANNEL_TYPES[@]}")
-    local -a default_channel_labels=("${DEFAULT_CHANNEL_LABELS[@]}")
+    local template_file="${SOURCE_FILE_DIR}/configs/dbus-adc.conf"
+    local default_vref=""
+    local default_scale=""
+    local -a default_channel_types=()
+    local -a default_channel_labels=()
+    local template_loaded=false
+    local -a fallback_messages=()
+
+    if parse_default_adc_configuration "$template_file" default_vref default_scale default_channel_types default_channel_labels; then
+        template_loaded=true
+    else
+        logMessage "Konfigurationsvorlage '${template_file}' konnte nicht geladen werden. Verwende Fallback-Werte."
+    fi
+
+    if [ -z "$default_vref" ]; then
+        default_vref="$DEFAULT_VREF_FALLBACK"
+        fallback_messages+=("Vref (${DEFAULT_VREF_FALLBACK})")
+    fi
+
+    if [ -z "$default_scale" ]; then
+        default_scale="$DEFAULT_SCALE_FALLBACK"
+        fallback_messages+=("Scale (${DEFAULT_SCALE_FALLBACK})")
+    fi
+
+    local channels_fallback=false
+    for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        if [ -z "${default_channel_types[channel]+set}" ] || [ -z "${default_channel_types[channel]}" ]; then
+            if [ -n "${DEFAULT_CHANNEL_TYPES_FALLBACK[channel]+set}" ]; then
+                default_channel_types[channel]="${DEFAULT_CHANNEL_TYPES_FALLBACK[channel]}"
+            else
+                default_channel_types[channel]=""
+            fi
+            channels_fallback=true
+        fi
+
+        if [ -z "${default_channel_labels[channel]+set}" ] || [ -z "${default_channel_labels[channel]}" ]; then
+            if [ -n "${default_channel_types[channel]}" ]; then
+                default_channel_labels[channel]="${default_channel_types[channel]}"
+            elif [ -n "${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]+set}" ]; then
+                default_channel_labels[channel]="${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]}"
+            else
+                default_channel_labels[channel]=""
+            fi
+            channels_fallback=true
+        fi
+    done
+
+    if [ "$channels_fallback" = true ]; then
+        fallback_messages+=("Kanäle (Fallback-Vorbelegung)")
+    fi
+
+    if [ "${#fallback_messages[@]}" -gt 0 ] && [ "$template_loaded" = true ]; then
+        logMessage "Unvollständige Angaben in '${template_file}'. Fallback-Werte verwendet für: ${fallback_messages[*]}."
+    elif [ "${#fallback_messages[@]}" -gt 0 ]; then
+        logMessage "Fallback-Werte verwendet für: ${fallback_messages[*]}."
+    fi
+
     local -a channel_types
     local -a channel_labels
     local -a saved_channel_types
