@@ -2,7 +2,7 @@
 
 # Setup-Skript für ExpanderPiSetup
 # Einbinden der Helper-Ressourcen
-. /data/SetupHelper/HelperResources/forSetupScript
+. /data/SetupHelper/HelperResources/forSetupScript || true
 
 # Standardaktionen aktivieren
 standardPromptAndActions='yes'
