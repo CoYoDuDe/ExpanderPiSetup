@@ -73,6 +73,23 @@ for ((channel=0; channel<TOTAL_ADC_CHANNELS; channel++)); do
     fi
 done
 
+# Prüfe, dass prompt_channel_assignment neue Sensortypen unverändert zurückliefert.
+previous_non_interactive="${nonInteractiveMode:-false}"
+nonInteractiveMode=true
+unset EXPANDERPI_CHANNEL_5
+unset EXPANDERPI_CHANNEL_5_LABEL
+EXPANDERPI_CHANNEL_5_TYPE="voltage"
+voltage_response="$(prompt_channel_assignment 5 "" "")"
+if [ "${voltage_response%%|*}" != "voltage" ]; then
+    echo "Erwartete Typweitergabe für 'voltage' schlug fehl: ${voltage_response}" >&2
+    exit 1
+fi
+unset EXPANDERPI_CHANNEL_5
+unset EXPANDERPI_CHANNEL_5_TYPE
+unset EXPANDERPI_CHANNEL_5_LABEL
+nonInteractiveMode="$previous_non_interactive"
+unset previous_non_interactive
+
 # Erzeuge die Ausgabe ähnlich der dbus-adc.conf.
 config_output=""
 for ((channel=0; channel<TOTAL_ADC_CHANNELS; channel++)); do
