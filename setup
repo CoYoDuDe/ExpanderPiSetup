@@ -527,6 +527,29 @@ normalize_channel_label() {
     fi
 }
 
+channel_label_fallback() {
+    local channel="$1"
+    local channel_type="$2"
+
+    case "${channel_type,,}" in
+        tank)
+            printf 'tank'
+            ;;
+        temp)
+            printf 'temp'
+            ;;
+        custom)
+            printf 'sensor_%s' "$channel"
+            ;;
+        none|"")
+            printf 'sensor_%s' "$channel"
+            ;;
+        *)
+            printf 'sensor_%s' "$channel"
+            ;;
+    esac
+}
+
 is_truthy() {
     local value="$1"
     case "${value,,}" in
@@ -1082,8 +1105,15 @@ install_config() {
                 saved_channel_types[channel]="$gui_type"
             fi
 
-            if [ -n "$gui_label" ]; then
-                saved_channel_labels[channel]="$gui_label"
+            if [ -n "$gui_type" ] || [ -n "$gui_label" ]; then
+                local current_type="${saved_channel_types[channel]}"
+                if [ "${current_type,,}" = "none" ]; then
+                    saved_channel_labels[channel]=""
+                else
+                    local label_fallback
+                    label_fallback="$(channel_label_fallback "$channel" "$current_type")"
+                    saved_channel_labels[channel]="$(normalize_channel_label "$gui_label" "$label_fallback")"
+                fi
             fi
         done
     fi
@@ -1153,10 +1183,16 @@ install_config() {
             local saved_type="${saved_channel_types[channel]}"
             channel_types[channel]="$saved_type"
 
-            if [ -n "$saved_label" ] && [ "$saved_type" != "none" ]; then
-                channel_labels[channel]="$saved_label"
+            if [ "${saved_type,,}" != "none" ]; then
+                local label_fallback
+                label_fallback="$(channel_label_fallback "$channel" "$saved_type")"
+                local normalized_label
+                normalized_label="$(normalize_channel_label "$saved_label" "$label_fallback")"
+                channel_labels[channel]="$normalized_label"
+                saved_channel_labels[channel]="$normalized_label"
             else
                 channel_labels[channel]=""
+                saved_channel_labels[channel]=""
             fi
         done
         logMessage "Gespeicherte Konfiguration wird erneut angewendet."
