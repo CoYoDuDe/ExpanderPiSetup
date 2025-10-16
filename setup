@@ -538,17 +538,8 @@ channel_label_fallback() {
         temp)
             printf 'temp'
             ;;
-        voltage)
-            printf 'voltage'
-            ;;
-        current)
-            printf 'current'
-            ;;
-        pressure)
-            printf 'pressure'
-            ;;
-        humidity)
-            printf 'humidity'
+        voltage|current|pressure|humidity)
+            printf '%s' "${channel_type,,}"
             ;;
         custom)
             printf 'sensor_%s' "$channel"
