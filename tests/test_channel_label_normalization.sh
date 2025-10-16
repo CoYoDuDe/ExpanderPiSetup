@@ -23,7 +23,7 @@ rm -f "$tmp_script"
 
 # Simuliere von der GUI geladene Kanaltypen und Labels.
 TOTAL_ADC_CHANNELS=8
-saved_channel_types=("tank" "temp" "none" "custom" "none" "none" "none" "none")
+saved_channel_types=("tank" "temp" "voltage" "current" "pressure" "humidity" "custom" "none")
 saved_channel_labels=("" "" "" "" "" "" "" "")
 
 declare -a gui_labels
@@ -51,6 +51,22 @@ if [ "${saved_channel_labels[0]}" != "tank1" ]; then
 fi
 if [ "${saved_channel_labels[1]}" != "temperatur5" ]; then
     echo "Erwartete Normalisierung für Kanal 1 fehlgeschlagen: ${saved_channel_labels[1]}" >&2
+    exit 1
+fi
+if [ "${saved_channel_labels[2]}" != "voltage" ]; then
+    echo "Erwartete Fallback-Benennung für Spannung fehlgeschlagen: ${saved_channel_labels[2]}" >&2
+    exit 1
+fi
+if [ "${saved_channel_labels[3]}" != "current" ]; then
+    echo "Erwartete Fallback-Benennung für Strom fehlgeschlagen: ${saved_channel_labels[3]}" >&2
+    exit 1
+fi
+if [ "${saved_channel_labels[4]}" != "pressure" ]; then
+    echo "Erwartete Fallback-Benennung für Druck fehlgeschlagen: ${saved_channel_labels[4]}" >&2
+    exit 1
+fi
+if [ "${saved_channel_labels[5]}" != "humidity" ]; then
+    echo "Erwartete Fallback-Benennung für Luftfeuchtigkeit fehlgeschlagen: ${saved_channel_labels[5]}" >&2
     exit 1
 fi
 
