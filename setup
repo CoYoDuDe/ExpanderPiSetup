@@ -994,9 +994,16 @@ prompt_channel_assignment() {
                 fi
                 local tank_label="$default_label"
                 if [ -z "$tank_label" ]; then
-                    tank_label="tank"
+                    tank_label="$(channel_label_fallback "$channel" "tank")"
                 fi
-                printf 'tank|%s\n' "$tank_label"
+                local normalized_tank_label
+                normalized_tank_label="$(prompt_sensor_label "$channel" "$tank_label" true)"
+                if [ -z "$normalized_tank_label" ]; then
+                    logMessage "Sensorbezeichnung für Tank-Sensor darf nicht leer sein."
+                    continue
+                fi
+                default_label="$normalized_tank_label"
+                printf 'tank|%s\n' "$normalized_tank_label"
                 return 0
                 ;;
             temp|temperatur|temperature|tempsensor|temp-sensor)
@@ -1008,9 +1015,16 @@ prompt_channel_assignment() {
                 fi
                 local temp_label="$default_label"
                 if [ -z "$temp_label" ]; then
-                    temp_label="temp"
+                    temp_label="$(channel_label_fallback "$channel" "temp")"
                 fi
-                printf 'temp|%s\n' "$temp_label"
+                local normalized_temp_label
+                normalized_temp_label="$(prompt_sensor_label "$channel" "$temp_label" true)"
+                if [ -z "$normalized_temp_label" ]; then
+                    logMessage "Sensorbezeichnung für Temperatur-Sensor darf nicht leer sein."
+                    continue
+                fi
+                default_label="$normalized_temp_label"
+                printf 'temp|%s\n' "$normalized_temp_label"
                 return 0
                 ;;
             voltage|volt|spannung|voltsensor|voltage-sensor)
@@ -1022,9 +1036,16 @@ prompt_channel_assignment() {
                 fi
                 local voltage_label="$default_label"
                 if [ -z "$voltage_label" ]; then
-                    voltage_label="voltage"
+                    voltage_label="$(channel_label_fallback "$channel" "voltage")"
                 fi
-                printf 'voltage|%s\n' "$voltage_label"
+                local normalized_voltage_label
+                normalized_voltage_label="$(prompt_sensor_label "$channel" "$voltage_label" true)"
+                if [ -z "$normalized_voltage_label" ]; then
+                    logMessage "Sensorbezeichnung für Spannungs-Sensor darf nicht leer sein."
+                    continue
+                fi
+                default_label="$normalized_voltage_label"
+                printf 'voltage|%s\n' "$normalized_voltage_label"
                 return 0
                 ;;
             current|strom|currentsensor|current-sensor)
@@ -1036,9 +1057,16 @@ prompt_channel_assignment() {
                 fi
                 local current_label="$default_label"
                 if [ -z "$current_label" ]; then
-                    current_label="current"
+                    current_label="$(channel_label_fallback "$channel" "current")"
                 fi
-                printf 'current|%s\n' "$current_label"
+                local normalized_current_label
+                normalized_current_label="$(prompt_sensor_label "$channel" "$current_label" true)"
+                if [ -z "$normalized_current_label" ]; then
+                    logMessage "Sensorbezeichnung für Strom-Sensor darf nicht leer sein."
+                    continue
+                fi
+                default_label="$normalized_current_label"
+                printf 'current|%s\n' "$normalized_current_label"
                 return 0
                 ;;
             pressure|druck|pressuresensor|pressure-sensor)
@@ -1050,9 +1078,16 @@ prompt_channel_assignment() {
                 fi
                 local pressure_label="$default_label"
                 if [ -z "$pressure_label" ]; then
-                    pressure_label="pressure"
+                    pressure_label="$(channel_label_fallback "$channel" "pressure")"
                 fi
-                printf 'pressure|%s\n' "$pressure_label"
+                local normalized_pressure_label
+                normalized_pressure_label="$(prompt_sensor_label "$channel" "$pressure_label" true)"
+                if [ -z "$normalized_pressure_label" ]; then
+                    logMessage "Sensorbezeichnung für Druck-Sensor darf nicht leer sein."
+                    continue
+                fi
+                default_label="$normalized_pressure_label"
+                printf 'pressure|%s\n' "$normalized_pressure_label"
                 return 0
                 ;;
             humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
@@ -1064,9 +1099,16 @@ prompt_channel_assignment() {
                 fi
                 local humidity_label="$default_label"
                 if [ -z "$humidity_label" ]; then
-                    humidity_label="humidity"
+                    humidity_label="$(channel_label_fallback "$channel" "humidity")"
                 fi
-                printf 'humidity|%s\n' "$humidity_label"
+                local normalized_humidity_label
+                normalized_humidity_label="$(prompt_sensor_label "$channel" "$humidity_label" true)"
+                if [ -z "$normalized_humidity_label" ]; then
+                    logMessage "Sensorbezeichnung für Feuchtigkeits-Sensor darf nicht leer sein."
+                    continue
+                fi
+                default_label="$normalized_humidity_label"
+                printf 'humidity|%s\n' "$normalized_humidity_label"
                 return 0
                 ;;
             custom|benutzerdefiniert|user|label|sensor)
