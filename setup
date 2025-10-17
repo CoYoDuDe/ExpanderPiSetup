@@ -1228,9 +1228,16 @@ install_config() {
         done
     fi
 
+    local previous_non_interactive_mode="$nonInteractiveMode"
+
     if load_gui_configuration; then
-        logMessage "Übernehme Werte aus der SetupHelper-Oberfläche für die nicht-interaktive Ausführung."
-        nonInteractiveMode=true
+        logMessage "Übernehme Werte aus der SetupHelper-Oberfläche als Voreinstellungen."
+        if [ "$previous_non_interactive_mode" = true ]; then
+            nonInteractiveMode=true
+            logMessage "SetupHelper fordert einen nicht-interaktiven Lauf an; nicht-interaktiver Modus bleibt aktiv."
+        else
+            logMessage "Interaktive Ausführung: Verwende SetupHelper-Werte als Standardvorgaben."
+        fi
         if [ -n "${EXPANDERPI_VREF:-}" ]; then
             saved_vref="${EXPANDERPI_VREF}";
         fi
