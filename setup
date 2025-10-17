@@ -1229,8 +1229,10 @@ install_config() {
     fi
 
     local previous_non_interactive_mode="$nonInteractiveMode"
+    local gui_values_loaded=false
 
     if load_gui_configuration; then
+        gui_values_loaded=true
         logMessage "Übernehme Werte aus der SetupHelper-Oberfläche als Voreinstellungen."
         if [ "$previous_non_interactive_mode" = true ]; then
             nonInteractiveMode=true
@@ -1238,35 +1240,47 @@ install_config() {
         else
             logMessage "Interaktive Ausführung: Verwende SetupHelper-Werte als Standardvorgaben."
         fi
-        if [ -n "${EXPANDERPI_VREF:-}" ]; then
-            saved_vref="${EXPANDERPI_VREF}";
-        fi
-        if [ -n "${EXPANDERPI_SCALE:-}" ]; then
-            saved_scale="${EXPANDERPI_SCALE}";
-        fi
-
-        for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-            local gui_type_var="EXPANDERPI_CHANNEL_${channel}_TYPE"
-            local gui_label_var="EXPANDERPI_CHANNEL_${channel}_LABEL"
-            local gui_type="${!gui_type_var:-}"
-            local gui_label="${!gui_label_var:-}"
-
-            if [ -n "$gui_type" ]; then
-                saved_channel_types[channel]="$gui_type"
-            fi
-
-            if [ -n "$gui_type" ] || [ -n "$gui_label" ]; then
-                local current_type="${saved_channel_types[channel]}"
-                if [ "${current_type,,}" = "none" ]; then
-                    saved_channel_labels[channel]=""
-                else
-                    local label_fallback
-                    label_fallback="$(channel_label_fallback "$channel" "$current_type")"
-                    saved_channel_labels[channel]="$(normalize_channel_label "$gui_label" "$label_fallback")"
-                fi
-            fi
-        done
+    else
+        logMessage "SetupHelper lieferte keine GUI-Voreinstellungen. Prüfe Umgebungsvariablen EXPANDERPI_* und vorhandene Benutzerwerte."
     fi
+
+    if [ -n "${EXPANDERPI_VREF:-}" ]; then
+        saved_vref="${EXPANDERPI_VREF}";
+        if [ "$gui_values_loaded" = false ]; then
+            logMessage "Übernehme Vref aus Umgebungsvariable EXPANDERPI_VREF (${saved_vref})."
+        fi
+    fi
+    if [ -n "${EXPANDERPI_SCALE:-}" ]; then
+        saved_scale="${EXPANDERPI_SCALE}";
+        if [ "$gui_values_loaded" = false ]; then
+            logMessage "Übernehme Scale aus Umgebungsvariable EXPANDERPI_SCALE (${saved_scale})."
+        fi
+    fi
+
+    for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        local gui_type_var="EXPANDERPI_CHANNEL_${channel}_TYPE"
+        local gui_label_var="EXPANDERPI_CHANNEL_${channel}_LABEL"
+        local gui_type="${!gui_type_var:-}"
+        local gui_label="${!gui_label_var:-}"
+
+        if [ -n "$gui_type" ]; then
+            saved_channel_types[channel]="$gui_type"
+        fi
+
+        if [ -n "$gui_type" ] || [ -n "$gui_label" ]; then
+            local current_type="${saved_channel_types[channel]}"
+            if [ "${current_type,,}" = "none" ]; then
+                saved_channel_labels[channel]=""
+            else
+                local label_fallback
+                label_fallback="$(channel_label_fallback "$channel" "$current_type")"
+                saved_channel_labels[channel]="$(normalize_channel_label "$gui_label" "$label_fallback")"
+            fi
+            if [ "$gui_values_loaded" = false ]; then
+                logMessage "Übernehme Kanal ${channel} aus Umgebungsvariablen (${saved_channel_labels[channel]:-leer}/${saved_channel_types[channel]:-none})."
+            fi
+        fi
+    done
 
     local use_saved=false
     if [ -n "$saved_vref" ] || [ -n "$saved_scale" ]; then
@@ -1295,8 +1309,13 @@ install_config() {
                     logMessage "Nicht-interaktiv: verwerfe gespeicherte Konfiguration gemäß EXPANDERPI_USE_SAVED=${use_saved_env}."
                 fi
             else
-                use_saved=true
-                logMessage "Nicht-interaktiv: verwende automatisch die gespeicherten Werte."
+                if [ "$gui_values_loaded" = true ]; then
+                    use_saved=true
+                    logMessage "Nicht-interaktiv: verwende automatisch die aus der SetupHelper-Oberfläche geladenen Werte."
+                else
+                    use_saved=false
+                    logMessage "Nicht-interaktiv: keine GUI-Daten verfügbar – verwende aktuelle Umgebungswerte bzw. Standardvorgaben."
+                fi
             fi
         else
             if declare -F yesNoPrompt >/dev/null 2>&1; then
