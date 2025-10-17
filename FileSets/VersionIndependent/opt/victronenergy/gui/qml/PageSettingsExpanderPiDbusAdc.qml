@@ -53,8 +53,13 @@ MbPage {
     }
 
     function sensorSummary(typeValue, labelValue, index) {
+        var normalizedType = String(typeValue || "none");
+        if (normalizedType === "none") {
+            return qsTr("Kanal %1 deaktiviert").arg(index + 1);
+        }
+
         var typeText = "";
-        switch (String(typeValue || "none")) {
+        switch (normalizedType) {
         case "tank":
             typeText = qsTr("Tank");
             break;
@@ -83,11 +88,7 @@ MbPage {
 
         var labelText = String(labelValue || "").trim();
         if (labelText.length === 0) {
-            if (typeValue === "none" || !typeValue) {
-                labelText = qsTr("Kanal %1 deaktiviert").arg(index + 1);
-            } else {
-                labelText = typeText;
-            }
+            labelText = typeText;
         }
 
         return labelText + " • " + typeText;
@@ -104,7 +105,19 @@ MbPage {
             binding.typeItem.setValue(defaults.type);
         }
 
-        if (!binding.labelItem.valid || binding.labelItem.value === undefined || binding.labelItem.value === "") {
+        var effectiveType = String(binding.typeItem.value || defaults.type || "none");
+        var labelMissing = !binding.labelItem.valid || binding.labelItem.value === undefined || binding.labelItem.value === "";
+
+        if (!labelMissing) {
+            return;
+        }
+
+        if (effectiveType === "none") {
+            binding.labelItem.setValue("");
+            return;
+        }
+
+        if (defaults.label !== undefined) {
             binding.labelItem.setValue(defaults.label);
         }
     }
