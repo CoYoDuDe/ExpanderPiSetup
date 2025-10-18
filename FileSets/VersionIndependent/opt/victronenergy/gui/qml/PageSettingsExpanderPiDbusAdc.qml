@@ -30,6 +30,31 @@ MbPage {
         { type: "temp", label: qsTr("Temperatur %1").arg(8) }
     ]
 
+    function defaultLabelForType(type, index) {
+        var normalizedType = String(type || "none");
+        var channelNumber = (index !== undefined ? index : 0) + 1;
+
+        switch (normalizedType) {
+        case "tank":
+            return qsTr("Tank %1").arg(channelNumber);
+        case "temp":
+            return qsTr("Temperatur %1").arg(channelNumber);
+        case "voltage":
+            return qsTr("Spannung %1").arg(channelNumber);
+        case "current":
+            return qsTr("Strom %1").arg(channelNumber);
+        case "pressure":
+            return qsTr("Druck %1").arg(channelNumber);
+        case "humidity":
+            return qsTr("Feuchte %1").arg(channelNumber);
+        case "custom":
+            return qsTr("Generisch %1").arg(channelNumber);
+        case "none":
+        default:
+            return "";
+        }
+    }
+
     property var helperApi: ({
         get instance() {
             if (typeof SetupHelper !== "undefined") {
@@ -116,6 +141,12 @@ MbPage {
         }
 
         if (!labelMissing) {
+            return;
+        }
+
+        var typeDefaultLabel = defaultLabelForType(effectiveType, binding.channelIndex);
+        if (typeDefaultLabel && typeDefaultLabel.length > 0) {
+            binding.labelItem.setValue(typeDefaultLabel);
             return;
         }
 
