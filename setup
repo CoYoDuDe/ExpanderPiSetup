@@ -43,7 +43,13 @@ fi
 if [ "$force_override_active" = true ] && [ "$forced_non_interactive" != "" ]; then
     nonInteractiveMode="$forced_non_interactive"
 fi
-if [ "$nonInteractiveMode" = false ] && [ ! -t 0 ]; then
+skip_tty_check=false
+if [ "$force_override_active" = true ] && [ "$forced_non_interactive" = false ]; then
+    skip_tty_check=true
+    logMessage "SETUPHELPER_FORCE_NONINTERACTIVE setzt einen interaktiven Lauf durch – TTY-Heuristik wird übersprungen."
+fi
+
+if [ "$skip_tty_check" != true ] && [ "$nonInteractiveMode" = false ] && [ ! -t 0 ]; then
     nonInteractiveMode=true
 fi
 if [ "$nonInteractiveMode" = true ]; then
