@@ -108,12 +108,14 @@ MbPage {
         var effectiveType = String(binding.typeItem.value || defaults.type || "none");
         var labelMissing = !binding.labelItem.valid || binding.labelItem.value === undefined || binding.labelItem.value === "";
 
-        if (!labelMissing) {
+        if (effectiveType === "none") {
+            if (!binding.labelItem.valid || binding.labelItem.value !== "") {
+                binding.labelItem.setValue("");
+            }
             return;
         }
 
-        if (effectiveType === "none") {
-            binding.labelItem.setValue("");
+        if (!labelMissing) {
             return;
         }
 
