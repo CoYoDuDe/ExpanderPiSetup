@@ -9,6 +9,21 @@ standardPromptAndActions='yes'
 
 # Nicht-interaktiven Modus erkennen
 nonInteractiveMode=false
+force_override_active=false
+forced_non_interactive=""
+
+if [ "${SETUPHELPER_FORCE_NONINTERACTIVE:-}" != "" ]; then
+    force_override_active=true
+    case "${SETUPHELPER_FORCE_NONINTERACTIVE,,}" in
+        1|true|yes|y|on)
+            forced_non_interactive=true
+            ;;
+        0|false|no|n|off)
+            forced_non_interactive=false
+            ;;
+    esac
+fi
+
 if [ "${SETUPHELPER_NONINTERACTIVE:-}" != "" ]; then
     case "${SETUPHELPER_NONINTERACTIVE,,}" in
         1|true|yes|y|on)
@@ -16,28 +31,32 @@ if [ "${SETUPHELPER_NONINTERACTIVE:-}" != "" ]; then
             ;;
     esac
 fi
-if [ "${SETUPHELPER_FORCE_NONINTERACTIVE:-}" != "" ]; then
-    case "${SETUPHELPER_FORCE_NONINTERACTIVE,,}" in
-        1|true|yes|y|on)
-            nonInteractiveMode=true
-            ;;
-        0|false|no|n|off)
-            nonInteractiveMode=false
-            ;;
-    esac
-fi
-if [ "${SETUPHELPER_MODE:-}" != "" ]; then
+
+if [ "$force_override_active" != true ] && [ "${SETUPHELPER_MODE:-}" != "" ]; then
     case "${SETUPHELPER_MODE,,}" in
         batch|noninteractive)
             nonInteractiveMode=true
             ;;
     esac
 fi
+
+if [ "$force_override_active" = true ] && [ "$forced_non_interactive" != "" ]; then
+    nonInteractiveMode="$forced_non_interactive"
+fi
 if [ "$nonInteractiveMode" = false ] && [ ! -t 0 ]; then
     nonInteractiveMode=true
 fi
 if [ "$nonInteractiveMode" = true ]; then
     logMessage "Nicht-interaktiver Modus erkannt. Benutzerabfragen werden übersprungen."
+fi
+if [ "$force_override_active" = true ]; then
+    if [ "$forced_non_interactive" = true ]; then
+        logMessage "SETUPHELPER_FORCE_NONINTERACTIVE erzwingt den nicht-interaktiven Modus."
+    elif [ "$forced_non_interactive" = false ]; then
+        logMessage "SETUPHELPER_FORCE_NONINTERACTIVE erzwingt den interaktiven Modus trotz anderer Einstellungen."
+    else
+        logMessage "SETUPHELPER_FORCE_NONINTERACTIVE ist gesetzt, der Wert \"${SETUPHELPER_FORCE_NONINTERACTIVE}\" wird jedoch nicht interpretiert."
+    fi
 fi
 
 # Installationsverzeichnis festlegen
