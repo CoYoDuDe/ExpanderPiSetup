@@ -1713,7 +1713,7 @@ check_and_install_kernel_modules() {
     local newly_installed=()
 
     for module in "${REQUIRED_MODULES[@]}"; do
-        if opkg list-installed | grep -q "$module"; then
+        if opkg list-installed | awk '{print $1}' | grep -Fxq "$module"; then
             logMessage "$module ist bereits installiert und bleibt unverändert."
         else
             missing_modules+=("$module")
@@ -1804,7 +1804,7 @@ remove_kernel_modules() {
     local already_absent_modules=()
 
     for module in "${marked_modules[@]}"; do
-        if opkg list-installed | grep -q "$module"; then
+        if opkg list-installed | awk '{print $1}' | grep -Fxq "$module"; then
             logMessage "Entferne markiertes Modul $module..."
             if opkg remove "$module"; then
                 logMessage "$module entfernt."
