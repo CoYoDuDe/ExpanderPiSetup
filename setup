@@ -87,13 +87,10 @@ detect_python() {
     return 1
 }
 
-load_gui_configuration() {
-    if ! detect_python; then
-        return 1
-    fi
+_run_gui_configuration_loader() {
+    local _python_cmd="$1"
 
-    local python_output
-    python_output="$("$python_command" <<'PY'
+    "$_python_cmd" <<'PY'
 import shlex
 import sys
 
@@ -137,12 +134,44 @@ if not any(values.values()):
 for key, val in values.items():
     print(f"{key}={shlex.quote(val)}")
 PY
-)" || return 1
+}
 
-    if [ -z "$python_output" ]; then
+load_gui_configuration() {
+    if ! detect_python; then
         return 1
     fi
 
+    local python_output=""
+    local python_status=0
+    local attempted_command="$python_command"
+
+    python_output="$(_run_gui_configuration_loader "$python_command")"
+    python_status=$?
+
+    if [ $python_status -ne 0 ]; then
+        logMessage "Interpreter $attempted_command konnte die GUI-Konfiguration nicht laden (Exit-Code $python_status)."
+
+        if [ "$attempted_command" = "python3" ] && command -v python >/dev/null 2>&1; then
+            logMessage "python3 ohne dbus – wechsle auf python"
+            python_command="python"
+            attempted_command="$python_command"
+            python_output="$(_run_gui_configuration_loader "$python_command")"
+            python_status=$?
+        elif [ "$attempted_command" = "python3" ]; then
+            logMessage "python3 schlug fehl, ein alternativer python-Interpreter ist jedoch nicht verfügbar."
+        fi
+    fi
+
+    if [ $python_status -ne 0 ] || [ -z "$python_output" ]; then
+        if [ $python_status -ne 0 ]; then
+            logMessage "GUI-Konfiguration konnte nicht geladen werden mit $attempted_command (Exit-Code $python_status)."
+        else
+            logMessage "GUI-Konfiguration konnte nicht geladen werden mit $attempted_command (leere Ausgabe)."
+        fi
+        return 1
+    fi
+
+    logMessage "GUI-Konfiguration erfolgreich mit $attempted_command geladen."
     eval "$python_output"
     return 0
 }
