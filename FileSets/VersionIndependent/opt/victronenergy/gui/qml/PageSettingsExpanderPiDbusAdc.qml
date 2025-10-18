@@ -220,11 +220,13 @@ MbPage {
             return;
         }
 
-        if (state.vref !== undefined && vrefItem.valid) {
-            vrefItem.setValue(String(state.vref));
+        if (vrefItem.valid) {
+            var vrefValue = (state.vref !== undefined && state.vref !== null) ? String(state.vref) : "";
+            vrefItem.setValue(vrefValue);
         }
-        if (state.scale !== undefined && scaleItem.valid) {
-            scaleItem.setValue(String(state.scale));
+        if (scaleItem.valid) {
+            var scaleValue = (state.scale !== undefined && state.scale !== null) ? String(state.scale) : "";
+            scaleItem.setValue(scaleValue);
         }
 
         if (state.sensors && state.sensors.length) {
@@ -238,12 +240,11 @@ MbPage {
                 if (!channel) {
                     continue;
                 }
-                if (entry.type !== undefined) {
-                    channel.typeItem.setValue(String(entry.type));
-                }
-                if (entry.label !== undefined) {
-                    channel.labelItem.setValue(String(entry.label));
-                }
+                var typeValue = (entry.type !== undefined && entry.type !== null) ? String(entry.type) : "none";
+                channel.typeItem.setValue(typeValue);
+
+                var labelValue = (entry.label !== undefined && entry.label !== null) ? String(entry.label) : "";
+                channel.labelItem.setValue(labelValue);
             }
         }
     }
