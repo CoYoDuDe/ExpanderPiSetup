@@ -280,12 +280,14 @@ rcLocalBackupAvailable=false
 rcLocalRestorePerformed=false
 
 # Kompatibilität prüfen
-if [ ! -f /etc/venus/machine ]; then
+machine_file="${EXPANDERPI_MACHINE_FILE:-${VENUS_MACHINE_FILE:-/etc/venus/machine}}"
+
+if [ ! -f "$machine_file" ]; then
     logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
     setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "Kann den Venus-Gerätetyp nicht bestimmen."
 fi
 
-machine=$(cat /etc/venus/machine)
+machine=$(cat "$machine_file")
 if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
     logMessage "$machine wird nicht unterstützt - Skript wird beendet."
     setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "$machine wird nicht unterstützt."

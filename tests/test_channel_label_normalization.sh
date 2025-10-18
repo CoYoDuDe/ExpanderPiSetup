@@ -3,17 +3,22 @@ set -euo pipefail
 
 # Lade Funktionsdefinitionen aus dem Setup-Skript ohne den ausführenden Hauptteil.
 tmp_script="$(mktemp)"
+temp_machine_dir=""
 awk '/^case "\$scriptAction" in/ { exit } { print }' "$(dirname "$0")/../setup" > "$tmp_script"
 
 cleanup() {
     rm -f "$tmp_script"
+    if [ -n "${temp_machine_dir:-}" ] && [ -d "$temp_machine_dir" ]; then
+        rm -rf "$temp_machine_dir"
+    fi
 }
 trap cleanup EXIT
 
 main() {
     # Minimale Umgebung für das Setup bereitstellen.
-    mkdir -p /etc/venus
-    echo "raspberrypi4" > /etc/venus/machine
+    temp_machine_dir="$(mktemp -d)"
+    echo "raspberrypi4" > "${temp_machine_dir}/machine"
+    export EXPANDERPI_MACHINE_FILE="${temp_machine_dir}/machine"
 
     # Minimale Stubs für die vom Setup erwarteten Helper-Funktionen.
     EXIT_INCOMPATIBLE_PLATFORM=${EXIT_INCOMPATIBLE_PLATFORM:-2}
