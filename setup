@@ -687,7 +687,8 @@ prompt_sensor_label() {
     local channel="$1"
     local default_value="$2"
     local require_non_empty="${3:-false}"
-    local prompt_text="Sensorbezeichnung für Kanal ${channel}"
+    local channel_display=$((channel + 1))
+    local prompt_text="Sensorbezeichnung für Kanal ${channel_display}"
     local input=""
 
     if [ "$nonInteractiveMode" = true ]; then
@@ -696,16 +697,16 @@ prompt_sensor_label() {
         local fallback="sensor_${channel}"
 
         if [ "$require_non_empty" = false ] && [ -z "$candidate" ]; then
-            logMessage "Nicht-interaktiv: Kanal ${channel} bleibt ohne Sensor."
+            logMessage "Nicht-interaktiv: Kanal ${channel_display} bleibt ohne Sensor."
             echo ""
             return 0
         fi
 
         if [ -z "$candidate" ]; then
             candidate="$fallback"
-            logMessage "Nicht-interaktiv: verwende Platzhalter '${candidate}' für Kanal ${channel}."
+            logMessage "Nicht-interaktiv: verwende Platzhalter '${candidate}' für Kanal ${channel_display}."
         else
-            logMessage "Nicht-interaktiv: verwende Umgebungswert '${candidate}' für Kanal ${channel}."
+            logMessage "Nicht-interaktiv: verwende Umgebungswert '${candidate}' für Kanal ${channel_display}."
         fi
 
         local normalized
@@ -732,12 +733,12 @@ prompt_sensor_label() {
 
         if [ -z "$trimmed_input" ] || [[ "$lowered_input" =~ ^(-|none|leer|kein|keine|aus)$ ]]; then
             if [ "$require_non_empty" = "true" ]; then
-                logMessage "Bitte eine Sensorbezeichnung für Kanal ${channel} angeben."
+                logMessage "Bitte eine Sensorbezeichnung für Kanal ${channel_display} angeben."
                 continue
             fi
 
             if declare -F yesNoPrompt >/dev/null 2>&1; then
-                if yesNoPrompt "Kanal ${channel} ohne Sensor belassen (y/n)? "; then
+                if yesNoPrompt "Kanal ${channel_display} ohne Sensor belassen (y/n)? "; then
                     echo ""
                     return 0
                 else
@@ -755,7 +756,7 @@ prompt_sensor_label() {
             normalized_input="$(printf '%s' "$trimmed_input" | tr '[:upper:]' '[:lower:]')"
 
             if declare -F yesNoPrompt >/dev/null 2>&1; then
-                if yesNoPrompt "Sensor '${normalized_input}' für Kanal ${channel} übernehmen (y/n)? "; then
+                if yesNoPrompt "Sensor '${normalized_input}' für Kanal ${channel_display} übernehmen (y/n)? "; then
                     echo "$normalized_input"
                     return 0
                 else
@@ -768,7 +769,7 @@ prompt_sensor_label() {
             fi
         fi
 
-        logMessage "Ungültige Eingabe für Kanal ${channel}. Bitte nur Buchstaben, Zahlen sowie '._:/-' verwenden."
+        logMessage "Ungültige Eingabe für Kanal ${channel_display}. Bitte nur Buchstaben, Zahlen sowie '._:/-' verwenden."
     done
 }
 
@@ -776,6 +777,7 @@ prompt_channel_assignment() {
     local channel="$1"
     local default_type="$2"
     local default_label="$3"
+    local channel_display=$((channel + 1))
 
     if [ "$nonInteractiveMode" = true ]; then
         local env_var_base="EXPANDERPI_CHANNEL_${channel}"
@@ -819,7 +821,7 @@ prompt_channel_assignment() {
             ""|none|leer|aus|kein|keine|0)
                 normalized_type="none"
                 normalized_label=""
-                logMessage "Nicht-interaktiv: ${log_source} führen dazu, dass Kanal ${channel} leer bleibt."
+                logMessage "Nicht-interaktiv: ${log_source} führen dazu, dass Kanal ${channel_display} leer bleibt."
                 printf 'none|\n'
                 return 0
                 ;;
@@ -834,7 +836,7 @@ prompt_channel_assignment() {
                     fi
                 fi
                 normalized_label="$(normalize_channel_label "$normalized_label" "$tank_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel} als Tank-Sensor (${normalized_label})."
+                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Tank-Sensor (${normalized_label})."
                 printf 'tank|%s\n' "$normalized_label"
                 return 0
                 ;;
@@ -849,7 +851,7 @@ prompt_channel_assignment() {
                     fi
                 fi
                 normalized_label="$(normalize_channel_label "$normalized_label" "$temp_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel} als Temperatur-Sensor (${normalized_label})."
+                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Temperatur-Sensor (${normalized_label})."
                 printf 'temp|%s\n' "$normalized_label"
                 return 0
                 ;;
@@ -864,7 +866,7 @@ prompt_channel_assignment() {
                     fi
                 fi
                 normalized_label="$(normalize_channel_label "$normalized_label" "$voltage_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel} als Spannungs-Sensor (${normalized_label})."
+                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Spannungs-Sensor (${normalized_label})."
                 printf 'voltage|%s\n' "$normalized_label"
                 return 0
                 ;;
@@ -879,7 +881,7 @@ prompt_channel_assignment() {
                     fi
                 fi
                 normalized_label="$(normalize_channel_label "$normalized_label" "$current_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel} als Strom-Sensor (${normalized_label})."
+                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Strom-Sensor (${normalized_label})."
                 printf 'current|%s\n' "$normalized_label"
                 return 0
                 ;;
@@ -894,7 +896,7 @@ prompt_channel_assignment() {
                     fi
                 fi
                 normalized_label="$(normalize_channel_label "$normalized_label" "$pressure_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel} als Druck-Sensor (${normalized_label})."
+                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Druck-Sensor (${normalized_label})."
                 printf 'pressure|%s\n' "$normalized_label"
                 return 0
                 ;;
@@ -909,7 +911,7 @@ prompt_channel_assignment() {
                     fi
                 fi
                 normalized_label="$(normalize_channel_label "$normalized_label" "$humidity_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel} als Feuchtigkeits-Sensor (${normalized_label})."
+                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Feuchtigkeits-Sensor (${normalized_label})."
                 printf 'humidity|%s\n' "$normalized_label"
                 return 0
                 ;;
@@ -924,7 +926,7 @@ prompt_channel_assignment() {
                     fi
                 fi
                 normalized_label="$(normalize_channel_label "$normalized_label" "$custom_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel} als benutzerdefiniert (${normalized_label})."
+                logMessage "Nicht-interaktiv: Kanal ${channel_display} als benutzerdefiniert (${normalized_label})."
                 printf 'custom|%s\n' "$normalized_label"
                 return 0
                 ;;
@@ -935,7 +937,7 @@ prompt_channel_assignment() {
                     normalized_label="$raw_type"
                 fi
                 normalized_label="$(normalize_channel_label "$normalized_label" "$generic_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel} als benutzerdefiniert (${normalized_label})."
+                logMessage "Nicht-interaktiv: Kanal ${channel_display} als benutzerdefiniert (${normalized_label})."
                 printf 'custom|%s\n' "$normalized_label"
                 return 0
                 ;;
@@ -990,9 +992,9 @@ prompt_channel_assignment() {
     while true; do
         local reply=""
         if [ -n "$prompt_suffix" ]; then
-            read -rp "Sensortyp für Kanal ${channel} [${prompt_suffix}]: " reply
+            read -rp "Sensortyp für Kanal ${channel_display} [${prompt_suffix}]: " reply
         else
-            read -rp "Sensortyp für Kanal ${channel}: " reply
+            read -rp "Sensortyp für Kanal ${channel_display}: " reply
         fi
 
         if [ -z "$reply" ]; then
@@ -1004,7 +1006,7 @@ prompt_channel_assignment() {
         case "$reply" in
             ""|"none"|"leer"|"aus"|"kein"|"keine"|"0")
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if yesNoPrompt "Kanal ${channel} ohne Sensor übernehmen (y/n)? "; then
+                    if yesNoPrompt "Kanal ${channel_display} ohne Sensor übernehmen (y/n)? "; then
                         printf 'none|\n'
                         return 0
                     else
@@ -1018,7 +1020,7 @@ prompt_channel_assignment() {
                 ;;
             tank|t|tank-sensor|tanksensor)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel} als Tank-Sensor übernehmen (y/n)? "; then
+                    if ! yesNoPrompt "Kanal ${channel_display} als Tank-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
                         continue
                     fi
@@ -1039,7 +1041,7 @@ prompt_channel_assignment() {
                 ;;
             temp|temperatur|temperature|tempsensor|temp-sensor)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel} als Temperatur-Sensor übernehmen (y/n)? "; then
+                    if ! yesNoPrompt "Kanal ${channel_display} als Temperatur-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
                         continue
                     fi
@@ -1060,7 +1062,7 @@ prompt_channel_assignment() {
                 ;;
             voltage|volt|spannung|voltsensor|voltage-sensor)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel} als Spannungs-Sensor übernehmen (y/n)? "; then
+                    if ! yesNoPrompt "Kanal ${channel_display} als Spannungs-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
                         continue
                     fi
@@ -1081,7 +1083,7 @@ prompt_channel_assignment() {
                 ;;
             current|strom|currentsensor|current-sensor)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel} als Strom-Sensor übernehmen (y/n)? "; then
+                    if ! yesNoPrompt "Kanal ${channel_display} als Strom-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
                         continue
                     fi
@@ -1102,7 +1104,7 @@ prompt_channel_assignment() {
                 ;;
             pressure|druck|pressuresensor|pressure-sensor)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel} als Druck-Sensor übernehmen (y/n)? "; then
+                    if ! yesNoPrompt "Kanal ${channel_display} als Druck-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
                         continue
                     fi
@@ -1123,7 +1125,7 @@ prompt_channel_assignment() {
                 ;;
             humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel} als Feuchtigkeits-Sensor übernehmen (y/n)? "; then
+                    if ! yesNoPrompt "Kanal ${channel_display} als Feuchtigkeits-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
                         continue
                     fi
@@ -1155,7 +1157,7 @@ prompt_channel_assignment() {
             *)
                 if [[ "$reply" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
                     if declare -F yesNoPrompt >/dev/null 2>&1; then
-                        if ! yesNoPrompt "Kanal ${channel} als '${reply}' übernehmen (y/n)? "; then
+                        if ! yesNoPrompt "Kanal ${channel_display} als '${reply}' übernehmen (y/n)? "; then
                             logMessage "Bitte Auswahl erneut treffen."
                             continue
                         fi
@@ -1164,7 +1166,7 @@ prompt_channel_assignment() {
                     return 0
                 fi
 
-                logMessage "Ungültige Auswahl für Kanal ${channel}. Gültig sind 'tank', 'temp', 'voltage', 'current', 'pressure', 'humidity', 'custom' oder eine eigene Bezeichnung."
+                logMessage "Ungültige Auswahl für Kanal ${channel_display}. Gültig sind 'tank', 'temp', 'voltage', 'current', 'pressure', 'humidity', 'custom' oder eine eigene Bezeichnung."
                 ;;
         esac
     done
@@ -1331,6 +1333,7 @@ install_config() {
     fi
 
     for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        local channel_display=$((channel + 1))
         local gui_type_var="EXPANDERPI_CHANNEL_${channel}_TYPE"
         local gui_label_var="EXPANDERPI_CHANNEL_${channel}_LABEL"
         local gui_type="${!gui_type_var:-}"
@@ -1350,7 +1353,7 @@ install_config() {
                 saved_channel_labels[channel]="$(normalize_channel_label "$gui_label" "$label_fallback")"
             fi
             if [ "$gui_values_loaded" = false ]; then
-                logMessage "Übernehme Kanal ${channel} aus Umgebungsvariablen (${saved_channel_labels[channel]:-leer}/${saved_channel_types[channel]:-none})."
+                logMessage "Übernehme Kanal ${channel_display} aus Umgebungsvariablen (${saved_channel_labels[channel]:-leer}/${saved_channel_types[channel]:-none})."
             fi
         fi
     done
@@ -1359,12 +1362,13 @@ install_config() {
     if [ -n "$saved_vref" ] || [ -n "$saved_scale" ]; then
         local summary=""
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+            local channel_display=$((channel + 1))
             local type_value="${saved_channel_types[channel]}"
             local label_value="${saved_channel_labels[channel]}"
             if [ -n "$label_value" ]; then
-                summary+="Kanal ${channel}: ${label_value} (${type_value}), "
+                summary+="Kanal ${channel_display}: ${label_value} (${type_value}), "
             else
-                summary+="Kanal ${channel}: leer, "
+                summary+="Kanal ${channel_display}: leer, "
             fi
         done
         summary="${summary%, }"
@@ -1470,10 +1474,11 @@ install_config() {
 
     local mapping_summary=""
     for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        local channel_display=$((channel + 1))
         if [ -n "${channel_labels[channel]}" ]; then
-            mapping_summary+="Kanal ${channel}: ${channel_labels[channel]} (${channel_types[channel]}), "
+            mapping_summary+="Kanal ${channel_display}: ${channel_labels[channel]} (${channel_types[channel]}), "
         else
-            mapping_summary+="Kanal ${channel}: leer, "
+            mapping_summary+="Kanal ${channel_display}: leer, "
         fi
     done
     mapping_summary="${mapping_summary%, }"
