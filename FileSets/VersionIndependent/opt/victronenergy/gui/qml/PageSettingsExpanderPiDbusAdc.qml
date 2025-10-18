@@ -331,6 +331,16 @@ MbPage {
             onLabelItemChanged: root.registerChannelBinding(channel0)
             Component.onCompleted: root.registerChannelBinding(channel0)
 
+            Connections {
+                target: channel0.typeItem
+                onValueChanged: root.registerChannelBinding(channel0)
+            }
+
+            Connections {
+                target: channel0.labelItem
+                onValueChanged: root.ensureChannelDefault(channel0)
+            }
+
             description: qsTr("Sensor Kanal %1").arg(channelIndex + 1)
             item: labelItem
 
@@ -383,6 +393,16 @@ MbPage {
             onTypeItemChanged: root.registerChannelBinding(channel1)
             onLabelItemChanged: root.registerChannelBinding(channel1)
             Component.onCompleted: root.registerChannelBinding(channel1)
+
+            Connections {
+                target: channel1.typeItem
+                onValueChanged: root.registerChannelBinding(channel1)
+            }
+
+            Connections {
+                target: channel1.labelItem
+                onValueChanged: root.ensureChannelDefault(channel1)
+            }
 
             description: qsTr("Sensor Kanal %1").arg(channelIndex + 1)
             item: labelItem
@@ -437,6 +457,16 @@ MbPage {
             onLabelItemChanged: root.registerChannelBinding(channel2)
             Component.onCompleted: root.registerChannelBinding(channel2)
 
+            Connections {
+                target: channel2.typeItem
+                onValueChanged: root.registerChannelBinding(channel2)
+            }
+
+            Connections {
+                target: channel2.labelItem
+                onValueChanged: root.ensureChannelDefault(channel2)
+            }
+
             description: qsTr("Sensor Kanal %1").arg(channelIndex + 1)
             item: labelItem
 
@@ -489,6 +519,16 @@ MbPage {
             onTypeItemChanged: root.registerChannelBinding(channel3)
             onLabelItemChanged: root.registerChannelBinding(channel3)
             Component.onCompleted: root.registerChannelBinding(channel3)
+
+            Connections {
+                target: channel3.typeItem
+                onValueChanged: root.registerChannelBinding(channel3)
+            }
+
+            Connections {
+                target: channel3.labelItem
+                onValueChanged: root.ensureChannelDefault(channel3)
+            }
 
             description: qsTr("Sensor Kanal %1").arg(channelIndex + 1)
             item: labelItem
@@ -543,6 +583,16 @@ MbPage {
             onLabelItemChanged: root.registerChannelBinding(channel4)
             Component.onCompleted: root.registerChannelBinding(channel4)
 
+            Connections {
+                target: channel4.typeItem
+                onValueChanged: root.registerChannelBinding(channel4)
+            }
+
+            Connections {
+                target: channel4.labelItem
+                onValueChanged: root.ensureChannelDefault(channel4)
+            }
+
             description: qsTr("Sensor Kanal %1").arg(channelIndex + 1)
             item: labelItem
 
@@ -595,6 +645,16 @@ MbPage {
             onTypeItemChanged: root.registerChannelBinding(channel5)
             onLabelItemChanged: root.registerChannelBinding(channel5)
             Component.onCompleted: root.registerChannelBinding(channel5)
+
+            Connections {
+                target: channel5.typeItem
+                onValueChanged: root.registerChannelBinding(channel5)
+            }
+
+            Connections {
+                target: channel5.labelItem
+                onValueChanged: root.ensureChannelDefault(channel5)
+            }
 
             description: qsTr("Sensor Kanal %1").arg(channelIndex + 1)
             item: labelItem
@@ -649,6 +709,16 @@ MbPage {
             onLabelItemChanged: root.registerChannelBinding(channel6)
             Component.onCompleted: root.registerChannelBinding(channel6)
 
+            Connections {
+                target: channel6.typeItem
+                onValueChanged: root.registerChannelBinding(channel6)
+            }
+
+            Connections {
+                target: channel6.labelItem
+                onValueChanged: root.ensureChannelDefault(channel6)
+            }
+
             description: qsTr("Sensor Kanal %1").arg(channelIndex + 1)
             item: labelItem
 
@@ -701,6 +771,16 @@ MbPage {
             onTypeItemChanged: root.registerChannelBinding(channel7)
             onLabelItemChanged: root.registerChannelBinding(channel7)
             Component.onCompleted: root.registerChannelBinding(channel7)
+
+            Connections {
+                target: channel7.typeItem
+                onValueChanged: root.registerChannelBinding(channel7)
+            }
+
+            Connections {
+                target: channel7.labelItem
+                onValueChanged: root.ensureChannelDefault(channel7)
+            }
 
             description: qsTr("Sensor Kanal %1").arg(channelIndex + 1)
             item: labelItem
