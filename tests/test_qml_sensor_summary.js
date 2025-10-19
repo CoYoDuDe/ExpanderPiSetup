@@ -85,6 +85,14 @@ const { canonicalSensorType, defaultLabelForType, sensorSummary } = sandbox;
 assert.equal(canonicalSensorType('VoltSensor'), 'voltage');
 assert.equal(canonicalSensorType('Temperatur'), 'temp');
 assert.equal(canonicalSensorType('Temperatur-Sensor'), 'temp');
+assert.equal(canonicalSensorType('Tank-Sensor'), 'tank');
+assert.equal(canonicalSensorType('tank sensor'), 'tank');
+assert.equal(canonicalSensorType('voltage sensor'), 'voltage');
+assert.equal(canonicalSensorType('Voltage-Sensor'), 'voltage');
+assert.equal(canonicalSensorType('current sensor'), 'current');
+assert.equal(canonicalSensorType('Pressure-Sensor'), 'pressure');
+assert.equal(canonicalSensorType('humidity sensor'), 'humidity');
+assert.equal(canonicalSensorType('temperature sensor'), 'temp');
 
 assert.equal(defaultLabelForType('Voltage', 2), 'Spannung 3');
 assert.equal(defaultLabelForType('voltage', 2), 'Spannung 3');

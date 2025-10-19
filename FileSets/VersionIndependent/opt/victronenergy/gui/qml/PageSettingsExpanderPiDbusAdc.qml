@@ -37,12 +37,15 @@ MbPage {
         "water": "tank",
         "level": "tank",
         "tankgeber": "tank",
+        "tanksensor": "tank",
 
         "temp": "temp",
         "temperature": "temp",
         "temperatur": "temp",
         "heat": "temp",
         "temperatursensor": "temp",
+        "temperaturesensor": "temp",
+        "tempsensor": "temp",
 
         "voltage": "voltage",
         "volt": "voltage",
@@ -50,6 +53,7 @@ MbPage {
         "voltsensor": "voltage",
         "v": "voltage",
         "spannungssensor": "voltage",
+        "voltagesensor": "voltage",
 
         "current": "current",
         "strom": "current",
@@ -57,17 +61,20 @@ MbPage {
         "amps": "current",
         "amp": "current",
         "stromsensor": "current",
+        "currentsensor": "current",
 
         "pressure": "pressure",
         "druck": "pressure",
         "press": "pressure",
         "drucksensor": "pressure",
+        "pressuresensor": "pressure",
 
         "humidity": "humidity",
         "feuchte": "humidity",
         "humid": "humidity",
         "feuchtigkeit": "humidity",
         "feuchtesensor": "humidity",
+        "humiditysensor": "humidity",
 
         "custom": "custom",
         "generisch": "custom",
