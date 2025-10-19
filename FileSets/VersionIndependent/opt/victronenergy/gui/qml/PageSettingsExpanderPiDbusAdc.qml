@@ -26,7 +26,10 @@ MbPage {
         "kein": "none",
         "keiner": "none",
         "keine": "none",
+        "leer": "none",
         "deaktiviert": "none",
+        "aus": "none",
+        "ausgeschaltet": "none",
         "disabled": "none",
         "off": "none",
 

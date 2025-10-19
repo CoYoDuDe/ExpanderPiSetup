@@ -93,6 +93,9 @@ assert.equal(canonicalSensorType('current sensor'), 'current');
 assert.equal(canonicalSensorType('Pressure-Sensor'), 'pressure');
 assert.equal(canonicalSensorType('humidity sensor'), 'humidity');
 assert.equal(canonicalSensorType('temperature sensor'), 'temp');
+assert.equal(canonicalSensorType('leer'), 'none');
+assert.equal(canonicalSensorType('AUS'), 'none');
+assert.equal(canonicalSensorType('Aus-geschaltet'), 'none');
 
 assert.equal(defaultLabelForType('Voltage', 2), 'Spannung 3');
 assert.equal(defaultLabelForType('voltage', 2), 'Spannung 3');
