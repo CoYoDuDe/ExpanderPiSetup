@@ -31,7 +31,8 @@ MbPage {
     ]
 
     function defaultLabelForType(type, index) {
-        var normalizedType = String(type || "none");
+        var rawType = String(type || "none");
+        var normalizedType = rawType.toLowerCase();
         var channelNumber = (index !== undefined ? index : 0) + 1;
 
         switch (normalizedType) {
@@ -78,7 +79,8 @@ MbPage {
     }
 
     function sensorSummary(typeValue, labelValue, index) {
-        var normalizedType = String(typeValue || "none");
+        var rawType = String(typeValue || "none");
+        var normalizedType = rawType.toLowerCase();
         if (normalizedType === "none") {
             return qsTr("Kanal %1 deaktiviert").arg(index + 1);
         }
@@ -107,7 +109,11 @@ MbPage {
             typeText = qsTr("Benutzerdefiniert");
             break;
         default:
-            typeText = qsTr("Deaktiviert");
+            var trimmedOriginalType = rawType;
+            if (trimmedOriginalType.trim) {
+                trimmedOriginalType = trimmedOriginalType.trim();
+            }
+            typeText = trimmedOriginalType.length > 0 ? trimmedOriginalType : rawType;
             break;
         }
 
@@ -131,6 +137,7 @@ MbPage {
         }
 
         var effectiveType = String(binding.typeItem.value || defaults.type || "none");
+        var normalizedType = effectiveType.toLowerCase();
         var currentLabel = binding.labelItem.value;
         var trimmedLabel = String(currentLabel === undefined ? "" : currentLabel).trim();
         var labelMissing = !binding.labelItem.valid || currentLabel === undefined || trimmedLabel.length === 0;
@@ -140,7 +147,7 @@ MbPage {
             currentLabel = "";
         }
 
-        if (effectiveType === "none") {
+        if (normalizedType === "none") {
             if (!labelMissing) {
                 binding.labelItem.setValue("");
             }
