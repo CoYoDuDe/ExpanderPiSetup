@@ -158,6 +158,22 @@ main() {
     unset EXPANDERPI_CHANNEL_0_TYPE
     unset EXPANDERPI_CHANNEL_0_LABEL
 
+    # Prüfe, dass der Sensortyp "Temperature Sensor" im nicht-interaktiven Modus als Temperatur erkannt wird.
+    unset EXPANDERPI_CHANNEL_2
+    unset EXPANDERPI_CHANNEL_2_TYPE
+    unset EXPANDERPI_CHANNEL_2_LABEL
+    EXPANDERPI_CHANNEL_2_TYPE="Temperature Sensor"
+    local temperature_response temperature_output
+    temperature_response="$(prompt_channel_assignment 2 "" "")"
+    temperature_output="${temperature_response%$'\n'}"
+    if [ "${temperature_output%%|*}" != "temp" ]; then
+        echo "Nicht-interaktive Erkennung für 'Temperature Sensor' schlug fehl: ${temperature_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_2
+    unset EXPANDERPI_CHANNEL_2_TYPE
+    unset EXPANDERPI_CHANNEL_2_LABEL
+
     # Prüfe, dass ein zusammengesetzter Wert mit Leerzeichen im Label korrekt verarbeitet wird.
     unset EXPANDERPI_CHANNEL_0
     unset EXPANDERPI_CHANNEL_0_TYPE
@@ -196,6 +212,17 @@ main() {
         return 1
     fi
     unset EXPANDERPI_CHANNEL_5_TYPE
+
+    # Prüfe, dass im interaktiven Modus eine vorbelegte Zeichenkette "Temperature Sensor" als Temperatur erkannt wird.
+    EXPANDERPI_CHANNEL_2_TYPE="Temperature Sensor"
+    local interactive_temp_response interactive_temp_output
+    interactive_temp_response="$(printf 'Temperature Sensor\ntempchannel\n' | prompt_channel_assignment 2 "${EXPANDERPI_CHANNEL_2_TYPE}" "")"
+    interactive_temp_output="${interactive_temp_response%$'\n'}"
+    if [ "${interactive_temp_output%%|*}" != "temp" ]; then
+        echo "Interaktive Vorbelegung für 'Temperature Sensor' wurde nicht als Temperatur erkannt: ${interactive_temp_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_2_TYPE
 
     nonInteractiveMode="$previous_non_interactive"
     unset previous_non_interactive

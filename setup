@@ -893,7 +893,7 @@ prompt_channel_assignment() {
                     matched_type="tank"
                     break
                     ;;
-                temp|temperatur|temperature|tempsensor|temp-sensor)
+                temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|"temperature sensor")
                     matched_type="temp"
                     break
                     ;;
@@ -1124,7 +1124,7 @@ prompt_channel_assignment() {
                     reply_type="tank"
                     break
                     ;;
-                temp|temperatur|temperature|tempsensor|temp-sensor)
+                temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|"temperature sensor")
                     reply_type="temp"
                     break
                     ;;
