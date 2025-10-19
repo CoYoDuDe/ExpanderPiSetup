@@ -28,8 +28,19 @@ main() {
     setInstallFailed() { :; }
     endScript() { :; }
 
+    export SETUPHELPER_MODE="batch"
+    export SETUPHELPER_FORCE_NONINTERACTIVE="foobar"
+
     # shellcheck source=/dev/null
     source "$tmp_script"
+
+    if [ "${nonInteractiveMode}" != true ]; then
+        echo "SETUPHELPER_MODE=batch sollte den nicht-interaktiven Modus aktivieren, wenn der Override ungültig ist." >&2
+        return 1
+    fi
+
+    unset SETUPHELPER_MODE
+    unset SETUPHELPER_FORCE_NONINTERACTIVE
 
     # Simuliere von der GUI geladene Kanaltypen und Labels.
     TOTAL_ADC_CHANNELS=8

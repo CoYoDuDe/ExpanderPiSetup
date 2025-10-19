@@ -13,13 +13,19 @@ force_override_active=false
 forced_non_interactive=""
 
 if [ "${SETUPHELPER_FORCE_NONINTERACTIVE:-}" != "" ]; then
-    force_override_active=true
     case "${SETUPHELPER_FORCE_NONINTERACTIVE,,}" in
         1|true|yes|y|on)
+            force_override_active=true
             forced_non_interactive=true
             ;;
         0|false|no|n|off)
+            force_override_active=true
             forced_non_interactive=false
+            ;;
+        *)
+            force_override_active=false
+            forced_non_interactive=""
+            logMessage "SETUPHELPER_FORCE_NONINTERACTIVE enthält den unbekannten Wert \"${SETUPHELPER_FORCE_NONINTERACTIVE}\" – Override wird ignoriert."
             ;;
     esac
 fi
