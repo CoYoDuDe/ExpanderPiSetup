@@ -19,6 +19,94 @@ MbPage {
         { text: qsTr("Generisch"), value: "custom" }
     ]
 
+    readonly property var sensorTypeCanonicalMap: ({
+        "": "none",
+        "none": "none",
+        "nicht belegt": "none",
+        "kein": "none",
+        "keiner": "none",
+        "keine": "none",
+        "deaktiviert": "none",
+        "disabled": "none",
+        "off": "none",
+
+        "tank": "tank",
+        "fuel": "tank",
+        "diesel": "tank",
+        "wasser": "tank",
+        "water": "tank",
+        "level": "tank",
+        "tankgeber": "tank",
+
+        "temp": "temp",
+        "temperature": "temp",
+        "temperatur": "temp",
+        "heat": "temp",
+        "temperatursensor": "temp",
+
+        "voltage": "voltage",
+        "volt": "voltage",
+        "spannung": "voltage",
+        "voltsensor": "voltage",
+        "v": "voltage",
+        "spannungssensor": "voltage",
+
+        "current": "current",
+        "strom": "current",
+        "ampere": "current",
+        "amps": "current",
+        "amp": "current",
+        "stromsensor": "current",
+
+        "pressure": "pressure",
+        "druck": "pressure",
+        "press": "pressure",
+        "drucksensor": "pressure",
+
+        "humidity": "humidity",
+        "feuchte": "humidity",
+        "humid": "humidity",
+        "feuchtigkeit": "humidity",
+        "feuchtesensor": "humidity",
+
+        "custom": "custom",
+        "generisch": "custom",
+        "benutzerdefiniert": "custom",
+        "user": "custom",
+        "userdefined": "custom",
+        "user-defined": "custom",
+        "customsensor": "custom"
+    })
+
+    function canonicalSensorType(typeValue) {
+        var raw = "";
+        if (typeValue !== undefined && typeValue !== null) {
+            raw = String(typeValue).trim();
+        }
+        var normalized = raw.toLowerCase();
+        var compact = normalized.replace(/[\s_-]+/g, "");
+        if (sensorTypeCanonicalMap.hasOwnProperty(normalized)) {
+            return sensorTypeCanonicalMap[normalized];
+        }
+        if (sensorTypeCanonicalMap.hasOwnProperty(compact)) {
+            return sensorTypeCanonicalMap[compact];
+        }
+
+        switch (normalized) {
+        case "tank":
+        case "temp":
+        case "voltage":
+        case "current":
+        case "pressure":
+        case "humidity":
+        case "custom":
+        case "none":
+            return normalized;
+        default:
+            return raw.length === 0 ? "none" : normalized;
+        }
+    }
+
     readonly property var defaultChannelSetup: [
         { type: "tank", label: qsTr("Tank %1").arg(1) },
         { type: "tank", label: qsTr("Tank %1").arg(2) },
@@ -32,7 +120,7 @@ MbPage {
 
     function defaultLabelForType(type, index) {
         var rawType = String(type || "none");
-        var normalizedType = rawType.toLowerCase();
+        var normalizedType = canonicalSensorType(rawType);
         var channelNumber = (index !== undefined ? index : 0) + 1;
 
         switch (normalizedType) {
@@ -80,13 +168,13 @@ MbPage {
 
     function sensorSummary(typeValue, labelValue, index) {
         var rawType = String(typeValue || "none");
-        var normalizedType = rawType.toLowerCase();
-        if (normalizedType === "none") {
+        var canonicalType = canonicalSensorType(rawType);
+        if (canonicalType === "none") {
             return qsTr("Kanal %1 deaktiviert").arg(index + 1);
         }
 
         var typeText = "";
-        switch (normalizedType) {
+        switch (canonicalType) {
         case "tank":
             typeText = qsTr("Tank");
             break;
@@ -137,6 +225,13 @@ MbPage {
         }
 
         var effectiveType = String(binding.typeItem.value || defaults.type || "none");
+        var canonicalType = canonicalSensorType(effectiveType);
+        if (binding.typeItem.valid && canonicalType !== binding.typeItem.value) {
+            binding.typeItem.setValue(canonicalType);
+            effectiveType = canonicalType;
+        } else {
+            effectiveType = canonicalType;
+        }
         var normalizedType = effectiveType.toLowerCase();
         var currentLabel = binding.labelItem.value;
         var trimmedLabel = String(currentLabel === undefined ? "" : currentLabel).trim();
@@ -198,9 +293,10 @@ MbPage {
             if (!channel) {
                 continue;
             }
+            var canonicalType = canonicalSensorType(channel.typeItem.value);
             snapshot.sensors.push({
                 index: i,
-                type: channel.typeItem.value,
+                type: canonicalType,
                 label: channel.labelItem.value
             });
         }
@@ -255,7 +351,8 @@ MbPage {
                     continue;
                 }
                 var typeValue = (entry.type !== undefined && entry.type !== null) ? String(entry.type) : "none";
-                channel.typeItem.setValue(typeValue);
+                var canonicalType = canonicalSensorType(typeValue);
+                channel.typeItem.setValue(canonicalType);
 
                 var labelValue = (entry.label !== undefined && entry.label !== null) ? String(entry.label) : "";
                 channel.labelItem.setValue(labelValue);
@@ -291,7 +388,7 @@ MbPage {
         for (var i = 0; i < snapshot.sensors.length; ++i) {
             var channel = snapshot.sensors[i];
             var base = "EXPANDERPI_CHANNEL_" + channel.index;
-            env[base + "_TYPE"] = String(channel.type || "none");
+            env[base + "_TYPE"] = canonicalSensorType(channel.type || "none");
             env[base + "_LABEL"] = String(channel.label || "");
         }
         return env;
