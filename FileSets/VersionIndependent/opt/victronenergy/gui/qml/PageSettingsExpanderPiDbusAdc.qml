@@ -156,10 +156,10 @@ MbPage {
     }
 
     function ensureDefaults() {
-        if (!vrefItem.valid || vrefItem.value === undefined || String(vrefItem.value).length === 0) {
+        if (!vrefItem.valid || vrefItem.value === undefined || vrefItem.value === null || String(vrefItem.value).trim().length === 0) {
             vrefItem.setValue("1.300");
         }
-        if (!scaleItem.valid || scaleItem.value === undefined || String(scaleItem.value).length === 0) {
+        if (!scaleItem.valid || scaleItem.value === undefined || scaleItem.value === null || String(scaleItem.value).trim().length === 0) {
             scaleItem.setValue("4095");
         }
 
@@ -269,8 +269,10 @@ MbPage {
 
     function buildEnvironment(snapshot) {
         var env = {};
-        env["EXPANDERPI_VREF"] = snapshot.vref !== undefined ? String(snapshot.vref) : "";
-        env["EXPANDERPI_SCALE"] = snapshot.scale !== undefined ? String(snapshot.scale) : "";
+        var vrefString = (snapshot.vref !== undefined && snapshot.vref !== null) ? String(snapshot.vref) : "";
+        var scaleString = (snapshot.scale !== undefined && snapshot.scale !== null) ? String(snapshot.scale) : "";
+        env["EXPANDERPI_VREF"] = vrefString.trim().length === 0 ? "" : vrefString;
+        env["EXPANDERPI_SCALE"] = scaleString.trim().length === 0 ? "" : scaleString;
 
         for (var i = 0; i < snapshot.sensors.length; ++i) {
             var channel = snapshot.sensors[i];
