@@ -586,6 +586,7 @@ normalize_channel_label() {
 channel_label_fallback() {
     local channel="$1"
     local channel_type="$2"
+    local channel_index=$((channel + 1))
 
     case "${channel_type,,}" in
         tank)
@@ -598,13 +599,13 @@ channel_label_fallback() {
             printf '%s' "${channel_type,,}"
             ;;
         custom)
-            printf 'sensor_%s' "$channel"
+            printf 'sensor_%s' "$channel_index"
             ;;
         none|"")
-            printf 'sensor_%s' "$channel"
+            printf 'sensor_%s' "$channel_index"
             ;;
         *)
-            printf 'sensor_%s' "$channel"
+            printf 'sensor_%s' "$channel_index"
             ;;
     esac
 }
@@ -719,7 +720,7 @@ prompt_sensor_label() {
     if [ "$nonInteractiveMode" = true ]; then
         local env_var_name="EXPANDERPI_CHANNEL_${channel}_LABEL"
         local candidate="${!env_var_name:-$default_value}"
-        local fallback="sensor_${channel}"
+        local fallback="sensor_${channel_display}"
 
         if [ "$require_non_empty" = false ] && [ -z "$candidate" ]; then
             logMessage "Nicht-interaktiv: Kanal ${channel_display} bleibt ohne Sensor."
@@ -942,7 +943,7 @@ prompt_channel_assignment() {
                 ;;
             custom|benutzerdefiniert|user|label|sensor)
                 normalized_type="custom"
-                local custom_fallback="sensor_${channel}"
+                local custom_fallback="sensor_${channel_display}"
                 if [ -z "$normalized_label" ]; then
                     if [ -n "$default_label" ]; then
                         normalized_label="$default_label"
@@ -957,7 +958,7 @@ prompt_channel_assignment() {
                 ;;
             *)
                 normalized_type="custom"
-                local generic_fallback="sensor_${channel}"
+                local generic_fallback="sensor_${channel_display}"
                 if [ -z "$normalized_label" ]; then
                     normalized_label="$raw_type"
                 fi

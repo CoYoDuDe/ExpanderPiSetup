@@ -80,6 +80,10 @@ main() {
         echo "Erwartete Fallback-Benennung für Luftfeuchtigkeit fehlgeschlagen: ${saved_channel_labels[5]}" >&2
         return 1
     fi
+    if [ "${saved_channel_labels[6]}" != "sensor_7" ]; then
+        echo "Erwartete Fallback-Benennung für benutzerdefinierten Kanal fehlgeschlagen: ${saved_channel_labels[6]}" >&2
+        return 1
+    fi
 
     # Simuliere den use_saved-Zweig aus install_config.
     for ((channel=0; channel<TOTAL_ADC_CHANNELS; channel++)); do
