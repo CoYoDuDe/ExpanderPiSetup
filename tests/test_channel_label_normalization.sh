@@ -143,6 +143,21 @@ main() {
     unset EXPANDERPI_CHANNEL_5_TYPE
     unset EXPANDERPI_CHANNEL_5_LABEL
 
+    # Prüfe, dass Leerzeichen im Sensortyp für Spannung entfernt werden.
+    unset EXPANDERPI_CHANNEL_0
+    unset EXPANDERPI_CHANNEL_0_LABEL
+    EXPANDERPI_CHANNEL_0_TYPE=" voltage  sensor "
+    local voltage_compact_response compact_output
+    voltage_compact_response="$(prompt_channel_assignment 0 "" "")"
+    compact_output="${voltage_compact_response%$'\n'}"
+    if [ "${compact_output%%|*}" != "voltage" ]; then
+        echo "Nicht-interaktive Erkennung für 'voltage  sensor' schlug fehl: ${compact_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_0
+    unset EXPANDERPI_CHANNEL_0_TYPE
+    unset EXPANDERPI_CHANNEL_0_LABEL
+
     # Prüfe, dass ein zusammengesetzter Wert mit Leerzeichen im Label korrekt verarbeitet wird.
     unset EXPANDERPI_CHANNEL_0
     unset EXPANDERPI_CHANNEL_0_TYPE

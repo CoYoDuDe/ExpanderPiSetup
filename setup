@@ -869,7 +869,10 @@ prompt_channel_assignment() {
 
         raw_type="$(trim_whitespace "$raw_type")"
 
-        local normalized_type
+        local raw_type_lc="${raw_type,,}"
+        local raw_type_compact="${raw_type_lc//[[:space:]-_]/}"
+
+        local normalized_type=""
         local normalized_label="${raw_label}"
         local log_source="automatisch"
 
@@ -879,15 +882,53 @@ prompt_channel_assignment() {
             log_source="Standardwerte"
         fi
 
-        case "${raw_type,,}" in
-            ""|none|leer|aus|kein|keine|0)
+        local matched_type=""
+        for type_variant in "$raw_type_lc" "$raw_type_compact"; do
+            case "$type_variant" in
+                ""|none|leer|aus|kein|keine|0)
+                    matched_type="none"
+                    break
+                    ;;
+                tank|t|tank-sensor|tanksensor)
+                    matched_type="tank"
+                    break
+                    ;;
+                temp|temperatur|temperature|tempsensor|temp-sensor)
+                    matched_type="temp"
+                    break
+                    ;;
+                voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor)
+                    matched_type="voltage"
+                    break
+                    ;;
+                current|strom|currentsensor|current-sensor)
+                    matched_type="current"
+                    break
+                    ;;
+                pressure|druck|pressuresensor|pressure-sensor)
+                    matched_type="pressure"
+                    break
+                    ;;
+                humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
+                    matched_type="humidity"
+                    break
+                    ;;
+                custom|benutzerdefiniert|user|label|sensor)
+                    matched_type="custom"
+                    break
+                    ;;
+            esac
+        done
+
+        case "$matched_type" in
+            none)
                 normalized_type="none"
                 normalized_label=""
                 logMessage "Nicht-interaktiv: ${log_source} führen dazu, dass Kanal ${channel_display} leer bleibt."
                 printf 'none|\n'
                 return 0
                 ;;
-            tank|t|tank-sensor|tanksensor)
+            tank)
                 normalized_type="tank"
                 local tank_fallback="tank"
                 if [ -z "$normalized_label" ]; then
@@ -902,7 +943,7 @@ prompt_channel_assignment() {
                 printf 'tank|%s\n' "$normalized_label"
                 return 0
                 ;;
-            temp|temperatur|temperature|tempsensor|temp-sensor)
+            temp)
                 normalized_type="temp"
                 local temp_fallback="temp"
                 if [ -z "$normalized_label" ]; then
@@ -917,7 +958,7 @@ prompt_channel_assignment() {
                 printf 'temp|%s\n' "$normalized_label"
                 return 0
                 ;;
-            voltage|volt|spannung|voltsensor|voltage-sensor)
+            voltage)
                 normalized_type="voltage"
                 local voltage_fallback="voltage"
                 if [ -z "$normalized_label" ]; then
@@ -932,7 +973,7 @@ prompt_channel_assignment() {
                 printf 'voltage|%s\n' "$normalized_label"
                 return 0
                 ;;
-            current|strom|currentsensor|current-sensor)
+            current)
                 normalized_type="current"
                 local current_fallback="current"
                 if [ -z "$normalized_label" ]; then
@@ -947,7 +988,7 @@ prompt_channel_assignment() {
                 printf 'current|%s\n' "$normalized_label"
                 return 0
                 ;;
-            pressure|druck|pressuresensor|pressure-sensor)
+            pressure)
                 normalized_type="pressure"
                 local pressure_fallback="pressure"
                 if [ -z "$normalized_label" ]; then
@@ -962,7 +1003,7 @@ prompt_channel_assignment() {
                 printf 'pressure|%s\n' "$normalized_label"
                 return 0
                 ;;
-            humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
+            humidity)
                 normalized_type="humidity"
                 local humidity_fallback="humidity"
                 if [ -z "$normalized_label" ]; then
@@ -977,7 +1018,7 @@ prompt_channel_assignment() {
                 printf 'humidity|%s\n' "$normalized_label"
                 return 0
                 ;;
-            custom|benutzerdefiniert|user|label|sensor)
+            custom)
                 normalized_type="custom"
                 local custom_fallback="sensor_${channel_display}"
                 if [ -z "$normalized_label" ]; then
@@ -992,7 +1033,7 @@ prompt_channel_assignment() {
                 printf 'custom|%s\n' "$normalized_label"
                 return 0
                 ;;
-            *)
+            "")
                 normalized_type="custom"
                 local generic_fallback="sensor_${channel_display}"
                 if [ -z "$normalized_label" ]; then
@@ -1065,9 +1106,48 @@ prompt_channel_assignment() {
         fi
 
         reply="$(printf '%s' "$reply" | tr '[:upper:]' '[:lower:]')"
+        local reply_compact="${reply//[[:space:]-_]/}"
 
-        case "$reply" in
-            ""|"none"|"leer"|"aus"|"kein"|"keine"|"0")
+        local reply_type=""
+        for type_variant in "$reply" "$reply_compact"; do
+            case "$type_variant" in
+                ""|"none"|"leer"|"aus"|"kein"|"keine"|"0")
+                    reply_type="none"
+                    break
+                    ;;
+                tank|t|tank-sensor|tanksensor)
+                    reply_type="tank"
+                    break
+                    ;;
+                temp|temperatur|temperature|tempsensor|temp-sensor)
+                    reply_type="temp"
+                    break
+                    ;;
+                voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor)
+                    reply_type="voltage"
+                    break
+                    ;;
+                current|strom|currentsensor|current-sensor)
+                    reply_type="current"
+                    break
+                    ;;
+                pressure|druck|pressuresensor|pressure-sensor)
+                    reply_type="pressure"
+                    break
+                    ;;
+                humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
+                    reply_type="humidity"
+                    break
+                    ;;
+                custom|benutzerdefiniert|user|label|sensor)
+                    reply_type="custom"
+                    break
+                    ;;
+            esac
+        done
+
+        case "$reply_type" in
+            none)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
                     if yesNoPrompt "Kanal ${channel_display} ohne Sensor übernehmen (y/n)? "; then
                         printf 'none|\n'
@@ -1081,7 +1161,7 @@ prompt_channel_assignment() {
                     return 0
                 fi
                 ;;
-            tank|t|tank-sensor|tanksensor)
+            tank)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
                     if ! yesNoPrompt "Kanal ${channel_display} als Tank-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
@@ -1102,7 +1182,7 @@ prompt_channel_assignment() {
                 printf 'tank|%s\n' "$normalized_tank_label"
                 return 0
                 ;;
-            temp|temperatur|temperature|tempsensor|temp-sensor)
+            temp)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
                     if ! yesNoPrompt "Kanal ${channel_display} als Temperatur-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
@@ -1123,7 +1203,7 @@ prompt_channel_assignment() {
                 printf 'temp|%s\n' "$normalized_temp_label"
                 return 0
                 ;;
-            voltage|volt|spannung|voltsensor|voltage-sensor)
+            voltage)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
                     if ! yesNoPrompt "Kanal ${channel_display} als Spannungs-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
@@ -1144,7 +1224,7 @@ prompt_channel_assignment() {
                 printf 'voltage|%s\n' "$normalized_voltage_label"
                 return 0
                 ;;
-            current|strom|currentsensor|current-sensor)
+            current)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
                     if ! yesNoPrompt "Kanal ${channel_display} als Strom-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
@@ -1165,7 +1245,7 @@ prompt_channel_assignment() {
                 printf 'current|%s\n' "$normalized_current_label"
                 return 0
                 ;;
-            pressure|druck|pressuresensor|pressure-sensor)
+            pressure)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
                     if ! yesNoPrompt "Kanal ${channel_display} als Druck-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
@@ -1186,7 +1266,7 @@ prompt_channel_assignment() {
                 printf 'pressure|%s\n' "$normalized_pressure_label"
                 return 0
                 ;;
-            humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
+            humidity)
                 if declare -F yesNoPrompt >/dev/null 2>&1; then
                     if ! yesNoPrompt "Kanal ${channel_display} als Feuchtigkeits-Sensor übernehmen (y/n)? "; then
                         logMessage "Bitte Auswahl erneut treffen."
@@ -1207,7 +1287,7 @@ prompt_channel_assignment() {
                 printf 'humidity|%s\n' "$normalized_humidity_label"
                 return 0
                 ;;
-            custom|benutzerdefiniert|user|label|sensor)
+            custom)
                 local custom_label
                 custom_label="$(prompt_sensor_label "$channel" "$default_label" true)"
                 if [ -z "$custom_label" ]; then
@@ -1217,7 +1297,7 @@ prompt_channel_assignment() {
                 printf 'custom|%s\n' "$custom_label"
                 return 0
                 ;;
-            *)
+            "")
                 if [[ "$reply" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
                     if declare -F yesNoPrompt >/dev/null 2>&1; then
                         if ! yesNoPrompt "Kanal ${channel_display} als '${reply}' übernehmen (y/n)? "; then
