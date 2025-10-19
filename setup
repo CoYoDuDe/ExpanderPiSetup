@@ -817,8 +817,14 @@ prompt_channel_assignment() {
         local raw_label=""
 
         if [ -n "$env_value" ]; then
-            local IFS='|:;, '
-            read -r raw_type raw_label <<< "$env_value"
+            if [[ "$env_value" =~ ^([^|:;,]*)([|:;,])(.*)$ ]]; then
+                raw_type="${BASH_REMATCH[1]}"
+                raw_label="${BASH_REMATCH[3]}"
+                raw_type="${raw_type#"${raw_type%%[![:space:]]*}"}"
+                raw_type="${raw_type%"${raw_type##*[![:space:]]}"}"
+            else
+                raw_type="$env_value"
+            fi
         fi
 
         if [ -z "$raw_type" ] && [ -n "$env_type" ]; then

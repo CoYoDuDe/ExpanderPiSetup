@@ -120,6 +120,23 @@ main() {
     unset EXPANDERPI_CHANNEL_5
     unset EXPANDERPI_CHANNEL_5_TYPE
     unset EXPANDERPI_CHANNEL_5_LABEL
+
+    # Prüfe, dass ein zusammengesetzter Wert mit Leerzeichen im Label korrekt verarbeitet wird.
+    unset EXPANDERPI_CHANNEL_0
+    unset EXPANDERPI_CHANNEL_0_TYPE
+    unset EXPANDERPI_CHANNEL_0_LABEL
+    EXPANDERPI_CHANNEL_0="tank|Tank Level"
+    local tank_response tank_output
+    tank_response="$(prompt_channel_assignment 0 "" "")"
+    tank_output="${tank_response%$'\n'}"
+    if [ "$tank_output" != "tank|tanklevel" ]; then
+        echo "Erwartete Ausgabe 'tank|tanklevel' schlug fehl: ${tank_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_0
+    unset EXPANDERPI_CHANNEL_0_TYPE
+    unset EXPANDERPI_CHANNEL_0_LABEL
+
     nonInteractiveMode="$previous_non_interactive"
     unset previous_non_interactive
 
