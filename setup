@@ -820,8 +820,6 @@ prompt_channel_assignment() {
             if [[ "$env_value" =~ ^([^|:;,]*)([|:;,])(.*)$ ]]; then
                 raw_type="${BASH_REMATCH[1]}"
                 raw_label="${BASH_REMATCH[3]}"
-                raw_type="${raw_type#"${raw_type%%[![:space:]]*}"}"
-                raw_type="${raw_type%"${raw_type##*[![:space:]]}"}"
             else
                 raw_type="$env_value"
             fi
@@ -837,6 +835,11 @@ prompt_channel_assignment() {
 
         if [ -z "$raw_type" ]; then
             raw_type="$default_type"
+        fi
+
+        if [ -n "$raw_type" ]; then
+            raw_type="${raw_type#"${raw_type%%[![:space:]]*}"}"
+            raw_type="${raw_type%"${raw_type##*[![:space:]]}"}"
         fi
 
         local normalized_type
