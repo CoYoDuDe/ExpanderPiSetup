@@ -131,10 +131,17 @@ MbPage {
         }
 
         var effectiveType = String(binding.typeItem.value || defaults.type || "none");
-        var labelMissing = !binding.labelItem.valid || binding.labelItem.value === undefined || binding.labelItem.value === "";
+        var currentLabel = binding.labelItem.value;
+        var trimmedLabel = String(currentLabel === undefined ? "" : currentLabel).trim();
+        var labelMissing = !binding.labelItem.valid || currentLabel === undefined || trimmedLabel.length === 0;
+
+        if (binding.labelItem.valid && currentLabel !== undefined && currentLabel !== "" && trimmedLabel.length === 0) {
+            binding.labelItem.setValue("");
+            currentLabel = "";
+        }
 
         if (effectiveType === "none") {
-            if (!binding.labelItem.valid || binding.labelItem.value !== "") {
+            if (!labelMissing) {
                 binding.labelItem.setValue("");
             }
             return;
