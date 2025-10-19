@@ -1729,7 +1729,7 @@ install_config() {
 
     rm -f "$temp_config"
 
-    {
+    if ! {
         echo "USER_VREF=\"${vref_value}\""
         echo "USER_SCALE=\"${scale_value}\""
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
@@ -1741,7 +1741,11 @@ install_config() {
             echo "USER_CHANNEL_${channel}_TYPE=\"${type_value}\""
             echo "USER_CHANNEL_${channel}_LABEL=\"${value}\""
         done
-    } > "$USER_CONFIG_FILE"
+    } > "$USER_CONFIG_FILE"; then
+        logMessage "Fehler beim Schreiben der Benutzerkonfiguration nach ${USER_CONFIG_FILE}."
+        setInstallFailed $EXIT_ERROR "Fehler beim Schreiben der Benutzerkonfiguration (${USER_CONFIG_FILE})."
+        return
+    fi
 
     logMessage "Benutzerkonfiguration unter ${USER_CONFIG_FILE} gespeichert."
 
