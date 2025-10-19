@@ -583,6 +583,12 @@ normalize_channel_label() {
     fi
 }
 
+trim_whitespace() {
+    local input="$1"
+
+    printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
 channel_label_fallback() {
     local channel="$1"
     local channel_type="$2"
@@ -820,15 +826,15 @@ prompt_channel_assignment() {
             if [[ "$env_value" =~ ^([^|:;,]*)([|:;,])(.*)$ ]]; then
                 raw_type="${BASH_REMATCH[1]}"
                 raw_label="${BASH_REMATCH[3]}"
-                raw_type="${raw_type#"${raw_type%%[![:space:]]*}"}"
-                raw_type="${raw_type%"${raw_type##*[![:space:]]}"}"
             else
                 raw_type="$env_value"
             fi
+
+            raw_type="$(trim_whitespace "$raw_type")"
         fi
 
         if [ -z "$raw_type" ] && [ -n "$env_type" ]; then
-            raw_type="$env_type"
+            raw_type="$(trim_whitespace "$env_type")"
         fi
 
         if [ -z "$raw_label" ] && [ -n "$env_label" ]; then
@@ -836,8 +842,10 @@ prompt_channel_assignment() {
         fi
 
         if [ -z "$raw_type" ]; then
-            raw_type="$default_type"
+            raw_type="$(trim_whitespace "$default_type")"
         fi
+
+        raw_type="$(trim_whitespace "$raw_type")"
 
         local normalized_type
         local normalized_label="${raw_label}"
