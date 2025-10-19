@@ -1722,6 +1722,8 @@ install_config() {
         else
             logMessage "Fehler beim Schreiben der dbus-adc.conf."
             setInstallFailed $EXIT_ERROR "Fehler beim Schreiben der dbus-adc.conf."
+            rm -f "$temp_config"
+            return
         fi
     fi
 
