@@ -977,12 +977,13 @@ prompt_channel_assignment() {
     fi
 
     local normalized_default_type
-    case "$default_type" in
+    local default_type_lc="${default_type,,}"
+    case "$default_type_lc" in
         ""|"none")
             normalized_default_type="none"
             ;;
-        tank|temp|custom|none|voltage|current|pressure|humidity)
-            normalized_default_type="$default_type"
+        tank|temp|custom|voltage|current|pressure|humidity)
+            normalized_default_type="$default_type_lc"
             ;;
         *)
             normalized_default_type="custom"
