@@ -33,6 +33,33 @@ function extractFunction(name) {
   return `function ${name}(${args}) ${body}`;
 }
 
+function extractObjectLiteral(name) {
+  const propertyIndex = source.indexOf(`${name}:`);
+  if (propertyIndex === -1) {
+    throw new Error(`Konnte Eigenschaft ${name} nicht finden.`);
+  }
+  const openBraceIndex = source.indexOf('{', propertyIndex);
+  if (openBraceIndex === -1) {
+    throw new Error(`Konnte Startklammer für ${name} nicht finden.`);
+  }
+  let depth = 0;
+  let index = openBraceIndex;
+  for (; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        index += 1;
+        break;
+      }
+    }
+  }
+  const objectLiteral = source.slice(openBraceIndex, index);
+  return objectLiteral;
+}
+
 const sandbox = {
   qsTr(text) {
     const stringObject = new String(text);
@@ -44,13 +71,20 @@ const sandbox = {
 };
 vm.createContext(sandbox);
 
-const functionsToLoad = ['defaultLabelForType', 'sensorSummary'];
+const canonicalMapLiteral = extractObjectLiteral('sensorTypeCanonicalMap');
+vm.runInContext(`const sensorTypeCanonicalMap = ${canonicalMapLiteral};`, sandbox);
+
+const functionsToLoad = ['canonicalSensorType', 'defaultLabelForType', 'sensorSummary'];
 for (const fnName of functionsToLoad) {
   const fnSource = extractFunction(fnName);
   vm.runInContext(fnSource, sandbox);
 }
 
-const { defaultLabelForType, sensorSummary } = sandbox;
+const { canonicalSensorType, defaultLabelForType, sensorSummary } = sandbox;
+
+assert.equal(canonicalSensorType('VoltSensor'), 'voltage');
+assert.equal(canonicalSensorType('Temperatur'), 'temp');
+assert.equal(canonicalSensorType('Temperatur-Sensor'), 'temp');
 
 assert.equal(defaultLabelForType('Voltage', 2), 'Spannung 3');
 assert.equal(defaultLabelForType('voltage', 2), 'Spannung 3');
