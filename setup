@@ -595,6 +595,55 @@ trim_whitespace() {
     printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
 
+canonicalize_sensor_type() {
+    local raw_value="$1"
+    local trimmed_value
+    trimmed_value="$(trim_whitespace "$raw_value")"
+
+    local lowered_value="${trimmed_value,,}"
+    local compact_value="${lowered_value//[[:space:]-_]/}"
+
+    local candidate=""
+    for candidate in "$lowered_value" "$compact_value"; do
+        case "$candidate" in
+            ""|none|leer|aus|kein|keine|0)
+                printf 'none'
+                return 0
+                ;;
+            tank|t|tank-sensor|tanksensor)
+                printf 'tank'
+                return 0
+                ;;
+            temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|"temperature sensor")
+                printf 'temp'
+                return 0
+                ;;
+            voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor)
+                printf 'voltage'
+                return 0
+                ;;
+            current|strom|currentsensor|current-sensor)
+                printf 'current'
+                return 0
+                ;;
+            pressure|druck|pressuresensor|pressure-sensor)
+                printf 'pressure'
+                return 0
+                ;;
+            humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
+                printf 'humidity'
+                return 0
+                ;;
+            custom|benutzerdefiniert|user|label|sensor)
+                printf 'custom'
+                return 0
+                ;;
+        esac
+    done
+
+    printf 'custom'
+}
+
 channel_label_fallback() {
     local channel="$1"
     local channel_type="$2"
@@ -1446,6 +1495,8 @@ install_config() {
                 esac
             fi
 
+            saved_type="$(canonicalize_sensor_type "$saved_type")"
+
             saved_channel_labels[channel]="$saved_label"
             saved_channel_types[channel]="$saved_type"
         done
@@ -1488,7 +1539,7 @@ install_config() {
         local gui_label="${!gui_label_var:-}"
 
         if [ -n "$gui_type" ]; then
-            saved_channel_types[channel]="$gui_type"
+            saved_channel_types[channel]="$(canonicalize_sensor_type "$gui_type")"
         fi
 
         if [ -n "$gui_type" ] || [ -n "$gui_label" ]; then
@@ -1574,7 +1625,9 @@ install_config() {
         scale_value="${saved_scale:-$default_scale}"
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
             local saved_label="${saved_channel_labels[channel]}"
-            local saved_type="${saved_channel_types[channel]}"
+            local saved_type
+            saved_type="$(canonicalize_sensor_type "${saved_channel_types[channel]}")"
+            saved_channel_types[channel]="$saved_type"
             channel_types[channel]="$saved_type"
 
             if [ "${saved_type,,}" != "none" ]; then
@@ -1603,6 +1656,9 @@ install_config() {
             if [ -z "$default_type" ]; then
                 default_type="${channel_types[channel]}"
             fi
+
+            default_type="$(canonicalize_sensor_type "$default_type")"
+            saved_channel_types[channel]="$default_type"
 
             if [ "$default_type" = "none" ]; then
                 default_label=""
@@ -1677,6 +1733,8 @@ install_config() {
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
             local value="${channel_labels[channel]}"
             local type_value="${channel_types[channel]}"
+            type_value="$(canonicalize_sensor_type "$type_value")"
+            channel_types[channel]="$type_value"
             echo "USER_CHANNEL_${channel}=\"${value}\""
             echo "USER_CHANNEL_${channel}_TYPE=\"${type_value}\""
             echo "USER_CHANNEL_${channel}_LABEL=\"${value}\""

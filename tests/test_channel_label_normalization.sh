@@ -58,6 +58,15 @@ main() {
     saved_channel_types=("tank" "temp" "voltage" "current" "pressure" "humidity" "custom" "none")
     saved_channel_labels=("" "" "" "" "" "" "" "")
 
+    saved_channel_types[1]="Temperature Sensor"
+    local canonicalized_saved_type
+    canonicalized_saved_type="$(canonicalize_sensor_type "${saved_channel_types[1]}")"
+    if [ "$canonicalized_saved_type" != "temp" ]; then
+        echo "Kanonische Abbildung von 'Temperature Sensor' für gespeicherten Typ fehlgeschlagen: ${canonicalized_saved_type}" >&2
+        return 1
+    fi
+    saved_channel_types[1]="$canonicalized_saved_type"
+
     declare -a gui_labels
 
     # DBus-Labels mit Leerzeichen wie gefordert
@@ -107,9 +116,14 @@ main() {
         return 1
     fi
 
+    saved_channel_types[1]="Temperature Sensor"
+
     # Simuliere den use_saved-Zweig aus install_config.
     for ((channel=0; channel<TOTAL_ADC_CHANNELS; channel++)); do
         local saved_type="${saved_channel_types[channel]}"
+        saved_type="$(canonicalize_sensor_type "$saved_type")"
+        saved_channel_types[channel]="$saved_type"
+        channel_types[channel]="$saved_type"
         if [ "${saved_type,,}" != "none" ]; then
             local fallback normalized_label
             fallback="$(channel_label_fallback "$channel" "$saved_type")"
@@ -126,6 +140,11 @@ main() {
             return 1
         fi
     done
+
+    if [ "${channel_types[1]}" != "temp" ]; then
+        echo "use_saved-Zweig erkannte 'Temperature Sensor' nicht als Temperatur: ${channel_types[1]}" >&2
+        return 1
+    fi
 
     # Prüfe, dass prompt_channel_assignment neue Sensortypen unverändert zurückliefert.
     local previous_non_interactive="${nonInteractiveMode:-false}"
@@ -173,6 +192,27 @@ main() {
     unset EXPANDERPI_CHANNEL_2
     unset EXPANDERPI_CHANNEL_2_TYPE
     unset EXPANDERPI_CHANNEL_2_LABEL
+
+    # Prüfe, dass im interaktiven Modus eine vorbelegte Default-Zeichenkette "Temperature Sensor" als Temperatur erkannt wird.
+    local previous_mode_for_default="${nonInteractiveMode:-false}"
+    nonInteractiveMode=false
+    local raw_default_type="Temperature Sensor"
+    local canonical_default_type
+    canonical_default_type="$(canonicalize_sensor_type "$raw_default_type")"
+    if [ "$canonical_default_type" != "temp" ]; then
+        echo "Kanonische Abbildung für Default-Typ 'Temperature Sensor' schlug fehl: ${canonical_default_type}" >&2
+        return 1
+    fi
+    local interactive_default_temp_response
+    local interactive_default_temp_output
+    interactive_default_temp_response="$(printf '\nTempDefault\n' | prompt_channel_assignment 6 "$canonical_default_type" "")"
+    interactive_default_temp_output="${interactive_default_temp_response%$'\n'}"
+    if [ "${interactive_default_temp_output%%|*}" != "temp" ]; then
+        echo "Interaktive Default-Vorbelegung 'Temperature Sensor' wurde nicht als Temperatur erkannt: ${interactive_default_temp_output}" >&2
+        return 1
+    fi
+    nonInteractiveMode="$previous_mode_for_default"
+    unset previous_mode_for_default
 
     # Prüfe, dass ein zusammengesetzter Wert mit Leerzeichen im Label korrekt verarbeitet wird.
     unset EXPANDERPI_CHANNEL_0
