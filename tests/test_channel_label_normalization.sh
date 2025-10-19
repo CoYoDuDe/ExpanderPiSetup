@@ -42,6 +42,17 @@ main() {
     unset SETUPHELPER_MODE
     unset SETUPHELPER_FORCE_NONINTERACTIVE
 
+    # Prüfe, dass numerische Umgebungswerte mit Leerzeichen getrimmt werden und nicht auf den Fallback zurückfallen.
+    nonInteractiveMode=true
+    EXPANDERPI_VREF=" 1.300 "
+    local trimmed_vref
+    trimmed_vref="$(prompt_numeric_value "Test" " 1.200 " '^[0-9]+([.][0-9]+)?$' "Fehler" "EXPANDERPI_VREF")"
+    if [ "$trimmed_vref" != "1.300" ]; then
+        echo "Erwartete Übernahme des getrimmten Vref-Werts schlug fehl: ${trimmed_vref}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_VREF
+
     # Simuliere von der GUI geladene Kanaltypen und Labels.
     TOTAL_ADC_CHANNELS=8
     saved_channel_types=("tank" "temp" "voltage" "current" "pressure" "humidity" "custom" "none")

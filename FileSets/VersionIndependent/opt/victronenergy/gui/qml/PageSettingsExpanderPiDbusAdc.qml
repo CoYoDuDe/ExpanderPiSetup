@@ -389,8 +389,10 @@ MbPage {
         var env = {};
         var vrefString = (snapshot.vref !== undefined && snapshot.vref !== null) ? String(snapshot.vref) : "";
         var scaleString = (snapshot.scale !== undefined && snapshot.scale !== null) ? String(snapshot.scale) : "";
-        env["EXPANDERPI_VREF"] = vrefString.trim().length === 0 ? "" : vrefString;
-        env["EXPANDERPI_SCALE"] = scaleString.trim().length === 0 ? "" : scaleString;
+        var trimmedVref = vrefString.trim();
+        var trimmedScale = scaleString.trim();
+        env["EXPANDERPI_VREF"] = trimmedVref.length === 0 ? "" : trimmedVref;
+        env["EXPANDERPI_SCALE"] = trimmedScale.length === 0 ? "" : trimmedScale;
 
         for (var i = 0; i < snapshot.sensors.length; ++i) {
             var channel = snapshot.sensors[i];

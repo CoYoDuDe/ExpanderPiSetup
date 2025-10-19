@@ -641,15 +641,27 @@ prompt_numeric_value() {
     local env_var_name="${5:-}"
     local value=""
 
+    if [ -n "$default_value" ]; then
+        default_value="$(trim_whitespace "$default_value")"
+    fi
+
     if [ "$nonInteractiveMode" = true ]; then
         local candidate="$default_value"
         local source="Standardwert"
         if [ -n "$env_var_name" ]; then
             local env_value="${!env_var_name:-}"
             if [ -n "$env_value" ]; then
-                candidate="$env_value"
-                source="Umgebungsvariable ${env_var_name}"
+                local trimmed_env_value
+                trimmed_env_value="$(trim_whitespace "$env_value")"
+                if [ -n "$trimmed_env_value" ]; then
+                    candidate="$trimmed_env_value"
+                    source="Umgebungsvariable ${env_var_name}"
+                fi
             fi
+        fi
+
+        if [ -n "$candidate" ]; then
+            candidate="$(trim_whitespace "$candidate")"
         fi
 
         if [[ "$candidate" =~ $validation_regex ]]; then
@@ -674,6 +686,10 @@ prompt_numeric_value() {
                 fallback_candidate="$DEFAULT_SCALE_FALLBACK"
                 ;;
         esac
+
+        if [ -n "$fallback_candidate" ]; then
+            fallback_candidate="$(trim_whitespace "$fallback_candidate")"
+        fi
 
         if [ -n "$fallback_candidate" ] && [[ "$fallback_candidate" =~ $validation_regex ]]; then
             logMessage "Nicht-interaktiv: setze ${prompt_text} auf Skriptstandard ${fallback_candidate}."
