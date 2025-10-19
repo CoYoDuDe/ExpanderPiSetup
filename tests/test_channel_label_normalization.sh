@@ -174,8 +174,19 @@ main() {
     unset EXPANDERPI_CHANNEL_0_TYPE
     unset EXPANDERPI_CHANNEL_0_LABEL
 
-    # Prüfe, dass im interaktiven Modus ein groß geschriebener Standardtyp korrekt erkannt wird.
+    # Prüfe, dass im interaktiven Modus ein Standardtyp mit Leerzeichen korrekt erkannt wird.
     nonInteractiveMode=false
+    EXPANDERPI_CHANNEL_0_TYPE=" voltage "
+    local interactive_trimmed_response interactive_trimmed_output
+    interactive_trimmed_response="$(printf '\n' | prompt_channel_assignment 0 "${EXPANDERPI_CHANNEL_0_TYPE}" "")"
+    interactive_trimmed_output="${interactive_trimmed_response%$'\n'}"
+    if [ "${interactive_trimmed_output%%|*}" != "voltage" ]; then
+        echo "Interaktive Vorbelegung für ' voltage ' wurde nicht als Spannung erkannt: ${interactive_trimmed_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_0_TYPE
+
+    # Prüfe, dass im interaktiven Modus ein groß geschriebener Standardtyp korrekt erkannt wird.
     EXPANDERPI_CHANNEL_5_TYPE="VOLTAGE"
     local interactive_response interactive_output
     interactive_response="$(printf '\n' | prompt_channel_assignment 5 "${EXPANDERPI_CHANNEL_5_TYPE}" "")"

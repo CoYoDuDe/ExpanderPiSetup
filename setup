@@ -1048,7 +1048,12 @@ prompt_channel_assignment() {
     fi
 
     local normalized_default_type
-    local default_type_lc="${default_type,,}"
+    local default_type_trimmed
+    default_type_trimmed="$(trim_whitespace "$default_type")"
+    if [ "$default_type_trimmed" = "$default_type" ]; then
+        default_type_trimmed="$default_type"
+    fi
+    local default_type_lc="${default_type_trimmed,,}"
     case "$default_type_lc" in
         ""|"none")
             normalized_default_type="none"
