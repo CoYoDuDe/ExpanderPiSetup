@@ -758,6 +758,8 @@ prompt_numeric_value() {
             read -rp "${prompt_text}: " value
         fi
 
+        value="$(trim_whitespace "$value")"
+
         if [ -z "$value" ]; then
             value="$default_value"
         fi
