@@ -630,7 +630,7 @@ canonicalize_sensor_type() {
                 printf 'pressure'
                 return 0
                 ;;
-            humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
+            humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor|feuchte-sensor|feuchtesensor)
                 printf 'humidity'
                 return 0
                 ;;
@@ -960,7 +960,7 @@ prompt_channel_assignment() {
                     matched_type="pressure"
                     break
                     ;;
-                humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
+                humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor|feuchte-sensor|feuchtesensor)
                     matched_type="humidity"
                     break
                     ;;
@@ -1099,23 +1099,7 @@ prompt_channel_assignment() {
     fi
 
     local normalized_default_type
-    local default_type_trimmed
-    default_type_trimmed="$(trim_whitespace "$default_type")"
-    if [ "$default_type_trimmed" = "$default_type" ]; then
-        default_type_trimmed="$default_type"
-    fi
-    local default_type_lc="${default_type_trimmed,,}"
-    case "$default_type_lc" in
-        ""|"none")
-            normalized_default_type="none"
-            ;;
-        tank|temp|custom|voltage|current|pressure|humidity)
-            normalized_default_type="$default_type_lc"
-            ;;
-        *)
-            normalized_default_type="custom"
-            ;;
-    esac
+    normalized_default_type="$(canonicalize_sensor_type "$default_type")"
 
     local prompt_suffix=""
     case "$normalized_default_type" in
@@ -1191,7 +1175,7 @@ prompt_channel_assignment() {
                     reply_type="pressure"
                     break
                     ;;
-                humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor)
+                humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor|feuchte-sensor|feuchtesensor)
                     reply_type="humidity"
                     break
                     ;;

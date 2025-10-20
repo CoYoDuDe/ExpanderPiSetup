@@ -239,6 +239,22 @@ main() {
     unset EXPANDERPI_CHANNEL_4_TYPE
     unset EXPANDERPI_CHANNEL_4_LABEL
 
+    # Prüfe, dass der Sensortyp "Feuchte Sensor" im nicht-interaktiven Modus als Luftfeuchtigkeit erkannt wird.
+    unset EXPANDERPI_CHANNEL_7
+    unset EXPANDERPI_CHANNEL_7_TYPE
+    unset EXPANDERPI_CHANNEL_7_LABEL
+    EXPANDERPI_CHANNEL_7_TYPE="Feuchte Sensor"
+    local german_humidity_response german_humidity_output
+    german_humidity_response="$(prompt_channel_assignment 7 "" "")"
+    german_humidity_output="${german_humidity_response%$'\n'}"
+    if [ "${german_humidity_output%%|*}" != "humidity" ]; then
+        echo "Nicht-interaktive Erkennung für 'Feuchte Sensor' schlug fehl: ${german_humidity_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_7
+    unset EXPANDERPI_CHANNEL_7_TYPE
+    unset EXPANDERPI_CHANNEL_7_LABEL
+
     # Prüfe, dass im interaktiven Modus eine vorbelegte Default-Zeichenkette "Temperature Sensor" als Temperatur erkannt wird.
     local previous_mode_for_default="${nonInteractiveMode:-false}"
     nonInteractiveMode=false
@@ -309,6 +325,17 @@ main() {
         return 1
     fi
     unset EXPANDERPI_CHANNEL_2_TYPE
+
+    # Prüfe, dass im interaktiven Modus eine vorbelegte Zeichenkette "feuchte-sensor" als Luftfeuchtigkeit erkannt wird.
+    EXPANDERPI_CHANNEL_7_TYPE="feuchte-sensor"
+    local interactive_humidity_response interactive_humidity_output
+    interactive_humidity_response="$(printf '\n' | prompt_channel_assignment 7 "${EXPANDERPI_CHANNEL_7_TYPE}" "")"
+    interactive_humidity_output="${interactive_humidity_response%$'\n'}"
+    if [ "${interactive_humidity_output%%|*}" != "humidity" ]; then
+        echo "Interaktive Vorbelegung für 'feuchte-sensor' wurde nicht als Luftfeuchtigkeit erkannt: ${interactive_humidity_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_7_TYPE
 
     nonInteractiveMode="$previous_non_interactive"
     unset previous_non_interactive
