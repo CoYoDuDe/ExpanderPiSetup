@@ -1680,7 +1680,7 @@ install_config() {
     if ! temp_config="$(mktemp)"; then
         logMessage "Fehler: Konnte temporäre Datei für dbus-adc.conf nicht erstellen."
         setInstallFailed $EXIT_ERROR "mktemp für dbus-adc.conf fehlgeschlagen."
-        return
+        return 1
     fi
 
     {
@@ -1709,7 +1709,7 @@ install_config() {
             logMessage "Fehler beim Schreiben der dbus-adc.conf."
             setInstallFailed $EXIT_ERROR "Fehler beim Schreiben der dbus-adc.conf."
             rm -f "$temp_config"
-            return
+            return 1
         fi
     fi
 
@@ -1730,7 +1730,7 @@ install_config() {
     } > "$USER_CONFIG_FILE"; then
         logMessage "Fehler beim Schreiben der Benutzerkonfiguration nach ${USER_CONFIG_FILE}."
         setInstallFailed $EXIT_ERROR "Fehler beim Schreiben der Benutzerkonfiguration (${USER_CONFIG_FILE})."
-        return
+        return 1
     fi
 
     logMessage "Benutzerkonfiguration unter ${USER_CONFIG_FILE} gespeichert."
@@ -2244,10 +2244,13 @@ reset_rc_local() {
 case "$scriptAction" in
     INSTALL|CHECK)
         backup_originals
-        install_config
-        check_and_restore_overlays
-        check_and_install_kernel_modules
-        setup_rc_local
+        if install_config; then
+            check_and_restore_overlays
+            check_and_install_kernel_modules
+            setup_rc_local
+        else
+            logMessage "install_config meldete einen Fehler – überspringe weitere Installationsschritte."
+        fi
         ;;
     UNINSTALL)
         restore_originals
@@ -2259,10 +2262,13 @@ case "$scriptAction" in
     *)
         logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
         backup_originals
-        install_config
-        check_and_restore_overlays
-        check_and_install_kernel_modules
-        setup_rc_local
+        if install_config; then
+            check_and_restore_overlays
+            check_and_install_kernel_modules
+            setup_rc_local
+        else
+            logMessage "install_config meldete einen Fehler – überspringe weitere Installationsschritte."
+        fi
         ;;
 esac
 
