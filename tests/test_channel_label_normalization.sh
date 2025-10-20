@@ -67,6 +67,20 @@ main() {
     fi
     saved_channel_types[1]="$canonicalized_saved_type"
 
+    local canonicalized_german_saved_type
+    canonicalized_german_saved_type="$(canonicalize_sensor_type "Temperatur Sensor")"
+    if [ "$canonicalized_german_saved_type" != "temp" ]; then
+        echo "Kanonische Abbildung von 'Temperatur Sensor' fehlgeschlagen: ${canonicalized_german_saved_type}" >&2
+        return 1
+    fi
+
+    local canonicalized_german_compound_type
+    canonicalized_german_compound_type="$(canonicalize_sensor_type "temperatur-sensor")"
+    if [ "$canonicalized_german_compound_type" != "temp" ]; then
+        echo "Kanonische Abbildung von 'temperatur-sensor' fehlgeschlagen: ${canonicalized_german_compound_type}" >&2
+        return 1
+    fi
+
     declare -a gui_labels
 
     # DBus-Labels mit Leerzeichen wie gefordert
@@ -192,6 +206,38 @@ main() {
     unset EXPANDERPI_CHANNEL_2
     unset EXPANDERPI_CHANNEL_2_TYPE
     unset EXPANDERPI_CHANNEL_2_LABEL
+
+    # Prüfe, dass der Sensortyp "Temperatur Sensor" im nicht-interaktiven Modus als Temperatur erkannt wird.
+    unset EXPANDERPI_CHANNEL_3
+    unset EXPANDERPI_CHANNEL_3_TYPE
+    unset EXPANDERPI_CHANNEL_3_LABEL
+    EXPANDERPI_CHANNEL_3_TYPE="Temperatur Sensor"
+    local german_temperature_response german_temperature_output
+    german_temperature_response="$(prompt_channel_assignment 3 "" "")"
+    german_temperature_output="${german_temperature_response%$'\n'}"
+    if [ "${german_temperature_output%%|*}" != "temp" ]; then
+        echo "Nicht-interaktive Erkennung für 'Temperatur Sensor' schlug fehl: ${german_temperature_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_3
+    unset EXPANDERPI_CHANNEL_3_TYPE
+    unset EXPANDERPI_CHANNEL_3_LABEL
+
+    # Prüfe, dass der Sensortyp "temperatur-sensor" im nicht-interaktiven Modus als Temperatur erkannt wird.
+    unset EXPANDERPI_CHANNEL_4
+    unset EXPANDERPI_CHANNEL_4_TYPE
+    unset EXPANDERPI_CHANNEL_4_LABEL
+    EXPANDERPI_CHANNEL_4_TYPE="temperatur-sensor"
+    local german_compact_temperature_response german_compact_temperature_output
+    german_compact_temperature_response="$(prompt_channel_assignment 4 "" "")"
+    german_compact_temperature_output="${german_compact_temperature_response%$'\n'}"
+    if [ "${german_compact_temperature_output%%|*}" != "temp" ]; then
+        echo "Nicht-interaktive Erkennung für 'temperatur-sensor' schlug fehl: ${german_compact_temperature_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_4
+    unset EXPANDERPI_CHANNEL_4_TYPE
+    unset EXPANDERPI_CHANNEL_4_LABEL
 
     # Prüfe, dass im interaktiven Modus eine vorbelegte Default-Zeichenkette "Temperature Sensor" als Temperatur erkannt wird.
     local previous_mode_for_default="${nonInteractiveMode:-false}"
