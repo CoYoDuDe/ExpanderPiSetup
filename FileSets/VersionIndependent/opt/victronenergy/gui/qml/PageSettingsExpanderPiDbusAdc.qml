@@ -53,9 +53,11 @@ MbPage {
         "voltage": "voltage",
         "volt": "voltage",
         "spannung": "voltage",
+        "spannung sensor": "voltage",
         "voltsensor": "voltage",
         "v": "voltage",
         "spannungssensor": "voltage",
+        "spannungsensor": "voltage",
         "voltagesensor": "voltage",
 
         "current": "current",

@@ -89,6 +89,7 @@ assert.equal(canonicalSensorType('Tank-Sensor'), 'tank');
 assert.equal(canonicalSensorType('tank sensor'), 'tank');
 assert.equal(canonicalSensorType('voltage sensor'), 'voltage');
 assert.equal(canonicalSensorType('Voltage-Sensor'), 'voltage');
+assert.equal(canonicalSensorType('Spannung sensor'), 'voltage');
 assert.equal(canonicalSensorType('current sensor'), 'current');
 assert.equal(canonicalSensorType('Pressure-Sensor'), 'pressure');
 assert.equal(canonicalSensorType('humidity sensor'), 'humidity');
