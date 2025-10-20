@@ -610,27 +610,27 @@ canonicalize_sensor_type() {
                 printf 'none'
                 return 0
                 ;;
-            tank|t|tank-sensor|tanksensor)
+            tank|t|tank-sensor|tanksensor|fuel|diesel|wasser|water|level|tankgeber)
                 printf 'tank'
                 return 0
                 ;;
-            temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|temperatursensor|temperatur-sensor|"temperature sensor"|"temperatur sensor")
+            temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|temperatursensor|temperatur-sensor|"temperature sensor"|"temperatur sensor"|heat)
                 printf 'temp'
                 return 0
                 ;;
-            voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor|spannungssensor|spannung-sensor|"spannung sensor")
+            voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor|spannungssensor|spannung-sensor|"spannung sensor"|v|spannungsensor)
                 printf 'voltage'
                 return 0
                 ;;
-            current|strom|currentsensor|current-sensor|stromsensor|strom-sensor|"strom sensor")
+            current|strom|currentsensor|current-sensor|stromsensor|strom-sensor|"strom sensor"|ampere|amps|amp)
                 printf 'current'
                 return 0
                 ;;
-            pressure|druck|pressuresensor|pressure-sensor|drucksensor|druck-sensor|"druck sensor")
+            pressure|druck|pressuresensor|pressure-sensor|drucksensor|druck-sensor|"druck sensor"|press)
                 printf 'pressure'
                 return 0
                 ;;
-            humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor|feuchte-sensor|feuchtesensor)
+            humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor|feuchte-sensor|feuchtesensor|humid)
                 printf 'humidity'
                 return 0
                 ;;

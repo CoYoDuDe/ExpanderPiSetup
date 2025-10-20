@@ -109,6 +109,41 @@ main() {
         return 1
     fi
 
+    local canonicalized_tank_fuel
+    canonicalized_tank_fuel="$(canonicalize_sensor_type "fuel")"
+    if [ "$canonicalized_tank_fuel" != "tank" ]; then
+        echo "Kanonische Abbildung von 'fuel' fehlgeschlagen: ${canonicalized_tank_fuel}" >&2
+        return 1
+    fi
+
+    local canonicalized_current_ampere
+    canonicalized_current_ampere="$(canonicalize_sensor_type "ampere")"
+    if [ "$canonicalized_current_ampere" != "current" ]; then
+        echo "Kanonische Abbildung von 'ampere' fehlgeschlagen: ${canonicalized_current_ampere}" >&2
+        return 1
+    fi
+
+    local canonicalized_voltage_v
+    canonicalized_voltage_v="$(canonicalize_sensor_type "v")"
+    if [ "$canonicalized_voltage_v" != "voltage" ]; then
+        echo "Kanonische Abbildung von 'v' fehlgeschlagen: ${canonicalized_voltage_v}" >&2
+        return 1
+    fi
+
+    local canonicalized_pressure_press
+    canonicalized_pressure_press="$(canonicalize_sensor_type "press")"
+    if [ "$canonicalized_pressure_press" != "pressure" ]; then
+        echo "Kanonische Abbildung von 'press' fehlgeschlagen: ${canonicalized_pressure_press}" >&2
+        return 1
+    fi
+
+    local canonicalized_humidity_humid
+    canonicalized_humidity_humid="$(canonicalize_sensor_type "humid")"
+    if [ "$canonicalized_humidity_humid" != "humidity" ]; then
+        echo "Kanonische Abbildung von 'humid' fehlgeschlagen: ${canonicalized_humidity_humid}" >&2
+        return 1
+    fi
+
     declare -a gui_labels
 
     # DBus-Labels mit Leerzeichen wie gefordert
