@@ -81,6 +81,34 @@ main() {
         return 1
     fi
 
+    local canonicalized_voltage_sensor
+    canonicalized_voltage_sensor="$(canonicalize_sensor_type "Spannungssensor")"
+    if [ "$canonicalized_voltage_sensor" != "voltage" ]; then
+        echo "Kanonische Abbildung von 'Spannungssensor' fehlgeschlagen: ${canonicalized_voltage_sensor}" >&2
+        return 1
+    fi
+
+    local canonicalized_voltage_spaced
+    canonicalized_voltage_spaced="$(canonicalize_sensor_type "Spannung Sensor")"
+    if [ "$canonicalized_voltage_spaced" != "voltage" ]; then
+        echo "Kanonische Abbildung von 'Spannung Sensor' fehlgeschlagen: ${canonicalized_voltage_spaced}" >&2
+        return 1
+    fi
+
+    local canonicalized_current_sensor
+    canonicalized_current_sensor="$(canonicalize_sensor_type "Stromsensor")"
+    if [ "$canonicalized_current_sensor" != "current" ]; then
+        echo "Kanonische Abbildung von 'Stromsensor' fehlgeschlagen: ${canonicalized_current_sensor}" >&2
+        return 1
+    fi
+
+    local canonicalized_current_spaced
+    canonicalized_current_spaced="$(canonicalize_sensor_type "Strom Sensor")"
+    if [ "$canonicalized_current_spaced" != "current" ]; then
+        echo "Kanonische Abbildung von 'Strom Sensor' fehlgeschlagen: ${canonicalized_current_spaced}" >&2
+        return 1
+    fi
+
     declare -a gui_labels
 
     # DBus-Labels mit Leerzeichen wie gefordert
@@ -190,6 +218,70 @@ main() {
     unset EXPANDERPI_CHANNEL_0
     unset EXPANDERPI_CHANNEL_0_TYPE
     unset EXPANDERPI_CHANNEL_0_LABEL
+
+    # Prüfe, dass der Sensortyp "Spannungssensor" im nicht-interaktiven Modus als Spannung erkannt wird.
+    unset EXPANDERPI_CHANNEL_5
+    unset EXPANDERPI_CHANNEL_5_TYPE
+    unset EXPANDERPI_CHANNEL_5_LABEL
+    EXPANDERPI_CHANNEL_5_TYPE="Spannungssensor"
+    local german_voltage_response german_voltage_output
+    german_voltage_response="$(prompt_channel_assignment 5 "" "")"
+    german_voltage_output="${german_voltage_response%$'\n'}"
+    if [ "${german_voltage_output%%|*}" != "voltage" ]; then
+        echo "Nicht-interaktive Erkennung für 'Spannungssensor' schlug fehl: ${german_voltage_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_5
+    unset EXPANDERPI_CHANNEL_5_TYPE
+    unset EXPANDERPI_CHANNEL_5_LABEL
+
+    # Prüfe, dass Varianten mit Leerzeichen oder Bindestrich im nicht-interaktiven Modus als Spannung erkannt werden.
+    unset EXPANDERPI_CHANNEL_5
+    unset EXPANDERPI_CHANNEL_5_TYPE
+    unset EXPANDERPI_CHANNEL_5_LABEL
+    EXPANDERPI_CHANNEL_5_TYPE="Spannung sensor"
+    local german_voltage_variant_response german_voltage_variant_output
+    german_voltage_variant_response="$(prompt_channel_assignment 5 "" "")"
+    german_voltage_variant_output="${german_voltage_variant_response%$'\n'}"
+    if [ "${german_voltage_variant_output%%|*}" != "voltage" ]; then
+        echo "Nicht-interaktive Erkennung für 'Spannung sensor' schlug fehl: ${german_voltage_variant_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_5
+    unset EXPANDERPI_CHANNEL_5_TYPE
+    unset EXPANDERPI_CHANNEL_5_LABEL
+
+    # Prüfe, dass der Sensortyp "Stromsensor" im nicht-interaktiven Modus als Strom erkannt wird.
+    unset EXPANDERPI_CHANNEL_6
+    unset EXPANDERPI_CHANNEL_6_TYPE
+    unset EXPANDERPI_CHANNEL_6_LABEL
+    EXPANDERPI_CHANNEL_6_TYPE="Stromsensor"
+    local german_current_response german_current_output
+    german_current_response="$(prompt_channel_assignment 6 "" "")"
+    german_current_output="${german_current_response%$'\n'}"
+    if [ "${german_current_output%%|*}" != "current" ]; then
+        echo "Nicht-interaktive Erkennung für 'Stromsensor' schlug fehl: ${german_current_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_6
+    unset EXPANDERPI_CHANNEL_6_TYPE
+    unset EXPANDERPI_CHANNEL_6_LABEL
+
+    # Prüfe, dass Varianten mit Leerzeichen oder Bindestrich im nicht-interaktiven Modus als Strom erkannt werden.
+    unset EXPANDERPI_CHANNEL_6
+    unset EXPANDERPI_CHANNEL_6_TYPE
+    unset EXPANDERPI_CHANNEL_6_LABEL
+    EXPANDERPI_CHANNEL_6_TYPE="Strom sensor"
+    local german_current_variant_response german_current_variant_output
+    german_current_variant_response="$(prompt_channel_assignment 6 "" "")"
+    german_current_variant_output="${german_current_variant_response%$'\n'}"
+    if [ "${german_current_variant_output%%|*}" != "current" ]; then
+        echo "Nicht-interaktive Erkennung für 'Strom sensor' schlug fehl: ${german_current_variant_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_6
+    unset EXPANDERPI_CHANNEL_6_TYPE
+    unset EXPANDERPI_CHANNEL_6_LABEL
 
     # Prüfe, dass der Sensortyp "Temperature Sensor" im nicht-interaktiven Modus als Temperatur erkannt wird.
     unset EXPANDERPI_CHANNEL_2
@@ -347,6 +439,26 @@ main() {
     fi
     unset EXPANDERPI_CHANNEL_5_TYPE
 
+    # Prüfe, dass im interaktiven Modus eine vorbelegte Zeichenkette "Spannungssensor" als Spannung erkannt wird.
+    EXPANDERPI_CHANNEL_5_TYPE="Spannungssensor"
+    local interactive_german_voltage_response interactive_german_voltage_output
+    interactive_german_voltage_response="$(printf '\n' | prompt_channel_assignment 5 "${EXPANDERPI_CHANNEL_5_TYPE}" "")"
+    interactive_german_voltage_output="${interactive_german_voltage_response%$'\n'}"
+    if [ "${interactive_german_voltage_output%%|*}" != "voltage" ]; then
+        echo "Interaktive Vorbelegung für 'Spannungssensor' wurde nicht als Spannung erkannt: ${interactive_german_voltage_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_5_TYPE
+
+    # Prüfe, dass interaktive Eingaben mit Leerzeichen für Spannung erkannt werden.
+    local interactive_german_voltage_input_response interactive_german_voltage_input_output
+    interactive_german_voltage_input_response="$(printf 'Spannung sensor\n' | prompt_channel_assignment 5 "" "")"
+    interactive_german_voltage_input_output="${interactive_german_voltage_input_response%$'\n'}"
+    if [ "${interactive_german_voltage_input_output%%|*}" != "voltage" ]; then
+        echo "Interaktive Eingabe für 'Spannung sensor' wurde nicht als Spannung erkannt: ${interactive_german_voltage_input_output}" >&2
+        return 1
+    fi
+
     # Prüfe, dass im interaktiven Modus eine vorbelegte Zeichenkette "Temperature Sensor" als Temperatur erkannt wird.
     EXPANDERPI_CHANNEL_2_TYPE="Temperature Sensor"
     local interactive_temp_response interactive_temp_output
@@ -368,6 +480,26 @@ main() {
         return 1
     fi
     unset EXPANDERPI_CHANNEL_7_TYPE
+
+    # Prüfe, dass im interaktiven Modus eine vorbelegte Zeichenkette "Stromsensor" als Strom erkannt wird.
+    EXPANDERPI_CHANNEL_6_TYPE="Stromsensor"
+    local interactive_german_current_response interactive_german_current_output
+    interactive_german_current_response="$(printf '\n' | prompt_channel_assignment 6 "${EXPANDERPI_CHANNEL_6_TYPE}" "")"
+    interactive_german_current_output="${interactive_german_current_response%$'\n'}"
+    if [ "${interactive_german_current_output%%|*}" != "current" ]; then
+        echo "Interaktive Vorbelegung für 'Stromsensor' wurde nicht als Strom erkannt: ${interactive_german_current_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_6_TYPE
+
+    # Prüfe, dass interaktive Eingaben mit Leerzeichen für Strom erkannt werden.
+    local interactive_german_current_input_response interactive_german_current_input_output
+    interactive_german_current_input_response="$(printf 'Strom sensor\n' | prompt_channel_assignment 6 "" "")"
+    interactive_german_current_input_output="${interactive_german_current_input_response%$'\n'}"
+    if [ "${interactive_german_current_input_output%%|*}" != "current" ]; then
+        echo "Interaktive Eingabe für 'Strom sensor' wurde nicht als Strom erkannt: ${interactive_german_current_input_output}" >&2
+        return 1
+    fi
 
     # Prüfe, dass im interaktiven Modus eine vorbelegte Zeichenkette "Drucksensor" als Druck erkannt wird.
     EXPANDERPI_CHANNEL_6_TYPE="Drucksensor"

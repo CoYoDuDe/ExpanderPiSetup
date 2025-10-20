@@ -618,11 +618,11 @@ canonicalize_sensor_type() {
                 printf 'temp'
                 return 0
                 ;;
-            voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor)
+            voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor|spannungssensor|spannung-sensor|"spannung sensor")
                 printf 'voltage'
                 return 0
                 ;;
-            current|strom|currentsensor|current-sensor)
+            current|strom|currentsensor|current-sensor|stromsensor|strom-sensor|"strom sensor")
                 printf 'current'
                 return 0
                 ;;
@@ -948,11 +948,11 @@ prompt_channel_assignment() {
                     matched_type="temp"
                     break
                     ;;
-                voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor)
+                voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor|spannungssensor|spannung-sensor|"spannung sensor")
                     matched_type="voltage"
                     break
                     ;;
-                current|strom|currentsensor|current-sensor)
+                current|strom|currentsensor|current-sensor|stromsensor|strom-sensor|"strom sensor")
                     matched_type="current"
                     break
                     ;;
@@ -1163,11 +1163,11 @@ prompt_channel_assignment() {
                     reply_type="temp"
                     break
                     ;;
-                voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor)
+                voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor|spannungssensor|spannung-sensor|"spannung sensor")
                     reply_type="voltage"
                     break
                     ;;
-                current|strom|currentsensor|current-sensor)
+                current|strom|currentsensor|current-sensor|stromsensor|strom-sensor|"strom sensor")
                     reply_type="current"
                     break
                     ;;
