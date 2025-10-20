@@ -239,6 +239,38 @@ main() {
     unset EXPANDERPI_CHANNEL_4_TYPE
     unset EXPANDERPI_CHANNEL_4_LABEL
 
+    # Prüfe, dass der Sensortyp "Drucksensor" im nicht-interaktiven Modus als Druck erkannt wird.
+    unset EXPANDERPI_CHANNEL_6
+    unset EXPANDERPI_CHANNEL_6_TYPE
+    unset EXPANDERPI_CHANNEL_6_LABEL
+    EXPANDERPI_CHANNEL_6_TYPE="Drucksensor"
+    local german_pressure_response german_pressure_output
+    german_pressure_response="$(prompt_channel_assignment 6 "" "")"
+    german_pressure_output="${german_pressure_response%$'\n'}"
+    if [ "${german_pressure_output%%|*}" != "pressure" ]; then
+        echo "Nicht-interaktive Erkennung für 'Drucksensor' schlug fehl: ${german_pressure_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_6
+    unset EXPANDERPI_CHANNEL_6_TYPE
+    unset EXPANDERPI_CHANNEL_6_LABEL
+
+    # Prüfe, dass Varianten mit Leerzeichen oder Bindestrich im nicht-interaktiven Modus als Druck erkannt werden.
+    unset EXPANDERPI_CHANNEL_6
+    unset EXPANDERPI_CHANNEL_6_TYPE
+    unset EXPANDERPI_CHANNEL_6_LABEL
+    EXPANDERPI_CHANNEL_6_TYPE="druck sensor"
+    local german_pressure_variant_response german_pressure_variant_output
+    german_pressure_variant_response="$(prompt_channel_assignment 6 "" "")"
+    german_pressure_variant_output="${german_pressure_variant_response%$'\n'}"
+    if [ "${german_pressure_variant_output%%|*}" != "pressure" ]; then
+        echo "Nicht-interaktive Erkennung für 'druck sensor' schlug fehl: ${german_pressure_variant_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_6
+    unset EXPANDERPI_CHANNEL_6_TYPE
+    unset EXPANDERPI_CHANNEL_6_LABEL
+
     # Prüfe, dass der Sensortyp "Feuchte Sensor" im nicht-interaktiven Modus als Luftfeuchtigkeit erkannt wird.
     unset EXPANDERPI_CHANNEL_7
     unset EXPANDERPI_CHANNEL_7_TYPE
@@ -336,6 +368,28 @@ main() {
         return 1
     fi
     unset EXPANDERPI_CHANNEL_7_TYPE
+
+    # Prüfe, dass im interaktiven Modus eine vorbelegte Zeichenkette "Drucksensor" als Druck erkannt wird.
+    EXPANDERPI_CHANNEL_6_TYPE="Drucksensor"
+    local interactive_pressure_response interactive_pressure_output
+    interactive_pressure_response="$(printf '\n' | prompt_channel_assignment 6 "${EXPANDERPI_CHANNEL_6_TYPE}" "")"
+    interactive_pressure_output="${interactive_pressure_response%$'\n'}"
+    if [ "${interactive_pressure_output%%|*}" != "pressure" ]; then
+        echo "Interaktive Vorbelegung für 'Drucksensor' wurde nicht als Druck erkannt: ${interactive_pressure_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_6_TYPE
+
+    # Prüfe, dass Varianten mit Leerzeichen oder Bindestrich im interaktiven Modus als Druck erkannt werden.
+    EXPANDERPI_CHANNEL_6_TYPE="druck-sensor"
+    local interactive_pressure_variant_response interactive_pressure_variant_output
+    interactive_pressure_variant_response="$(printf '\n' | prompt_channel_assignment 6 "${EXPANDERPI_CHANNEL_6_TYPE}" "")"
+    interactive_pressure_variant_output="${interactive_pressure_variant_response%$'\n'}"
+    if [ "${interactive_pressure_variant_output%%|*}" != "pressure" ]; then
+        echo "Interaktive Vorbelegung für 'druck-sensor' wurde nicht als Druck erkannt: ${interactive_pressure_variant_output}" >&2
+        return 1
+    fi
+    unset EXPANDERPI_CHANNEL_6_TYPE
 
     nonInteractiveMode="$previous_non_interactive"
     unset previous_non_interactive

@@ -626,7 +626,7 @@ canonicalize_sensor_type() {
                 printf 'current'
                 return 0
                 ;;
-            pressure|druck|pressuresensor|pressure-sensor)
+            pressure|druck|pressuresensor|pressure-sensor|drucksensor|druck-sensor|"druck sensor")
                 printf 'pressure'
                 return 0
                 ;;
@@ -956,7 +956,7 @@ prompt_channel_assignment() {
                     matched_type="current"
                     break
                     ;;
-                pressure|druck|pressuresensor|pressure-sensor)
+                pressure|druck|pressuresensor|pressure-sensor|drucksensor|druck-sensor|"druck sensor")
                     matched_type="pressure"
                     break
                     ;;
@@ -1171,7 +1171,7 @@ prompt_channel_assignment() {
                     reply_type="current"
                     break
                     ;;
-                pressure|druck|pressuresensor|pressure-sensor)
+                pressure|druck|pressuresensor|pressure-sensor|drucksensor|druck-sensor|"druck sensor")
                     reply_type="pressure"
                     break
                     ;;
