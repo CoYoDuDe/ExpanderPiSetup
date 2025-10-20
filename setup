@@ -614,7 +614,7 @@ canonicalize_sensor_type() {
                 printf 'tank'
                 return 0
                 ;;
-            temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|"temperature sensor")
+            temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|temperatursensor|temperatur-sensor|"temperature sensor"|"temperatur sensor")
                 printf 'temp'
                 return 0
                 ;;
@@ -944,7 +944,7 @@ prompt_channel_assignment() {
                     matched_type="tank"
                     break
                     ;;
-                temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|"temperature sensor")
+                temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|temperatursensor|temperatur-sensor|"temperature sensor"|"temperatur sensor")
                     matched_type="temp"
                     break
                     ;;
@@ -1175,7 +1175,7 @@ prompt_channel_assignment() {
                     reply_type="tank"
                     break
                     ;;
-                temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|"temperature sensor")
+                temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|temperatursensor|temperatur-sensor|"temperature sensor"|"temperatur sensor")
                     reply_type="temp"
                     break
                     ;;
