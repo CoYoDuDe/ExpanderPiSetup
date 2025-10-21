@@ -63,8 +63,19 @@ function extractObjectLiteral(name) {
 const sandbox = {
   qsTr(text) {
     const stringObject = new String(text);
+    stringObject._currentValue = text;
+    stringObject._nextIndex = 1;
     stringObject.arg = function replacePlaceholder(value) {
-      return text.replace('%1', value);
+      const placeholder = `%${this._nextIndex}`;
+      this._currentValue = this._currentValue.replace(placeholder, value);
+      this._nextIndex += 1;
+      return this;
+    };
+    stringObject.toString = function toString() {
+      return this._currentValue;
+    };
+    stringObject.valueOf = function valueOf() {
+      return this._currentValue;
     };
     return stringObject;
   }
@@ -82,29 +93,24 @@ for (const fnName of functionsToLoad) {
 
 const { canonicalSensorType, defaultLabelForType, sensorSummary } = sandbox;
 
-assert.equal(canonicalSensorType('VoltSensor'), 'voltage');
 assert.equal(canonicalSensorType('Temperatur'), 'temp');
 assert.equal(canonicalSensorType('Temperatur-Sensor'), 'temp');
+assert.equal(canonicalSensorType('temperature sensor'), 'temp');
 assert.equal(canonicalSensorType('Tank-Sensor'), 'tank');
 assert.equal(canonicalSensorType('tank sensor'), 'tank');
-assert.equal(canonicalSensorType('voltage sensor'), 'voltage');
-assert.equal(canonicalSensorType('Voltage-Sensor'), 'voltage');
-assert.equal(canonicalSensorType('Spannung sensor'), 'voltage');
-assert.equal(canonicalSensorType('current sensor'), 'current');
-assert.equal(canonicalSensorType('Pressure-Sensor'), 'pressure');
-assert.equal(canonicalSensorType('humidity sensor'), 'humidity');
-assert.equal(canonicalSensorType('temperature sensor'), 'temp');
+assert.equal(canonicalSensorType('Nicht belegt'), 'none');
 assert.equal(canonicalSensorType('leer'), 'none');
 assert.equal(canonicalSensorType('AUS'), 'none');
+assert.equal(canonicalSensorType('Voltage'), 'none');
 assert.equal(canonicalSensorType('Aus-geschaltet'), 'none');
 
-assert.equal(defaultLabelForType('Voltage', 2), 'Spannung 3');
-assert.equal(defaultLabelForType('voltage', 2), 'Spannung 3');
-assert.equal(defaultLabelForType('VOLTAGE', 2), 'Spannung 3');
+assert.equal(String(defaultLabelForType('tank', 0)), 'Tank 1');
+assert.equal(String(defaultLabelForType('Temp', 1)), 'Temperatur 2');
+assert.equal(String(defaultLabelForType('none', 3)), '');
 
-assert.equal(sensorSummary('Voltage', 'Spannung 3', 2), 'Spannung 3 • Spannung');
-assert.equal(sensorSummary('Voltage', '', 2), 'Spannung • Spannung');
-assert.equal(sensorSummary('MyCustomType', '', 0), 'MyCustomType • MyCustomType');
-assert.equal(sensorSummary('NONE', '', 1), 'Kanal 2 deaktiviert');
+assert.equal(String(sensorSummary('Tank', 'Tank 1', 0)), 'Tank 1 • Tank');
+assert.equal(String(sensorSummary('Temp', '', 1)), 'Temperatur • Temperatur');
+assert.equal(String(sensorSummary('Voltage', '', 2)), 'Kanal 3: Nicht unterstützter Typ (Voltage)');
+assert.equal(String(sensorSummary('NONE', '', 1)), 'Kanal 2 deaktiviert');
 
 console.log('Alle Sensor-Zusammenfassungs-Tests erfolgreich.');

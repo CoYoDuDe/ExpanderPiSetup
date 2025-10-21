@@ -11,12 +11,7 @@ MbPage {
     readonly property var sensorTypeOptions: [
         { text: qsTr("Nicht belegt"), value: "none" },
         { text: qsTr("Tank"), value: "tank" },
-        { text: qsTr("Temperatur"), value: "temp" },
-        { text: qsTr("Spannung"), value: "voltage" },
-        { text: qsTr("Strom"), value: "current" },
-        { text: qsTr("Druck"), value: "pressure" },
-        { text: qsTr("Feuchte"), value: "humidity" },
-        { text: qsTr("Generisch"), value: "custom" }
+        { text: qsTr("Temperatur"), value: "temp" }
     ]
 
     readonly property var sensorTypeCanonicalMap: ({
@@ -48,46 +43,7 @@ MbPage {
         "heat": "temp",
         "temperatursensor": "temp",
         "temperaturesensor": "temp",
-        "tempsensor": "temp",
-
-        "voltage": "voltage",
-        "volt": "voltage",
-        "spannung": "voltage",
-        "spannung sensor": "voltage",
-        "voltsensor": "voltage",
-        "v": "voltage",
-        "spannungssensor": "voltage",
-        "spannungsensor": "voltage",
-        "voltagesensor": "voltage",
-
-        "current": "current",
-        "strom": "current",
-        "ampere": "current",
-        "amps": "current",
-        "amp": "current",
-        "stromsensor": "current",
-        "currentsensor": "current",
-
-        "pressure": "pressure",
-        "druck": "pressure",
-        "press": "pressure",
-        "drucksensor": "pressure",
-        "pressuresensor": "pressure",
-
-        "humidity": "humidity",
-        "feuchte": "humidity",
-        "humid": "humidity",
-        "feuchtigkeit": "humidity",
-        "feuchtesensor": "humidity",
-        "humiditysensor": "humidity",
-
-        "custom": "custom",
-        "generisch": "custom",
-        "benutzerdefiniert": "custom",
-        "user": "custom",
-        "userdefined": "custom",
-        "user-defined": "custom",
-        "customsensor": "custom"
+        "tempsensor": "temp"
     })
 
     function canonicalSensorType(typeValue) {
@@ -107,15 +63,10 @@ MbPage {
         switch (normalized) {
         case "tank":
         case "temp":
-        case "voltage":
-        case "current":
-        case "pressure":
-        case "humidity":
-        case "custom":
         case "none":
             return normalized;
         default:
-            return raw.length === 0 ? "none" : normalized;
+            return raw.length === 0 ? "none" : "none";
         }
     }
 
@@ -140,16 +91,6 @@ MbPage {
             return qsTr("Tank %1").arg(channelNumber);
         case "temp":
             return qsTr("Temperatur %1").arg(channelNumber);
-        case "voltage":
-            return qsTr("Spannung %1").arg(channelNumber);
-        case "current":
-            return qsTr("Strom %1").arg(channelNumber);
-        case "pressure":
-            return qsTr("Druck %1").arg(channelNumber);
-        case "humidity":
-            return qsTr("Feuchte %1").arg(channelNumber);
-        case "custom":
-            return qsTr("Generisch %1").arg(channelNumber);
         case "none":
         default:
             return "";
@@ -181,7 +122,20 @@ MbPage {
     function sensorSummary(typeValue, labelValue, index) {
         var rawType = String(typeValue || "none");
         var canonicalType = canonicalSensorType(rawType);
+        var normalizedOriginal = rawType.toLowerCase();
+        var compactOriginal = normalizedOriginal.replace(/[\s_-]+/g, "");
+        var recognizedOriginal = sensorTypeCanonicalMap.hasOwnProperty(normalizedOriginal)
+            || sensorTypeCanonicalMap.hasOwnProperty(compactOriginal)
+            || normalizedOriginal === "tank"
+            || normalizedOriginal === "temp"
+            || normalizedOriginal === "none"
+            || normalizedOriginal.length === 0;
         if (canonicalType === "none") {
+            if (!recognizedOriginal && rawType.length > 0) {
+                return qsTr("Kanal %1: Nicht unterstützter Typ (%2)")
+                        .arg(index + 1)
+                        .arg(rawType);
+            }
             return qsTr("Kanal %1 deaktiviert").arg(index + 1);
         }
 
@@ -192,21 +146,6 @@ MbPage {
             break;
         case "temp":
             typeText = qsTr("Temperatur");
-            break;
-        case "voltage":
-            typeText = qsTr("Spannung");
-            break;
-        case "current":
-            typeText = qsTr("Strom");
-            break;
-        case "pressure":
-            typeText = qsTr("Druck");
-            break;
-        case "humidity":
-            typeText = qsTr("Feuchte");
-            break;
-        case "custom":
-            typeText = qsTr("Benutzerdefiniert");
             break;
         default:
             var trimmedOriginalType = rawType;
@@ -518,16 +457,7 @@ MbPage {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
                             item: typeItem
-                            possibleValues: [
-                                MbOption { description: qsTr("Nicht belegt"); value: "none" },
-                                MbOption { description: qsTr("Tank"); value: "tank" },
-                                MbOption { description: qsTr("Temperatur"); value: "temp" },
-                                MbOption { description: qsTr("Spannung"); value: "voltage" },
-                                MbOption { description: qsTr("Strom"); value: "current" },
-                                MbOption { description: qsTr("Druck"); value: "pressure" },
-                                MbOption { description: qsTr("Feuchte"); value: "humidity" },
-                                MbOption { description: qsTr("Generisch"); value: "custom" }
-                            ]
+                            possibleValues: root.sensorTypeOptions
                             writeAccessLevel: User.AccessInstaller
                         }
 
@@ -581,16 +511,7 @@ MbPage {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
                             item: typeItem
-                            possibleValues: [
-                                MbOption { description: qsTr("Nicht belegt"); value: "none" },
-                                MbOption { description: qsTr("Tank"); value: "tank" },
-                                MbOption { description: qsTr("Temperatur"); value: "temp" },
-                                MbOption { description: qsTr("Spannung"); value: "voltage" },
-                                MbOption { description: qsTr("Strom"); value: "current" },
-                                MbOption { description: qsTr("Druck"); value: "pressure" },
-                                MbOption { description: qsTr("Feuchte"); value: "humidity" },
-                                MbOption { description: qsTr("Generisch"); value: "custom" }
-                            ]
+                            possibleValues: root.sensorTypeOptions
                             writeAccessLevel: User.AccessInstaller
                         }
 
@@ -644,16 +565,7 @@ MbPage {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
                             item: typeItem
-                            possibleValues: [
-                                MbOption { description: qsTr("Nicht belegt"); value: "none" },
-                                MbOption { description: qsTr("Tank"); value: "tank" },
-                                MbOption { description: qsTr("Temperatur"); value: "temp" },
-                                MbOption { description: qsTr("Spannung"); value: "voltage" },
-                                MbOption { description: qsTr("Strom"); value: "current" },
-                                MbOption { description: qsTr("Druck"); value: "pressure" },
-                                MbOption { description: qsTr("Feuchte"); value: "humidity" },
-                                MbOption { description: qsTr("Generisch"); value: "custom" }
-                            ]
+                            possibleValues: root.sensorTypeOptions
                             writeAccessLevel: User.AccessInstaller
                         }
 
@@ -707,16 +619,7 @@ MbPage {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
                             item: typeItem
-                            possibleValues: [
-                                MbOption { description: qsTr("Nicht belegt"); value: "none" },
-                                MbOption { description: qsTr("Tank"); value: "tank" },
-                                MbOption { description: qsTr("Temperatur"); value: "temp" },
-                                MbOption { description: qsTr("Spannung"); value: "voltage" },
-                                MbOption { description: qsTr("Strom"); value: "current" },
-                                MbOption { description: qsTr("Druck"); value: "pressure" },
-                                MbOption { description: qsTr("Feuchte"); value: "humidity" },
-                                MbOption { description: qsTr("Generisch"); value: "custom" }
-                            ]
+                            possibleValues: root.sensorTypeOptions
                             writeAccessLevel: User.AccessInstaller
                         }
 
@@ -770,16 +673,7 @@ MbPage {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
                             item: typeItem
-                            possibleValues: [
-                                MbOption { description: qsTr("Nicht belegt"); value: "none" },
-                                MbOption { description: qsTr("Tank"); value: "tank" },
-                                MbOption { description: qsTr("Temperatur"); value: "temp" },
-                                MbOption { description: qsTr("Spannung"); value: "voltage" },
-                                MbOption { description: qsTr("Strom"); value: "current" },
-                                MbOption { description: qsTr("Druck"); value: "pressure" },
-                                MbOption { description: qsTr("Feuchte"); value: "humidity" },
-                                MbOption { description: qsTr("Generisch"); value: "custom" }
-                            ]
+                            possibleValues: root.sensorTypeOptions
                             writeAccessLevel: User.AccessInstaller
                         }
 
@@ -833,16 +727,7 @@ MbPage {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
                             item: typeItem
-                            possibleValues: [
-                                MbOption { description: qsTr("Nicht belegt"); value: "none" },
-                                MbOption { description: qsTr("Tank"); value: "tank" },
-                                MbOption { description: qsTr("Temperatur"); value: "temp" },
-                                MbOption { description: qsTr("Spannung"); value: "voltage" },
-                                MbOption { description: qsTr("Strom"); value: "current" },
-                                MbOption { description: qsTr("Druck"); value: "pressure" },
-                                MbOption { description: qsTr("Feuchte"); value: "humidity" },
-                                MbOption { description: qsTr("Generisch"); value: "custom" }
-                            ]
+                            possibleValues: root.sensorTypeOptions
                             writeAccessLevel: User.AccessInstaller
                         }
 
@@ -896,16 +781,7 @@ MbPage {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
                             item: typeItem
-                            possibleValues: [
-                                MbOption { description: qsTr("Nicht belegt"); value: "none" },
-                                MbOption { description: qsTr("Tank"); value: "tank" },
-                                MbOption { description: qsTr("Temperatur"); value: "temp" },
-                                MbOption { description: qsTr("Spannung"); value: "voltage" },
-                                MbOption { description: qsTr("Strom"); value: "current" },
-                                MbOption { description: qsTr("Druck"); value: "pressure" },
-                                MbOption { description: qsTr("Feuchte"); value: "humidity" },
-                                MbOption { description: qsTr("Generisch"); value: "custom" }
-                            ]
+                            possibleValues: root.sensorTypeOptions
                             writeAccessLevel: User.AccessInstaller
                         }
 
@@ -959,16 +835,7 @@ MbPage {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
                             item: typeItem
-                            possibleValues: [
-                                MbOption { description: qsTr("Nicht belegt"); value: "none" },
-                                MbOption { description: qsTr("Tank"); value: "tank" },
-                                MbOption { description: qsTr("Temperatur"); value: "temp" },
-                                MbOption { description: qsTr("Spannung"); value: "voltage" },
-                                MbOption { description: qsTr("Strom"); value: "current" },
-                                MbOption { description: qsTr("Druck"); value: "pressure" },
-                                MbOption { description: qsTr("Feuchte"); value: "humidity" },
-                                MbOption { description: qsTr("Generisch"); value: "custom" }
-                            ]
+                            possibleValues: root.sensorTypeOptions
                             writeAccessLevel: User.AccessInstaller
                         }
 
