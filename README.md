@@ -61,8 +61,20 @@ scale 4095
 
 label tank1
 tank 0
+label tank2
+tank 1
+label tank3
+tank 2
+label tank4
+tank 3
 label temperatur5
-temp 1
+temp 4
+label temperatur6
+temp 5
+label temperatur7
+temp 6
+label temperatur8
+temp 7
 ```
 
 Damit entspricht die erzeugte Datei exakt den Vorgaben aus dem [dbus-adc-README](https://github.com/victronenergy/dbus-adc/blob/master/README.md) und kann ohne weitere Nacharbeit vom Venus OS übernommen werden.

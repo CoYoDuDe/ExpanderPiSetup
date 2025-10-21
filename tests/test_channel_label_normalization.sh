@@ -69,6 +69,40 @@ main() {
         fi
     done
 
+    local template_file
+    template_file="$(dirname "$0")/../FileSets/configs/dbus-adc.conf"
+    local default_vref=""
+    local default_scale=""
+    local -a default_channel_types=()
+    local -a default_channel_labels=()
+
+    if ! parse_default_adc_configuration "$template_file" default_vref default_scale default_channel_types default_channel_labels; then
+        echo "Vorlage konnte nicht geparst werden: ${template_file}" >&2
+        return 1
+    fi
+
+    local -a expected_types=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
+    local -a expected_labels=("tank1" "tank2" "tank3" "tank4" "temperatur5" "temperatur6" "temperatur7" "temperatur8")
+
+    for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        if [ "${default_channel_types[channel]}" != "${expected_types[channel]}" ]; then
+            echo "Unerwarteter Standardtyp für Kanal $channel: ${default_channel_types[channel]}" >&2
+            return 1
+        fi
+
+        if [ -n "${default_channel_labels[channel]}" ]; then
+            echo "Kanal $channel sollte kein Default-Label besitzen, gefunden: ${default_channel_labels[channel]}" >&2
+            return 1
+        fi
+
+        local generated_label
+        generated_label="$(channel_label_fallback "$channel" "${default_channel_types[channel]}")"
+        if [ "$generated_label" != "${expected_labels[channel]}" ]; then
+            echo "Fallback-Label für Kanal $channel stimmt nicht: ${generated_label}" >&2
+            return 1
+        fi
+    done
+
     EXPANDERPI_VREF=" 1.300 "
     local trimmed_vref
     trimmed_vref="$(prompt_numeric_value "Test" " 1.200 " '^[0-9]+([.][0-9]+)?$' "Fehler" "EXPANDERPI_VREF")"
