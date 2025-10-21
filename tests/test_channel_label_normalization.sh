@@ -184,6 +184,53 @@ main() {
         return 1
     fi
 
+    local canonicalized_disabled_german
+    canonicalized_disabled_german="$(canonicalize_sensor_type "ausgeschaltet")"
+    if [ "$canonicalized_disabled_german" != "none" ]; then
+        echo "Kanonische Abbildung von 'ausgeschaltet' fehlgeschlagen: ${canonicalized_disabled_german}" >&2
+        return 1
+    fi
+
+    local canonicalized_disabled_english
+    canonicalized_disabled_english="$(canonicalize_sensor_type "disabled")"
+    if [ "$canonicalized_disabled_english" != "none" ]; then
+        echo "Kanonische Abbildung von 'disabled' fehlgeschlagen: ${canonicalized_disabled_english}" >&2
+        return 1
+    fi
+
+    local canonicalized_disabled_off
+    canonicalized_disabled_off="$(canonicalize_sensor_type "off")"
+    if [ "$canonicalized_disabled_off" != "none" ]; then
+        echo "Kanonische Abbildung von 'off' fehlgeschlagen: ${canonicalized_disabled_off}" >&2
+        return 1
+    fi
+
+    local -a disabled_variants=("ausgeschaltet" "disabled" "off")
+    local disabled_index=0
+    for disabled_variant in "${disabled_variants[@]}"; do
+        local channel
+        channel=$((disabled_index))
+        unset "EXPANDERPI_CHANNEL_${channel}"
+        unset "EXPANDERPI_CHANNEL_${channel}_TYPE"
+        unset "EXPANDERPI_CHANNEL_${channel}_LABEL"
+
+        local type_var="EXPANDERPI_CHANNEL_${channel}_TYPE"
+        printf -v "$type_var" '%s' "$disabled_variant"
+
+        local disabled_response disabled_output
+        disabled_response="$(prompt_channel_assignment "$channel" "" "")"
+        disabled_output="${disabled_response%$'\n'}"
+        if [ "$disabled_output" != "none|" ]; then
+            echo "Nicht-interaktive Erkennung für '${disabled_variant}' schlug fehl: ${disabled_output}" >&2
+            return 1
+        fi
+
+        unset "EXPANDERPI_CHANNEL_${channel}"
+        unset "EXPANDERPI_CHANNEL_${channel}_TYPE"
+        unset "EXPANDERPI_CHANNEL_${channel}_LABEL"
+        disabled_index=$((disabled_index + 1))
+    done
+
     declare -a gui_labels
 
     # DBus-Labels mit Leerzeichen wie gefordert
@@ -533,6 +580,20 @@ main() {
         echo "Interaktive Eingabe für 'Spannung sensor' wurde nicht als Spannung erkannt: ${interactive_german_voltage_input_output}" >&2
         return 1
     fi
+
+    local -a interactive_disabled_inputs=("ausgeschaltet" "disabled" "off")
+    for disabled_input in "${interactive_disabled_inputs[@]}"; do
+        local interactive_disabled_response interactive_disabled_output
+        unset "EXPANDERPI_CHANNEL_3"
+        unset "EXPANDERPI_CHANNEL_3_TYPE"
+        unset "EXPANDERPI_CHANNEL_3_LABEL"
+        interactive_disabled_response="$(printf '%s\n' "$disabled_input" | prompt_channel_assignment 3 "" "")"
+        interactive_disabled_output="${interactive_disabled_response%$'\n'}"
+        if [ "$interactive_disabled_output" != "none|" ]; then
+            echo "Interaktive Eingabe für '${disabled_input}' wurde nicht als deaktiviert erkannt: ${interactive_disabled_output}" >&2
+            return 1
+        fi
+    done
 
     # Prüfe, dass im interaktiven Modus eine vorbelegte Zeichenkette "Temperature Sensor" als Temperatur erkannt wird.
     EXPANDERPI_CHANNEL_2_TYPE="Temperature Sensor"

@@ -606,7 +606,7 @@ canonicalize_sensor_type() {
     local candidate=""
     for candidate in "$lowered_value" "$compact_value"; do
         case "$candidate" in
-            ""|none|leer|aus|kein|keine|0)
+            ""|none|leer|aus|ausgeschaltet|disabled|off|kein|keine|0)
                 printf 'none'
                 return 0
                 ;;
@@ -952,7 +952,7 @@ prompt_channel_assignment() {
         local matched_type=""
         for type_variant in "$raw_type_lc" "$raw_type_compact"; do
             case "$type_variant" in
-                ""|none|leer|aus|kein|keine|0)
+                ""|none|leer|aus|ausgeschaltet|disabled|off|kein|keine|0)
                     matched_type="none"
                     break
                     ;;
@@ -1175,7 +1175,7 @@ prompt_channel_assignment() {
         local reply_type=""
         for type_variant in "$reply" "$reply_compact"; do
             case "$type_variant" in
-                ""|"none"|"leer"|"aus"|"kein"|"keine"|"0")
+                ""|"none"|"leer"|"aus"|"ausgeschaltet"|"disabled"|"off"|"kein"|"keine"|"0")
                     reply_type="none"
                     break
                     ;;
