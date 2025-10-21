@@ -42,6 +42,25 @@ Die Datei `packageDependencies` beschreibt nun explizit, welche Pakete der Setup
 
 Das Shell-Skript `setup` liest neben der bestehenden `dbus-adc.user.conf` nun auch die D-Bus-Werte aus `com.victronenergy.settings/Settings/ExpanderPi/DbusAdc`. Sind dort gültige Werte hinterlegt, werden sie automatisch als nicht-interaktive Eingabe verwendet. Die GUI übergibt zusätzlich sämtliche Werte als `EXPANDERPI_*`-Variablen an den Installationslauf.
 
+## Generierte `dbus-adc.conf`
+
+Der Installer schreibt die Konfiguration strikt im von Victron dokumentierten Format (`device`, `vref`, `scale`, gefolgt von optionalen `label`-Zeilen sowie den Sensorzuweisungen `tank` bzw. `temp`). Für jeden aktivierten Kanal wird – falls ein Label gesetzt ist – zuerst `label <wert>` ausgegeben und anschließend die zum Sensortyp passende Direktive (`tank <eingang>` oder `temp <eingang>`). Nicht unterstützte oder deaktivierte Kanäle (z. B. Spannung, Strom, Druck) werden dabei ausgelassen, damit die generierte Datei 1:1 mit der Parser-Logik von `dbus-adc` kompatibel bleibt.
+
+Beispielausgabe:
+
+```
+device iio:device0
+vref 1.300
+scale 4095
+
+label tank1
+tank 0
+label temperatur5
+temp 1
+```
+
+Damit entspricht die erzeugte Datei exakt den Vorgaben aus dem [dbus-adc-README](https://github.com/victronenergy/dbus-adc/blob/master/README.md) und kann ohne weitere Nacharbeit vom Venus OS übernommen werden.
+
 ## Bedienung
 
 1. SetupHelper öffnen und **Hardware → ExpanderPi DBus-ADC** wählen.
