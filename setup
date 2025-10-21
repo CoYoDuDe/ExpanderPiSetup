@@ -74,6 +74,27 @@ fi
 # Installationsverzeichnis festlegen
 ROOT_PATH=/data/ExpanderPiSetup
 
+# Version für Paketierung und Logging aus zentraler Datei lesen
+VERSION_FILE_PATH="${ROOT_PATH}/version"
+PACKAGE_VERSION=""
+
+if [ -f "$VERSION_FILE_PATH" ]; then
+    PACKAGE_VERSION="$(head -n 1 "$VERSION_FILE_PATH" | tr -d '[:space:]')"
+    if [ -n "$PACKAGE_VERSION" ]; then
+        export SETUPHELPER_PACKAGE_VERSION="$PACKAGE_VERSION"
+        if declare -F setScriptVersion >/dev/null 2>&1; then
+            setScriptVersion "$PACKAGE_VERSION"
+        elif declare -F setPackageVersion >/dev/null 2>&1; then
+            setPackageVersion "$PACKAGE_VERSION"
+        fi
+        logMessage "Setze Paketversion auf ${PACKAGE_VERSION} gemäß ${VERSION_FILE_PATH}."
+    else
+        logMessage "Versionsdatei ${VERSION_FILE_PATH} ist leer – Paketversion bleibt unverändert."
+    fi
+else
+    logMessage "Versionsdatei ${VERSION_FILE_PATH} nicht gefunden – Paketversion kann nicht gesetzt werden."
+fi
+
 # Pfaddefinitionen
 CONFIG_FILE="/etc/venus/dbus-adc.conf"
 BACKUP_CONFIG_FILE="${CONFIG_FILE}.orig"
