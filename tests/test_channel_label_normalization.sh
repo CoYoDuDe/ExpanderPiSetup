@@ -205,7 +205,35 @@ main() {
         return 1
     fi
 
-    local -a disabled_variants=("ausgeschaltet" "disabled" "off")
+    local canonicalized_disabled_nicht_belegt
+    canonicalized_disabled_nicht_belegt="$(canonicalize_sensor_type "nicht belegt")"
+    if [ "$canonicalized_disabled_nicht_belegt" != "none" ]; then
+        echo "Kanonische Abbildung von 'nicht belegt' fehlgeschlagen: ${canonicalized_disabled_nicht_belegt}" >&2
+        return 1
+    fi
+
+    local canonicalized_disabled_nichtbelegt
+    canonicalized_disabled_nichtbelegt="$(canonicalize_sensor_type "nichtbelegt")"
+    if [ "$canonicalized_disabled_nichtbelegt" != "none" ]; then
+        echo "Kanonische Abbildung von 'nichtbelegt' fehlgeschlagen: ${canonicalized_disabled_nichtbelegt}" >&2
+        return 1
+    fi
+
+    local canonicalized_disabled_deaktiviert
+    canonicalized_disabled_deaktiviert="$(canonicalize_sensor_type "deaktiviert")"
+    if [ "$canonicalized_disabled_deaktiviert" != "none" ]; then
+        echo "Kanonische Abbildung von 'deaktiviert' fehlgeschlagen: ${canonicalized_disabled_deaktiviert}" >&2
+        return 1
+    fi
+
+    local canonicalized_disabled_keiner
+    canonicalized_disabled_keiner="$(canonicalize_sensor_type "keiner")"
+    if [ "$canonicalized_disabled_keiner" != "none" ]; then
+        echo "Kanonische Abbildung von 'keiner' fehlgeschlagen: ${canonicalized_disabled_keiner}" >&2
+        return 1
+    fi
+
+    local -a disabled_variants=("ausgeschaltet" "disabled" "off" "nicht belegt" "nichtbelegt" "deaktiviert" "keiner")
     local disabled_index=0
     for disabled_variant in "${disabled_variants[@]}"; do
         local channel
@@ -581,7 +609,7 @@ main() {
         return 1
     fi
 
-    local -a interactive_disabled_inputs=("ausgeschaltet" "disabled" "off")
+    local -a interactive_disabled_inputs=("ausgeschaltet" "disabled" "off" "nicht belegt" "nichtbelegt" "deaktiviert" "keiner")
     for disabled_input in "${interactive_disabled_inputs[@]}"; do
         local interactive_disabled_response interactive_disabled_output
         unset "EXPANDERPI_CHANNEL_3"
