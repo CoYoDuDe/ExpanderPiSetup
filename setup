@@ -1707,17 +1707,44 @@ install_config() {
         return 1
     fi
 
+    local -a unsupported_channels=()
+
     {
         echo "$ADC_DEVICE_LINE"
         echo "vref ${vref_value}"
         echo "scale ${scale_value}"
         echo
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-            if [ -n "${channel_labels[channel]}" ]; then
-                echo "${channel_labels[channel]} ${channel}"
-            fi
+            local current_type
+            local current_label
+
+            current_type="$(canonicalize_sensor_type "${channel_types[channel]}")"
+            channel_types[channel]="$current_type"
+            current_label="${channel_labels[channel]}"
+
+            case "$current_type" in
+                tank|temp)
+                    if [ -n "$current_label" ]; then
+                        echo "label ${current_label}"
+                    fi
+                    echo "${current_type} ${channel}"
+                    ;;
+                none|"")
+                    continue
+                    ;;
+                *)
+                    local channel_display
+                    channel_display=$((channel + 1))
+                    unsupported_channels+=("Kanal ${channel_display} (${current_type:-unbekannt})")
+                    continue
+                    ;;
+            esac
         done
     } > "$temp_config"
+
+    if [ "${#unsupported_channels[@]}" -gt 0 ]; then
+        logMessage "Überspringe nicht unterstützte Kanaltypen für dbus-adc: ${unsupported_channels[*]}."
+    fi
 
     local config_changed=true
     local dbus_config_copied=false

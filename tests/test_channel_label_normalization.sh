@@ -693,9 +693,18 @@ main() {
     # Erzeuge die Ausgabe ähnlich der dbus-adc.conf.
     local config_output=""
     for ((channel=0; channel<TOTAL_ADC_CHANNELS; channel++)); do
-        if [ -n "${channel_labels[channel]}" ]; then
-            config_output+="${channel_labels[channel]} ${channel}\n"
-        fi
+        local simulated_type
+        simulated_type="$(canonicalize_sensor_type "${channel_types[channel]}")"
+        channel_types[channel]="$simulated_type"
+
+        case "$simulated_type" in
+            tank|temp)
+                if [ -n "${channel_labels[channel]}" ]; then
+                    config_output+="label ${channel_labels[channel]}\n"
+                fi
+                config_output+="${simulated_type} ${channel}\n"
+                ;;
+        esac
     done
 
     printf "%b" "$config_output"
