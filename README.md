@@ -44,6 +44,10 @@ Die Seite wird über einen Patch auf `PageSettings.qml` eingebunden (`FileSets/P
 
 Die Datei `packageDependencies` beschreibt nun explizit, welche Pakete der SetupHelper für das ExpanderPi-Setup voraussetzt und welche Konflikte vermieden werden müssen. Neben dem SetupHelper selbst werden die Kernelmodule `kernel-module-rtc-ds1307` und `kernel-module-mcp320x` als Pflichtabhängigkeiten geführt, damit die Installationsroutine weiterhin `/u-boot/config.txt` und `/data/rc.local` für die RTC- und MCP3208-Unterstützung patcht.
 
+### Device-Tree-Overlay-Validierung
+
+Das Setup-Skript trägt die Overlays `dtoverlay=i2c-rtc,ds1307` und `dtoverlay=mcp3208,spi0-0-present` in `/u-boot/config.txt` ein. Die Komma-Schreibweise aktiviert laut Raspberry-Pi-Dokumentation die boolesche Option `spi0-0-present` direkt beim Laden des Overlays. Nach der Installation empfiehlt sich eine kurze Kontrolle auf dem Zielsystem, z. B. mit `dtoverlay -l`, `dmesg | grep mcp3208` oder über `/sys/bus/iio/devices/`, um sicherzustellen, dass das MCP3208-Overlay tatsächlich geladen wurde.
+
 ## Zusammenspiel mit dem Setup-Skript
 
 Das Shell-Skript `setup` liest neben der bestehenden `dbus-adc.user.conf` nun auch die D-Bus-Werte aus `com.victronenergy.settings/Settings/ExpanderPi/DbusAdc`. Sind dort gültige Werte hinterlegt, werden sie automatisch als nicht-interaktive Eingabe verwendet. Die GUI übergibt zusätzlich sämtliche Werte als `EXPANDERPI_*`-Variablen an den Installationslauf.

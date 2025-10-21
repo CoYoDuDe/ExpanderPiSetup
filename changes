@@ -1,3 +1,7 @@
 v0.0.1:
 - Neues kompaktes ReadMe mit Paketbeschreibung angelegt.
 - Change-Log-Datei eingeführt, um zukünftige funktionsrelevante Versionen zu dokumentieren.
+
+v0.0.2:
+- Device-Tree-Overlay-Eintrag auf die Komma-Schreibweise `dtoverlay=mcp3208,spi0-0-present` aktualisiert, damit der Overlay-Loader die boolesche Option korrekt setzt.
+- Dokumentation ergänzt, wie sich die erfolgreiche Aktivierung des MCP3208-Overlays direkt auf dem Gerät prüfen lässt.
