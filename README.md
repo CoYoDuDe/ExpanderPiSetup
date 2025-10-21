@@ -56,6 +56,10 @@ Das Setup-Skript trägt die Overlays `dtoverlay=i2c-rtc,ds1307` und `dtoverlay=m
 
 Das Shell-Skript `setup` liest neben der bestehenden `dbus-adc.user.conf` nun auch die D-Bus-Werte aus `com.victronenergy.settings/Settings/ExpanderPi/DbusAdc`. Sind dort gültige Werte hinterlegt, werden sie automatisch als nicht-interaktive Eingabe verwendet. Die GUI übergibt zusätzlich sämtliche Werte als `EXPANDERPI_*`-Variablen an den Installationslauf.
 
+## Konfigurations-Defaults
+
+Die Standardkanäle orientieren sich an der Victron-Vorbelegung: vier Tank- und vier Temperatursensoren mit den Platzhaltern `tank1` bis `tank4` sowie `temperatur5` bis `temperatur8`. Für bestehende Installationen bleibt die numerische Suffixschreibweise vollständig kompatibel – Labels, die mit `tank` oder `temp` beginnen und daran anschließend Ziffern oder Trennzeichen enthalten, werden weiterhin automatisch den passenden Sensortypen zugeordnet.
+
 ## Generierte `dbus-adc.conf`
 
 Der Installer schreibt die Konfiguration strikt im von Victron dokumentierten Format (`device`, `vref`, `scale`, gefolgt von optionalen `label`-Zeilen sowie den Sensorzuweisungen `tank` bzw. `temp`). Für jeden aktivierten Kanal wird – falls ein Label gesetzt ist – zuerst `label <wert>` ausgegeben und anschließend die zum Sensortyp passende Direktive (`tank <eingang>` oder `temp <eingang>`). Nicht unterstützte oder deaktivierte Kanäle (z. B. Spannung, Strom, Druck) werden dabei ausgelassen, damit die generierte Datei 1:1 mit der Parser-Logik von `dbus-adc` kompatibel bleibt.

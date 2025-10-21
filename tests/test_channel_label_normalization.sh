@@ -126,6 +126,34 @@ main() {
         return 1
     fi
 
+    local previous_total_channels="$TOTAL_ADC_CHANNELS"
+    TOTAL_ADC_CHANNELS=2
+    USER_CHANNEL_0="tank1"
+    USER_CHANNEL_1="temperatur5"
+    local -a derived_types=()
+    derived_types[0]="$(infer_channel_type_from_label "${USER_CHANNEL_0}")"
+    derived_types[1]="$(infer_channel_type_from_label "${USER_CHANNEL_1}")"
+    local -a derived_invalid=()
+
+    if ! validate_channel_types derived_types derived_invalid; then
+        echo "validate_channel_types sollte numerische Label-Suffixe aus der Benutzerkonfiguration akzeptieren." >&2
+        return 1
+    fi
+
+    if [ "${#derived_invalid[@]}" -ne 0 ]; then
+        echo "Numerische Label-Suffixe wurden unerwartet als ungültig markiert: ${derived_invalid[*]}" >&2
+        return 1
+    fi
+
+    if [ "${derived_types[0]}" != "tank" ] || [ "${derived_types[1]}" != "temp" ]; then
+        echo "Abgeleitete Typen aus Labeln stimmen nicht: ${derived_types[*]}" >&2
+        return 1
+    fi
+
+    TOTAL_ADC_CHANNELS="$previous_total_channels"
+    unset USER_CHANNEL_0
+    unset USER_CHANNEL_1
+
     local canonical_temp
     canonical_temp="$(canonicalize_sensor_type "Temperatur Sensor")"
     if [ "$canonical_temp" != "temp" ]; then

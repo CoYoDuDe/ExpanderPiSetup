@@ -647,6 +647,52 @@ trim_whitespace() {
     printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
 
+infer_channel_type_from_label() {
+    local raw_label="$1"
+
+    local trimmed_label
+    trimmed_label="$(trim_whitespace "$raw_label")"
+
+    if [ -z "$trimmed_label" ]; then
+        printf 'none'
+        return 0
+    fi
+
+    local lowered_label="${trimmed_label,,}"
+
+    if [[ "$lowered_label" =~ ^tank([[:digit:][:space:][:punct:]].*)?$ ]]; then
+        printf 'tank'
+        return 0
+    fi
+
+    if [[ "$lowered_label" =~ ^tanksensor([[:digit:][:space:][:punct:]].*)?$ ]]; then
+        printf 'tank'
+        return 0
+    fi
+
+    if [[ "$lowered_label" =~ ^temp([[:digit:][:space:][:punct:]].*)?$ ]]; then
+        printf 'temp'
+        return 0
+    fi
+
+    if [[ "$lowered_label" =~ ^temperatur([[:digit:][:space:][:punct:]].*)?$ ]]; then
+        printf 'temp'
+        return 0
+    fi
+
+    if [[ "$lowered_label" =~ ^temperature([[:digit:][:space:][:punct:]].*)?$ ]]; then
+        printf 'temp'
+        return 0
+    fi
+
+    if [[ "$lowered_label" =~ ^tempsensor([[:digit:][:space:][:punct:]].*)?$ ]]; then
+        printf 'temp'
+        return 0
+    fi
+
+    printf '%s' "$lowered_label"
+}
+
 canonicalize_sensor_type() {
     local raw_value="$1"
     local trimmed_value
@@ -1250,22 +1296,7 @@ install_config() {
             fi
 
             if [ -z "$saved_type" ]; then
-                local label_lower
-                label_lower="$(printf '%s' "$saved_label" | tr '[:upper:]' '[:lower:]')"
-                case "$label_lower" in
-                    tank)
-                        saved_type="tank"
-                        ;;
-                    temp)
-                        saved_type="temp"
-                        ;;
-                    "")
-                        saved_type="none"
-                        ;;
-                    *)
-                        saved_type="$label_lower"
-                        ;;
-                esac
+                saved_type="$(infer_channel_type_from_label "$saved_label")"
             fi
 
             saved_type="$(canonicalize_sensor_type "$saved_type")"
