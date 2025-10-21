@@ -1532,11 +1532,11 @@ install_config() {
         config_txt_changed=true
         logMessage "dtoverlay=i2c-rtc,ds1307 zu $CONFIG_TXT hinzugefügt."
     fi
-    if ! grep -q "dtoverlay=mcp3208:spi0-0-present" "$CONFIG_TXT"; then
-        echo "dtoverlay=mcp3208:spi0-0-present" >> "$CONFIG_TXT"
+    if ! grep -q "dtoverlay=mcp3208,spi0-0-present" "$CONFIG_TXT"; then
+        echo "dtoverlay=mcp3208,spi0-0-present" >> "$CONFIG_TXT"
         filesUpdated=true
         config_txt_changed=true
-        logMessage "dtoverlay=mcp3208:spi0-0-present zu $CONFIG_TXT hinzugefügt."
+        logMessage "dtoverlay=mcp3208,spi0-0-present zu $CONFIG_TXT hinzugefügt."
     fi
 
     if [ "$config_txt_changed" = true ]; then
@@ -1569,7 +1569,7 @@ uninstall_config() {
     else
         logMessage "Bereinige config.txt manuell, da keine Sicherung wiederhergestellt werden konnte."
         sed -i '/dtoverlay=i2c-rtc,ds1307/d' "$CONFIG_TXT"
-        sed -i '/dtoverlay=mcp3208:spi0-0-present/d' "$CONFIG_TXT"
+        sed -i '/dtoverlay=mcp3208,spi0-0-present/d' "$CONFIG_TXT"
         logMessage "dtoverlay-Einträge wurden manuell aus der config.txt entfernt."
     fi
 
