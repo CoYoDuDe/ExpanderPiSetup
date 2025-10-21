@@ -44,9 +44,11 @@ Die Seite wird über einen Patch auf `PageSettings.qml` eingebunden (`FileSets/P
 
 Die Datei `packageDependencies` beschreibt nun explizit, welche Pakete der SetupHelper für das ExpanderPi-Setup voraussetzt und welche Konflikte vermieden werden müssen. Neben dem SetupHelper selbst werden die Kernelmodule `kernel-module-rtc-ds1307` und `kernel-module-mcp320x` als Pflichtabhängigkeiten geführt, damit die Installationsroutine weiterhin `/u-boot/config.txt` und `/data/rc.local` für die RTC- und MCP3208-Unterstützung patcht.
 
+Das Paket liefert ausschließlich die Overlays `i2c-rtc.dtbo` und `mcp3208.dtbo` aus. Für DS1307-basierte Echtzeituhrmodule wird nun konsequent das generische `i2c-rtc`-Overlay mit dem Parameter `ds1307` verwendet, wie es die Raspberry-Pi-Dokumentation empfiehlt. Separate, veraltete Varianten wie `ds1307-rtc.dtbo` entfallen damit vollständig.
+
 ### Device-Tree-Overlay-Validierung
 
-Das Setup-Skript trägt die Overlays `dtoverlay=i2c-rtc,ds1307` und `dtoverlay=mcp3208,spi0-0-present` in `/u-boot/config.txt` ein. Die Komma-Schreibweise aktiviert laut Raspberry-Pi-Dokumentation die boolesche Option `spi0-0-present` direkt beim Laden des Overlays. Nach der Installation empfiehlt sich eine kurze Kontrolle auf dem Zielsystem, z. B. mit `dtoverlay -l`, `dmesg | grep mcp3208` oder über `/sys/bus/iio/devices/`, um sicherzustellen, dass das MCP3208-Overlay tatsächlich geladen wurde.
+Das Setup-Skript trägt die Overlays `dtoverlay=i2c-rtc,ds1307` und `dtoverlay=mcp3208,spi0-0-present` in `/u-boot/config.txt` ein. Die Komma-Schreibweise aktiviert laut Raspberry-Pi-Dokumentation die boolesche Option `spi0-0-present` direkt beim Laden des Overlays. Nach der Installation empfiehlt sich eine kurze Kontrolle auf dem Zielsystem, z. B. mit `dtoverlay -l`, `dmesg | grep mcp3208` oder über `/sys/bus/iio/devices/`, um sicherzustellen, dass das MCP3208-Overlay tatsächlich geladen wurde. Durch das Setzen des Parameters `ds1307` am generischen `i2c-rtc`-Overlay entfällt das separate `ds1307-rtc.dtbo` vollständig – Konfiguration und Kernel-Modul bleiben dennoch unverändert erhalten.
 
 ## Zusammenspiel mit dem Setup-Skript
 
