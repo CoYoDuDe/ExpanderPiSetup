@@ -614,34 +614,14 @@ canonicalize_sensor_type() {
                 printf 'tank'
                 return 0
                 ;;
-            temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|temperatursensor|temperatur-sensor|"temperature sensor"|"temperatur sensor"|heat)
+            temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|temperatursensor|temperatur-sensor|'temperature sensor'|'temperatur sensor'|heat)
                 printf 'temp'
-                return 0
-                ;;
-            voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor|spannungssensor|spannung-sensor|"spannung sensor"|v|spannungsensor)
-                printf 'voltage'
-                return 0
-                ;;
-            current|strom|currentsensor|current-sensor|stromsensor|strom-sensor|"strom sensor"|ampere|amps|amp)
-                printf 'current'
-                return 0
-                ;;
-            pressure|druck|pressuresensor|pressure-sensor|drucksensor|druck-sensor|"druck sensor"|press)
-                printf 'pressure'
-                return 0
-                ;;
-            humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor|feuchte-sensor|feuchtesensor|humid)
-                printf 'humidity'
-                return 0
-                ;;
-            custom|benutzerdefiniert|user|label|sensor)
-                printf 'custom'
                 return 0
                 ;;
         esac
     done
 
-    printf 'custom'
+    printf 'invalid'
 }
 
 channel_label_fallback() {
@@ -658,22 +638,7 @@ channel_label_fallback() {
         temp)
             printf 'temperatur%s' "$channel_index"
             ;;
-        voltage)
-            printf 'spannung%s' "$channel_index"
-            ;;
-        current)
-            printf 'strom%s' "$channel_index"
-            ;;
-        pressure)
-            printf 'druck%s' "$channel_index"
-            ;;
-        humidity)
-            printf 'feuchte%s' "$channel_index"
-            ;;
-        custom)
-            printf 'sensor_%s' "$channel_index"
-            ;;
-        none|"")
+        none|""|invalid)
             printf 'sensor_%s' "$channel_index"
             ;;
         *)
@@ -685,6 +650,60 @@ channel_label_fallback() {
             printf '%s%s' "$sanitized_type" "$channel_index"
             ;;
     esac
+}
+
+validate_channel_types() {
+    local -n _types="$1"
+    local -n _invalid="$2"
+
+    _invalid=()
+
+    local total_channels="${TOTAL_ADC_CHANNELS:-0}"
+    local index
+    for (( index=0; index<total_channels; index++ )); do
+        local raw_type=""
+        if [ -n "${_types[index]+set}" ]; then
+            raw_type="${_types[index]}"
+        fi
+
+        local canonical
+        canonical="$(canonicalize_sensor_type "$raw_type")"
+
+        case "$canonical" in
+            tank|temp)
+                _types[index]="$canonical"
+                ;;
+            none|"")
+                _types[index]="none"
+                ;;
+            invalid)
+                local display_index=$((index + 1))
+                local trimmed_raw
+                trimmed_raw="$(trim_whitespace "${raw_type}")"
+                if [ -z "$trimmed_raw" ]; then
+                    trimmed_raw="?"
+                fi
+                _invalid+=("${display_index}:${trimmed_raw}")
+                _types[index]="invalid"
+                ;;
+            *)
+                local display_index=$((index + 1))
+                local trimmed_raw
+                trimmed_raw="$(trim_whitespace "${raw_type}")"
+                if [ -z "$trimmed_raw" ]; then
+                    trimmed_raw="?"
+                fi
+                _invalid+=("${display_index}:${trimmed_raw}")
+                _types[index]="invalid"
+                ;;
+        esac
+    done
+
+    if [ "${#_invalid[@]}" -gt 0 ]; then
+        return 1
+    fi
+
+    return 0
 }
 
 is_truthy() {
@@ -934,189 +953,43 @@ prompt_channel_assignment() {
             raw_type="$(trim_whitespace "$default_type")"
         fi
 
-        raw_type="$(trim_whitespace "$raw_type")"
+        local canonical_type
+        canonical_type="$(canonicalize_sensor_type "$raw_type")"
 
-        local raw_type_lc="${raw_type,,}"
-        local raw_type_compact="${raw_type_lc//[[:space:]-_]/}"
-
-        local normalized_type=""
-        local normalized_label="${raw_label}"
-        local log_source="automatisch"
-
+        local log_source="Standardwerte"
         if [ -n "$env_value" ] || [ -n "$env_type" ]; then
             log_source="Umgebungsvariablen"
-        elif [ -n "$default_type" ]; then
-            log_source="Standardwerte"
         fi
 
-        local matched_type=""
-        for type_variant in "$raw_type_lc" "$raw_type_compact"; do
-            case "$type_variant" in
-                ""|none|leer|aus|ausgeschaltet|disabled|off|kein|keine|keiner|deaktiviert|"nicht belegt"|nichtbelegt|0)
-                    matched_type="none"
-                    break
-                    ;;
-                tank|t|tank-sensor|tanksensor)
-                    matched_type="tank"
-                    break
-                    ;;
-                temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|temperatursensor|temperatur-sensor|"temperature sensor"|"temperatur sensor")
-                    matched_type="temp"
-                    break
-                    ;;
-                voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor|spannungssensor|spannung-sensor|"spannung sensor")
-                    matched_type="voltage"
-                    break
-                    ;;
-                current|strom|currentsensor|current-sensor|stromsensor|strom-sensor|"strom sensor")
-                    matched_type="current"
-                    break
-                    ;;
-                pressure|druck|pressuresensor|pressure-sensor|drucksensor|druck-sensor|"druck sensor")
-                    matched_type="pressure"
-                    break
-                    ;;
-                humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor|feuchte-sensor|feuchtesensor)
-                    matched_type="humidity"
-                    break
-                    ;;
-                custom|benutzerdefiniert|user|label|sensor)
-                    matched_type="custom"
-                    break
-                    ;;
-            esac
-        done
-
-        case "$matched_type" in
+        case "$canonical_type" in
             none)
-                normalized_type="none"
-                normalized_label=""
-                logMessage "Nicht-interaktiv: ${log_source} führen dazu, dass Kanal ${channel_display} leer bleibt."
+                logMessage "Nicht-interaktiv: ${log_source} führen dazu, dass Kanal ${channel_display} deaktiviert bleibt."
                 printf 'none|\n'
                 return 0
                 ;;
-            tank)
-                normalized_type="tank"
-                local tank_fallback
-                tank_fallback="$(channel_label_fallback "$channel" "tank")"
-                if [ -z "$normalized_label" ]; then
-                    if [ -n "$default_label" ]; then
-                        normalized_label="$default_label"
-                    else
-                        normalized_label="$tank_fallback"
-                    fi
+            tank|temp)
+                local fallback_label
+                fallback_label="$(channel_label_fallback "$channel" "$canonical_type")"
+                local normalized_label=""
+                if [ -n "$raw_label" ]; then
+                    normalized_label="$(normalize_channel_label "$raw_label" "$fallback_label")"
+                elif [ -n "$default_label" ]; then
+                    normalized_label="$(normalize_channel_label "$default_label" "$fallback_label")"
+                else
+                    normalized_label="$fallback_label"
                 fi
-                normalized_label="$(normalize_channel_label "$normalized_label" "$tank_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Tank-Sensor (${normalized_label})."
-                printf 'tank|%s\n' "$normalized_label"
+                logMessage "Nicht-interaktiv: ${log_source} setzen Kanal ${channel_display} auf ${canonical_type}-Sensor (${normalized_label})."
+                printf '%s|%s\n' "$canonical_type" "$normalized_label"
                 return 0
                 ;;
-            temp)
-                normalized_type="temp"
-                local temp_fallback
-                temp_fallback="$(channel_label_fallback "$channel" "temp")"
-                if [ -z "$normalized_label" ]; then
-                    if [ -n "$default_label" ]; then
-                        normalized_label="$default_label"
-                    else
-                        normalized_label="$temp_fallback"
-                    fi
+            invalid)
+                local raw_display
+                raw_display="$(trim_whitespace "$raw_type")"
+                if [ -z "$raw_display" ]; then
+                    raw_display="?"
                 fi
-                normalized_label="$(normalize_channel_label "$normalized_label" "$temp_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Temperatur-Sensor (${normalized_label})."
-                printf 'temp|%s\n' "$normalized_label"
-                return 0
-                ;;
-            voltage)
-                normalized_type="voltage"
-                local voltage_fallback
-                voltage_fallback="$(channel_label_fallback "$channel" "voltage")"
-                if [ -z "$normalized_label" ]; then
-                    if [ -n "$default_label" ]; then
-                        normalized_label="$default_label"
-                    else
-                        normalized_label="$voltage_fallback"
-                    fi
-                fi
-                normalized_label="$(normalize_channel_label "$normalized_label" "$voltage_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Spannungs-Sensor (${normalized_label})."
-                printf 'voltage|%s\n' "$normalized_label"
-                return 0
-                ;;
-            current)
-                normalized_type="current"
-                local current_fallback
-                current_fallback="$(channel_label_fallback "$channel" "current")"
-                if [ -z "$normalized_label" ]; then
-                    if [ -n "$default_label" ]; then
-                        normalized_label="$default_label"
-                    else
-                        normalized_label="$current_fallback"
-                    fi
-                fi
-                normalized_label="$(normalize_channel_label "$normalized_label" "$current_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Strom-Sensor (${normalized_label})."
-                printf 'current|%s\n' "$normalized_label"
-                return 0
-                ;;
-            pressure)
-                normalized_type="pressure"
-                local pressure_fallback
-                pressure_fallback="$(channel_label_fallback "$channel" "pressure")"
-                if [ -z "$normalized_label" ]; then
-                    if [ -n "$default_label" ]; then
-                        normalized_label="$default_label"
-                    else
-                        normalized_label="$pressure_fallback"
-                    fi
-                fi
-                normalized_label="$(normalize_channel_label "$normalized_label" "$pressure_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Druck-Sensor (${normalized_label})."
-                printf 'pressure|%s\n' "$normalized_label"
-                return 0
-                ;;
-            humidity)
-                normalized_type="humidity"
-                local humidity_fallback
-                humidity_fallback="$(channel_label_fallback "$channel" "humidity")"
-                if [ -z "$normalized_label" ]; then
-                    if [ -n "$default_label" ]; then
-                        normalized_label="$default_label"
-                    else
-                        normalized_label="$humidity_fallback"
-                    fi
-                fi
-                normalized_label="$(normalize_channel_label "$normalized_label" "$humidity_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel_display} als Feuchtigkeits-Sensor (${normalized_label})."
-                printf 'humidity|%s\n' "$normalized_label"
-                return 0
-                ;;
-            custom)
-                normalized_type="custom"
-                local custom_fallback
-                custom_fallback="$(channel_label_fallback "$channel" "custom")"
-                if [ -z "$normalized_label" ]; then
-                    if [ -n "$default_label" ]; then
-                        normalized_label="$default_label"
-                    else
-                        normalized_label="$custom_fallback"
-                    fi
-                fi
-                normalized_label="$(normalize_channel_label "$normalized_label" "$custom_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel_display} als benutzerdefiniert (${normalized_label})."
-                printf 'custom|%s\n' "$normalized_label"
-                return 0
-                ;;
-            "")
-                normalized_type="custom"
-                local generic_fallback
-                generic_fallback="$(channel_label_fallback "$channel" "custom")"
-                if [ -z "$normalized_label" ]; then
-                    normalized_label="$raw_type"
-                fi
-                normalized_label="$(normalize_channel_label "$normalized_label" "$generic_fallback")"
-                logMessage "Nicht-interaktiv: Kanal ${channel_display} als benutzerdefiniert (${normalized_label})."
-                printf 'custom|%s\n' "$normalized_label"
+                logMessage "Nicht-interaktiv: ${log_source} liefern den nicht unterstützten Sensortyp '${raw_display}' für Kanal ${channel_display}."
+                printf 'invalid|\n'
                 return 0
                 ;;
         esac
@@ -1124,6 +997,10 @@ prompt_channel_assignment() {
 
     local normalized_default_type
     normalized_default_type="$(canonicalize_sensor_type "$default_type")"
+    if [ "$normalized_default_type" = "invalid" ]; then
+        logMessage "Kanal ${channel_display}: gespeicherter Sensortyp '${default_type}' wird nicht unterstützt und wird auf 'none' zurückgesetzt."
+        normalized_default_type="none"
+    fi
 
     local prompt_suffix=""
     case "$normalized_default_type" in
@@ -1132,25 +1009,6 @@ prompt_channel_assignment() {
             ;;
         temp)
             prompt_suffix="temp"
-            ;;
-        voltage)
-            prompt_suffix="voltage"
-            ;;
-        current)
-            prompt_suffix="current"
-            ;;
-        pressure)
-            prompt_suffix="pressure"
-            ;;
-        humidity)
-            prompt_suffix="humidity"
-            ;;
-        custom)
-            if [ -n "$default_label" ]; then
-                prompt_suffix="benutzerdefiniert (${default_label})"
-            else
-                prompt_suffix="benutzerdefiniert"
-            fi
             ;;
         none)
             prompt_suffix="leer"
@@ -1170,45 +1028,8 @@ prompt_channel_assignment() {
         fi
 
         reply="$(printf '%s' "$reply" | tr '[:upper:]' '[:lower:]')"
-        local reply_compact="${reply//[[:space:]-_]/}"
-
-        local reply_type=""
-        for type_variant in "$reply" "$reply_compact"; do
-            case "$type_variant" in
-                ""|"none"|"leer"|"aus"|"ausgeschaltet"|"disabled"|"off"|"kein"|"keine"|"keiner"|"deaktiviert"|"nicht belegt"|nichtbelegt|"0")
-                    reply_type="none"
-                    break
-                    ;;
-                tank|t|tank-sensor|tanksensor)
-                    reply_type="tank"
-                    break
-                    ;;
-                temp|temperatur|temperature|tempsensor|temp-sensor|temperature-sensor|temperaturesensor|temperatursensor|temperatur-sensor|"temperature sensor"|"temperatur sensor")
-                    reply_type="temp"
-                    break
-                    ;;
-                voltage|volt|spannung|voltsensor|voltage-sensor|voltagesensor|spannungssensor|spannung-sensor|"spannung sensor")
-                    reply_type="voltage"
-                    break
-                    ;;
-                current|strom|currentsensor|current-sensor|stromsensor|strom-sensor|"strom sensor")
-                    reply_type="current"
-                    break
-                    ;;
-                pressure|druck|pressuresensor|pressure-sensor|drucksensor|druck-sensor|"druck sensor")
-                    reply_type="pressure"
-                    break
-                    ;;
-                humidity|feuchte|feuchtigkeit|humiditysensor|humidity-sensor|feuchte-sensor|feuchtesensor)
-                    reply_type="humidity"
-                    break
-                    ;;
-                custom|benutzerdefiniert|user|label|sensor)
-                    reply_type="custom"
-                    break
-                    ;;
-            esac
-        done
+        local reply_type
+        reply_type="$(canonicalize_sensor_type "$reply")"
 
         case "$reply_type" in
             none)
@@ -1267,113 +1088,13 @@ prompt_channel_assignment() {
                 printf 'temp|%s\n' "$normalized_temp_label"
                 return 0
                 ;;
-            voltage)
-                if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel_display} als Spannungs-Sensor übernehmen (y/n)? "; then
-                        logMessage "Bitte Auswahl erneut treffen."
-                        continue
-                    fi
-                fi
-                local voltage_label="$default_label"
-                if [ -z "$voltage_label" ]; then
-                    voltage_label="$(channel_label_fallback "$channel" "voltage")"
-                fi
-                local normalized_voltage_label
-                normalized_voltage_label="$(prompt_sensor_label "$channel" "$voltage_label" true)"
-                if [ -z "$normalized_voltage_label" ]; then
-                    logMessage "Sensorbezeichnung für Spannungs-Sensor darf nicht leer sein."
-                    continue
-                fi
-                default_label="$normalized_voltage_label"
-                printf 'voltage|%s\n' "$normalized_voltage_label"
-                return 0
+            invalid)
+                logMessage "Ungültige Auswahl für Kanal ${channel_display}. Gültig sind 'tank', 'temp' oder 'none'."
+                continue
                 ;;
-            current)
-                if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel_display} als Strom-Sensor übernehmen (y/n)? "; then
-                        logMessage "Bitte Auswahl erneut treffen."
-                        continue
-                    fi
-                fi
-                local current_label="$default_label"
-                if [ -z "$current_label" ]; then
-                    current_label="$(channel_label_fallback "$channel" "current")"
-                fi
-                local normalized_current_label
-                normalized_current_label="$(prompt_sensor_label "$channel" "$current_label" true)"
-                if [ -z "$normalized_current_label" ]; then
-                    logMessage "Sensorbezeichnung für Strom-Sensor darf nicht leer sein."
-                    continue
-                fi
-                default_label="$normalized_current_label"
-                printf 'current|%s\n' "$normalized_current_label"
-                return 0
-                ;;
-            pressure)
-                if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel_display} als Druck-Sensor übernehmen (y/n)? "; then
-                        logMessage "Bitte Auswahl erneut treffen."
-                        continue
-                    fi
-                fi
-                local pressure_label="$default_label"
-                if [ -z "$pressure_label" ]; then
-                    pressure_label="$(channel_label_fallback "$channel" "pressure")"
-                fi
-                local normalized_pressure_label
-                normalized_pressure_label="$(prompt_sensor_label "$channel" "$pressure_label" true)"
-                if [ -z "$normalized_pressure_label" ]; then
-                    logMessage "Sensorbezeichnung für Druck-Sensor darf nicht leer sein."
-                    continue
-                fi
-                default_label="$normalized_pressure_label"
-                printf 'pressure|%s\n' "$normalized_pressure_label"
-                return 0
-                ;;
-            humidity)
-                if declare -F yesNoPrompt >/dev/null 2>&1; then
-                    if ! yesNoPrompt "Kanal ${channel_display} als Feuchtigkeits-Sensor übernehmen (y/n)? "; then
-                        logMessage "Bitte Auswahl erneut treffen."
-                        continue
-                    fi
-                fi
-                local humidity_label="$default_label"
-                if [ -z "$humidity_label" ]; then
-                    humidity_label="$(channel_label_fallback "$channel" "humidity")"
-                fi
-                local normalized_humidity_label
-                normalized_humidity_label="$(prompt_sensor_label "$channel" "$humidity_label" true)"
-                if [ -z "$normalized_humidity_label" ]; then
-                    logMessage "Sensorbezeichnung für Feuchtigkeits-Sensor darf nicht leer sein."
-                    continue
-                fi
-                default_label="$normalized_humidity_label"
-                printf 'humidity|%s\n' "$normalized_humidity_label"
-                return 0
-                ;;
-            custom)
-                local custom_label
-                custom_label="$(prompt_sensor_label "$channel" "$default_label" true)"
-                if [ -z "$custom_label" ]; then
-                    logMessage "Benutzerdefinierte Sensorbezeichnung darf nicht leer sein."
-                    continue
-                fi
-                printf 'custom|%s\n' "$custom_label"
-                return 0
-                ;;
-            "")
-                if [[ "$reply" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
-                    if declare -F yesNoPrompt >/dev/null 2>&1; then
-                        if ! yesNoPrompt "Kanal ${channel_display} als '${reply}' übernehmen (y/n)? "; then
-                            logMessage "Bitte Auswahl erneut treffen."
-                            continue
-                        fi
-                    fi
-                    printf 'custom|%s\n' "$reply"
-                    return 0
-                fi
-
-                logMessage "Ungültige Auswahl für Kanal ${channel_display}. Gültig sind 'tank', 'temp', 'voltage', 'current', 'pressure', 'humidity', 'custom' oder eine eigene Bezeichnung."
+            *)
+                logMessage "Ungültige Auswahl für Kanal ${channel_display}. Gültig sind 'tank', 'temp' oder 'none'."
+                continue
                 ;;
         esac
     done
@@ -1426,7 +1147,7 @@ install_config() {
             elif [ -n "${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]+set}" ]; then
                 default_channel_labels[channel]="${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]}"
             else
-                default_channel_labels[channel]="$(channel_label_fallback "$channel" "custom")"
+                default_channel_labels[channel]="$(channel_label_fallback "$channel" "none")"
             fi
             channels_fallback=true
         fi
@@ -1477,30 +1198,20 @@ install_config() {
             fi
 
             if [ -z "$saved_type" ]; then
-                case "$saved_label" in
+                local label_lower
+                label_lower="$(printf '%s' "$saved_label" | tr '[:upper:]' '[:lower:]')"
+                case "$label_lower" in
                     tank)
                         saved_type="tank"
                         ;;
                     temp)
                         saved_type="temp"
                         ;;
-                    voltage)
-                        saved_type="voltage"
-                        ;;
-                    current)
-                        saved_type="current"
-                        ;;
-                    pressure)
-                        saved_type="pressure"
-                        ;;
-                    humidity)
-                        saved_type="humidity"
-                        ;;
                     "")
                         saved_type="none"
                         ;;
                     *)
-                        saved_type="custom"
+                        saved_type="$label_lower"
                         ;;
                 esac
             fi
@@ -1700,6 +1411,26 @@ install_config() {
     logMessage "Verwende Vref=${vref_value}, Scale=${scale_value}."
     logMessage "Kanalzuordnung: ${mapping_summary}"
 
+    local -a invalid_channel_types=()
+    if ! validate_channel_types channel_types invalid_channel_types; then
+        local invalid_summary=""
+        local invalid_entry
+        for invalid_entry in "${invalid_channel_types[@]}"; do
+            local channel_number="${invalid_entry%%:*}"
+            local channel_value="${invalid_entry#*:}"
+            if [ -n "$invalid_summary" ]; then
+                invalid_summary+="; "
+            fi
+            invalid_summary+="Kanal ${channel_number} (${channel_value})"
+        done
+        if [ -z "$invalid_summary" ]; then
+            invalid_summary="Unbekannte Sensortypen"
+        fi
+        logMessage "Fehler: Nicht unterstützte Sensortypen gefunden – ${invalid_summary}."
+        setInstallFailed $EXIT_ERROR "Nicht unterstützte Sensortypen erkannt (${invalid_summary})."
+        return 1
+    fi
+
     local temp_config
     if ! temp_config="$(mktemp)"; then
         logMessage "Fehler: Konnte temporäre Datei für dbus-adc.conf nicht erstellen."
@@ -1718,8 +1449,7 @@ install_config() {
             local current_type
             local current_label
 
-            current_type="$(canonicalize_sensor_type "${channel_types[channel]}")"
-            channel_types[channel]="$current_type"
+            current_type="${channel_types[channel]}"
             current_label="${channel_labels[channel]}"
 
             case "$current_type" in
@@ -1743,7 +1473,11 @@ install_config() {
     } > "$temp_config"
 
     if [ "${#unsupported_channels[@]}" -gt 0 ]; then
-        logMessage "Überspringe nicht unterstützte Kanaltypen für dbus-adc: ${unsupported_channels[*]}."
+        local unsupported_summary="${unsupported_channels[*]}"
+        logMessage "Fehler: Nicht unterstützte Kanaltypen in der Konfiguration: ${unsupported_summary}."
+        rm -f "$temp_config"
+        setInstallFailed $EXIT_ERROR "Nicht unterstützte Kanaltypen (${unsupported_summary})."
+        return 1
     fi
 
     local config_changed=true

@@ -30,6 +30,12 @@ Beachte, dass sämtliche Befehle innerhalb des SetupHelper-Kontextes laufen müs
   * Persistierung des Dialogzustands über die SetupHelper-API (`savePageState`) als Fallback.
   * Aufruf des Installationsskripts mit den gesetzten Werten als Environment (`EXPANDERPI_*`), damit das Shell-Skript deterministisch im nicht-interaktiven Modus läuft.
 
+## Unterstützte Sensortypen
+
+Der offizielle `dbus-adc`-Parser akzeptiert derzeit ausschließlich die Direktiven `tank` und `temp` (siehe [software/src/task.c](https://github.com/victronenergy/dbus-adc/blob/master/software/src/task.c)).
+Die QML-Seite und das Setup-Skript bieten deshalb nur die Optionen **Nicht belegt**, **Tank** und **Temperatur** an.
+Sobald Victron weitere Sensortypen im Parser hinterlegt, wird die Erweiterung um diese Typen ergänzt.
+
 ## Registrierung im SetupHelper
 
 Die Seite wird über einen Patch auf `PageSettings.qml` eingebunden (`FileSets/PatchSource/PageSettings.qml.patch`). Der Eintrag platziert den Menüpunkt **ExpanderPi DBus-ADC** im Bereich der Hardware-/I/O-Konfiguration. Nach dem Kopieren der `FileSets`-Struktur in das SetupHelper-Dateisystem (z. B. `/data/SetupHelper/custom`) stellen `fileListPatched` und `fileListVersionIndependent` sicher, dass der Patch angewendet und die neue Seite nach `/opt/victronenergy/gui/qml` installiert wird.
