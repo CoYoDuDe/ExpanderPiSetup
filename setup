@@ -94,7 +94,7 @@ USER_CONFIG_FILE="${ROOT_PATH}/dbus-adc.user.conf"
 DEFAULT_VREF_FALLBACK="1.3"
 DEFAULT_SCALE_FALLBACK="4095"
 DEFAULT_CHANNEL_TYPES_FALLBACK=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
-DEFAULT_CHANNEL_LABELS_FALLBACK=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
+DEFAULT_CHANNEL_LABELS_FALLBACK=("tank1" "tank2" "tank3" "tank4" "temperatur5" "temperatur6" "temperatur7" "temperatur8")
 TOTAL_ADC_CHANNELS=8
 ADC_DEVICE_LINE="device iio:device0"
 
@@ -649,15 +649,26 @@ channel_label_fallback() {
     local channel_type="$2"
     local channel_index=$((channel + 1))
 
-    case "${channel_type,,}" in
+    local normalized_type="${channel_type,,}"
+
+    case "$normalized_type" in
         tank)
-            printf 'tank'
+            printf 'tank%s' "$channel_index"
             ;;
         temp)
-            printf 'temp'
+            printf 'temperatur%s' "$channel_index"
             ;;
-        voltage|current|pressure|humidity)
-            printf '%s' "${channel_type,,}"
+        voltage)
+            printf 'spannung%s' "$channel_index"
+            ;;
+        current)
+            printf 'strom%s' "$channel_index"
+            ;;
+        pressure)
+            printf 'druck%s' "$channel_index"
+            ;;
+        humidity)
+            printf 'feuchte%s' "$channel_index"
             ;;
         custom)
             printf 'sensor_%s' "$channel_index"
@@ -666,7 +677,12 @@ channel_label_fallback() {
             printf 'sensor_%s' "$channel_index"
             ;;
         *)
-            printf 'sensor_%s' "$channel_index"
+            local sanitized_type
+            sanitized_type="$(printf '%s' "$normalized_type" | tr -cd '[:alnum:]')"
+            if [ -z "$sanitized_type" ]; then
+                sanitized_type="sensor"
+            fi
+            printf '%s%s' "$sanitized_type" "$channel_index"
             ;;
     esac
 }
@@ -981,7 +997,8 @@ prompt_channel_assignment() {
                 ;;
             tank)
                 normalized_type="tank"
-                local tank_fallback="tank"
+                local tank_fallback
+                tank_fallback="$(channel_label_fallback "$channel" "tank")"
                 if [ -z "$normalized_label" ]; then
                     if [ -n "$default_label" ]; then
                         normalized_label="$default_label"
@@ -996,7 +1013,8 @@ prompt_channel_assignment() {
                 ;;
             temp)
                 normalized_type="temp"
-                local temp_fallback="temp"
+                local temp_fallback
+                temp_fallback="$(channel_label_fallback "$channel" "temp")"
                 if [ -z "$normalized_label" ]; then
                     if [ -n "$default_label" ]; then
                         normalized_label="$default_label"
@@ -1011,7 +1029,8 @@ prompt_channel_assignment() {
                 ;;
             voltage)
                 normalized_type="voltage"
-                local voltage_fallback="voltage"
+                local voltage_fallback
+                voltage_fallback="$(channel_label_fallback "$channel" "voltage")"
                 if [ -z "$normalized_label" ]; then
                     if [ -n "$default_label" ]; then
                         normalized_label="$default_label"
@@ -1026,7 +1045,8 @@ prompt_channel_assignment() {
                 ;;
             current)
                 normalized_type="current"
-                local current_fallback="current"
+                local current_fallback
+                current_fallback="$(channel_label_fallback "$channel" "current")"
                 if [ -z "$normalized_label" ]; then
                     if [ -n "$default_label" ]; then
                         normalized_label="$default_label"
@@ -1041,7 +1061,8 @@ prompt_channel_assignment() {
                 ;;
             pressure)
                 normalized_type="pressure"
-                local pressure_fallback="pressure"
+                local pressure_fallback
+                pressure_fallback="$(channel_label_fallback "$channel" "pressure")"
                 if [ -z "$normalized_label" ]; then
                     if [ -n "$default_label" ]; then
                         normalized_label="$default_label"
@@ -1056,7 +1077,8 @@ prompt_channel_assignment() {
                 ;;
             humidity)
                 normalized_type="humidity"
-                local humidity_fallback="humidity"
+                local humidity_fallback
+                humidity_fallback="$(channel_label_fallback "$channel" "humidity")"
                 if [ -z "$normalized_label" ]; then
                     if [ -n "$default_label" ]; then
                         normalized_label="$default_label"
@@ -1071,7 +1093,8 @@ prompt_channel_assignment() {
                 ;;
             custom)
                 normalized_type="custom"
-                local custom_fallback="sensor_${channel_display}"
+                local custom_fallback
+                custom_fallback="$(channel_label_fallback "$channel" "custom")"
                 if [ -z "$normalized_label" ]; then
                     if [ -n "$default_label" ]; then
                         normalized_label="$default_label"
@@ -1086,7 +1109,8 @@ prompt_channel_assignment() {
                 ;;
             "")
                 normalized_type="custom"
-                local generic_fallback="sensor_${channel_display}"
+                local generic_fallback
+                generic_fallback="$(channel_label_fallback "$channel" "custom")"
                 if [ -z "$normalized_label" ]; then
                     normalized_label="$raw_type"
                 fi
@@ -1398,11 +1422,11 @@ install_config() {
 
         if [ -z "${default_channel_labels[channel]+set}" ] || [ -z "${default_channel_labels[channel]}" ]; then
             if [ -n "${default_channel_types[channel]}" ]; then
-                default_channel_labels[channel]="${default_channel_types[channel]}"
+                default_channel_labels[channel]="$(channel_label_fallback "$channel" "${default_channel_types[channel]}")"
             elif [ -n "${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]+set}" ]; then
                 default_channel_labels[channel]="${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]}"
             else
-                default_channel_labels[channel]=""
+                default_channel_labels[channel]="$(channel_label_fallback "$channel" "custom")"
             fi
             channels_fallback=true
         fi

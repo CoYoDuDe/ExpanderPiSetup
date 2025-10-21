@@ -44,6 +44,46 @@ main() {
 
     # Prüfe, dass numerische Umgebungswerte mit Leerzeichen getrimmt werden und nicht auf den Fallback zurückfallen.
     nonInteractiveMode=true
+
+    local -a fallback_expectations=(
+        "0 tank tank1"
+        "1 temp temperatur2"
+        "2 voltage spannung3"
+        "3 current strom4"
+        "4 pressure druck5"
+        "5 humidity feuchte6"
+    )
+
+    for fallback_entry in "${fallback_expectations[@]}"; do
+        IFS=' ' read -r fallback_channel fallback_type fallback_label <<<"${fallback_entry}"
+        local computed_placeholder
+        computed_placeholder="$(channel_label_fallback "$fallback_channel" "$fallback_type")"
+        if [ "$computed_placeholder" != "$fallback_label" ]; then
+            echo "channel_label_fallback lieferte unerwarteten Platzhalter '${computed_placeholder}' für ${fallback_type} Kanal ${fallback_channel}" >&2
+            return 1
+        fi
+
+        local normalized_placeholder
+        normalized_placeholder="$(normalize_channel_label "" "$computed_placeholder")"
+        if [ "$normalized_placeholder" != "$computed_placeholder" ]; then
+            echo "normalize_channel_label veränderte den Default '${computed_placeholder}' unerwartet zu '${normalized_placeholder}'." >&2
+            return 1
+        fi
+
+        unset "EXPANDERPI_CHANNEL_${fallback_channel}"
+        unset "EXPANDERPI_CHANNEL_${fallback_channel}_TYPE"
+        unset "EXPANDERPI_CHANNEL_${fallback_channel}_LABEL"
+
+        local non_interactive_result
+        non_interactive_result="$(prompt_channel_assignment "$fallback_channel" "$fallback_type" "")"
+        local trimmed_non_interactive_result
+        trimmed_non_interactive_result="${non_interactive_result%$'\n'}"
+        if [ "$trimmed_non_interactive_result" != "${fallback_type}|${fallback_label}" ]; then
+            echo "Nicht-interaktive Zuweisung für ${fallback_type} Kanal ${fallback_channel} ergab '${trimmed_non_interactive_result}' statt '${fallback_type}|${fallback_label}'." >&2
+            return 1
+        fi
+    done
+
     EXPANDERPI_VREF=" 1.300 "
     local trimmed_vref
     trimmed_vref="$(prompt_numeric_value "Test" " 1.200 " '^[0-9]+([.][0-9]+)?$' "Fehler" "EXPANDERPI_VREF")"
@@ -172,19 +212,19 @@ main() {
         echo "Erwartete Normalisierung für Kanal 1 fehlgeschlagen: ${saved_channel_labels[1]}" >&2
         return 1
     fi
-    if [ "${saved_channel_labels[2]}" != "voltage" ]; then
+    if [ "${saved_channel_labels[2]}" != "spannung3" ]; then
         echo "Erwartete Fallback-Benennung für Spannung fehlgeschlagen: ${saved_channel_labels[2]}" >&2
         return 1
     fi
-    if [ "${saved_channel_labels[3]}" != "current" ]; then
+    if [ "${saved_channel_labels[3]}" != "strom4" ]; then
         echo "Erwartete Fallback-Benennung für Strom fehlgeschlagen: ${saved_channel_labels[3]}" >&2
         return 1
     fi
-    if [ "${saved_channel_labels[4]}" != "pressure" ]; then
+    if [ "${saved_channel_labels[4]}" != "druck5" ]; then
         echo "Erwartete Fallback-Benennung für Druck fehlgeschlagen: ${saved_channel_labels[4]}" >&2
         return 1
     fi
-    if [ "${saved_channel_labels[5]}" != "humidity" ]; then
+    if [ "${saved_channel_labels[5]}" != "feuchte6" ]; then
         echo "Erwartete Fallback-Benennung für Luftfeuchtigkeit fehlgeschlagen: ${saved_channel_labels[5]}" >&2
         return 1
     fi
