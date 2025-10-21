@@ -9,3 +9,8 @@ v0.0.2:
 v0.0.3:
 - Veraltetes `ds1307-rtc.dtbo` aus den ausgelieferten Overlays entfernt und den Setup-Prozess auf das generische `i2c-rtc`-Overlay mit `ds1307`-Parameter umgestellt.
 - Dokumentation und Change-Log angepasst, damit der Wegfall des dedizierten DS1307-Overlays nachvollziehbar bleibt.
+
+v0.0.4:
+- rc.local wird nur noch für den `hwclock -s` Aufruf angepasst; die DS1307-Anlage via `/sys/.../new_device` entfällt zugunsten des i2c-rtc-Overlays.
+- Legacy-Installationen werden beim Update automatisch von alten rc.local-Einträgen und Markern bereinigt.
+- Dokumentation um den Hinweis ergänzt, dass das Overlay die Geräteanlage vollständig übernimmt.

@@ -46,6 +46,8 @@ Die Datei `packageDependencies` beschreibt nun explizit, welche Pakete der Setup
 
 Das Paket liefert ausschließlich die Overlays `i2c-rtc.dtbo` und `mcp3208.dtbo` aus. Für DS1307-basierte Echtzeituhrmodule wird nun konsequent das generische `i2c-rtc`-Overlay mit dem Parameter `ds1307` verwendet, wie es die Raspberry-Pi-Dokumentation empfiehlt. Separate, veraltete Varianten wie `ds1307-rtc.dtbo` entfallen damit vollständig.
 
+Das Overlay übernimmt zugleich die Anlage des RTC-Geräts im Kernel. Ein manuelles Anlegen über `/sys/class/i2c-adapter/i2c-1/new_device` ist nicht mehr erforderlich und wird durch das Setup-Skript automatisch bereinigt, falls ältere Installationen den Eintrag noch in `rc.local` hinterlassen haben.
+
 ### Device-Tree-Overlay-Validierung
 
 Das Setup-Skript trägt die Overlays `dtoverlay=i2c-rtc,ds1307` und `dtoverlay=mcp3208,spi0-0-present` in `/u-boot/config.txt` ein. Die Komma-Schreibweise aktiviert laut Raspberry-Pi-Dokumentation die boolesche Option `spi0-0-present` direkt beim Laden des Overlays. Nach der Installation empfiehlt sich eine kurze Kontrolle auf dem Zielsystem, z. B. mit `dtoverlay -l`, `dmesg | grep mcp3208` oder über `/sys/bus/iio/devices/`, um sicherzustellen, dass das MCP3208-Overlay tatsächlich geladen wurde. Durch das Setzen des Parameters `ds1307` am generischen `i2c-rtc`-Overlay entfällt das separate `ds1307-rtc.dtbo` vollständig – Konfiguration und Kernel-Modul bleiben dennoch unverändert erhalten.
