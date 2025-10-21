@@ -347,6 +347,11 @@ if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
     setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "$machine wird nicht unterstützt."
 fi
 
+# Hilfsfunktion zur Erkennung des CHECK-Modus
+is_check_mode() {
+    [ "${scriptAction:-}" = "CHECK" ]
+}
+
 # Funktionen definieren
 
 ## Einträge in rc.local hinzufügen und entfernen
@@ -804,6 +809,90 @@ validate_channel_types() {
     return 0
 }
 
+load_default_adc_defaults() {
+    local -n _out_vref="$1"
+    local -n _out_scale="$2"
+    local -n _out_types="$3"
+    local -n _out_labels="$4"
+
+    local template_file="${SOURCE_FILE_DIR}/configs/dbus-adc.conf"
+    local template_loaded=false
+    local default_vref=""
+    local default_scale=""
+    local -a parsed_types=()
+    local -a parsed_labels=()
+    local -a fallback_messages=()
+    local channels_fallback=false
+
+    if parse_default_adc_configuration "$template_file" default_vref default_scale parsed_types parsed_labels; then
+        template_loaded=true
+    else
+        logMessage "Konfigurationsvorlage '${template_file}' konnte nicht geladen werden. Verwende Fallback-Werte."
+    fi
+
+    if [ -z "$default_vref" ]; then
+        default_vref="$DEFAULT_VREF_FALLBACK"
+        fallback_messages+=("Vref (${DEFAULT_VREF_FALLBACK})")
+    fi
+
+    if [ -z "$default_scale" ]; then
+        default_scale="$DEFAULT_SCALE_FALLBACK"
+        fallback_messages+=("Scale (${DEFAULT_SCALE_FALLBACK})")
+    fi
+
+    local channel
+    for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        local type_value=""
+        local label_value=""
+
+        if [ -n "${parsed_types[channel]+set}" ] && [ -n "${parsed_types[channel]}" ]; then
+            type_value="${parsed_types[channel]}"
+        fi
+
+        if [ -z "$type_value" ]; then
+            if [ -n "${DEFAULT_CHANNEL_TYPES_FALLBACK[channel]+set}" ]; then
+                type_value="${DEFAULT_CHANNEL_TYPES_FALLBACK[channel]}"
+            else
+                type_value=""
+            fi
+            channels_fallback=true
+        fi
+
+        if [ -n "${parsed_labels[channel]+set}" ] && [ -n "${parsed_labels[channel]}" ]; then
+            label_value="${parsed_labels[channel]}"
+        fi
+
+        if [ -z "$label_value" ]; then
+            if [ -n "$type_value" ]; then
+                label_value="$(channel_label_fallback "$channel" "$type_value")"
+            elif [ -n "${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]+set}" ]; then
+                label_value="${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]}"
+            else
+                label_value="$(channel_label_fallback "$channel" "none")"
+            fi
+            channels_fallback=true
+        fi
+
+        _out_types[channel]="$type_value"
+        _out_labels[channel]="$label_value"
+    done
+
+    if [ "$channels_fallback" = true ]; then
+        fallback_messages+=("Kanäle (Fallback-Vorbelegung)")
+    fi
+
+    if [ "${#fallback_messages[@]}" -gt 0 ]; then
+        if [ "$template_loaded" = true ]; then
+            logMessage "Unvollständige Angaben in '${template_file}'. Fallback-Werte verwendet für: ${fallback_messages[*]}."
+        else
+            logMessage "Fallback-Werte verwendet für: ${fallback_messages[*]}."
+        fi
+    fi
+
+    _out_vref="$default_vref"
+    _out_scale="$default_scale"
+}
+
 is_truthy() {
     local value="$1"
     case "${value,,}" in
@@ -1201,65 +1290,29 @@ prompt_channel_assignment() {
 ## Konfigurationsdateien installieren und deinstallieren
 # Konfigurationsdateien installieren
 install_config() {
-    logMessage "Installiere dbus-adc.conf..."
-    mkdir -p "$ROOT_PATH"
+    local invocation_mode="${1:-install}"
+    local check_mode=false
 
-    local template_file="${SOURCE_FILE_DIR}/configs/dbus-adc.conf"
+    if [ "$invocation_mode" = "precheck" ]; then
+        check_mode=true
+    fi
+
+    if is_check_mode; then
+        check_mode=true
+    fi
+
+    logMessage "Installiere dbus-adc.conf..."
+
+    if [ "$check_mode" != true ]; then
+        mkdir -p "$ROOT_PATH"
+    fi
+
     local default_vref=""
     local default_scale=""
     local -a default_channel_types=()
     local -a default_channel_labels=()
-    local template_loaded=false
-    local -a fallback_messages=()
 
-    if parse_default_adc_configuration "$template_file" default_vref default_scale default_channel_types default_channel_labels; then
-        template_loaded=true
-    else
-        logMessage "Konfigurationsvorlage '${template_file}' konnte nicht geladen werden. Verwende Fallback-Werte."
-    fi
-
-    if [ -z "$default_vref" ]; then
-        default_vref="$DEFAULT_VREF_FALLBACK"
-        fallback_messages+=("Vref (${DEFAULT_VREF_FALLBACK})")
-    fi
-
-    if [ -z "$default_scale" ]; then
-        default_scale="$DEFAULT_SCALE_FALLBACK"
-        fallback_messages+=("Scale (${DEFAULT_SCALE_FALLBACK})")
-    fi
-
-    local channels_fallback=false
-    for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-        if [ -z "${default_channel_types[channel]+set}" ] || [ -z "${default_channel_types[channel]}" ]; then
-            if [ -n "${DEFAULT_CHANNEL_TYPES_FALLBACK[channel]+set}" ]; then
-                default_channel_types[channel]="${DEFAULT_CHANNEL_TYPES_FALLBACK[channel]}"
-            else
-                default_channel_types[channel]=""
-            fi
-            channels_fallback=true
-        fi
-
-        if [ -z "${default_channel_labels[channel]+set}" ] || [ -z "${default_channel_labels[channel]}" ]; then
-            if [ -n "${default_channel_types[channel]}" ]; then
-                default_channel_labels[channel]="$(channel_label_fallback "$channel" "${default_channel_types[channel]}")"
-            elif [ -n "${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]+set}" ]; then
-                default_channel_labels[channel]="${DEFAULT_CHANNEL_LABELS_FALLBACK[channel]}"
-            else
-                default_channel_labels[channel]="$(channel_label_fallback "$channel" "none")"
-            fi
-            channels_fallback=true
-        fi
-    done
-
-    if [ "$channels_fallback" = true ]; then
-        fallback_messages+=("Kanäle (Fallback-Vorbelegung)")
-    fi
-
-    if [ "${#fallback_messages[@]}" -gt 0 ] && [ "$template_loaded" = true ]; then
-        logMessage "Unvollständige Angaben in '${template_file}'. Fallback-Werte verwendet für: ${fallback_messages[*]}."
-    elif [ "${#fallback_messages[@]}" -gt 0 ]; then
-        logMessage "Fallback-Werte verwendet für: ${fallback_messages[*]}."
-    fi
+    load_default_adc_defaults default_vref default_scale default_channel_types default_channel_labels
 
     local -a channel_types
     local -a channel_labels
@@ -1514,6 +1567,48 @@ install_config() {
         return 1
     fi
 
+    local -a unsupported_channels=()
+    local -a config_lines=()
+
+    config_lines+=("$ADC_DEVICE_LINE")
+    config_lines+=("vref ${vref_value}")
+    config_lines+=("scale ${scale_value}")
+    config_lines+=("")
+
+    for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        local current_type="${channel_types[channel]}"
+        local current_label="${channel_labels[channel]}"
+
+        case "$current_type" in
+            tank|temp)
+                if [ -n "$current_label" ]; then
+                    config_lines+=("label ${current_label}")
+                fi
+                config_lines+=("${current_type} ${channel}")
+                ;;
+            none|"")
+                continue
+                ;;
+            *)
+                local channel_display=$((channel + 1))
+                unsupported_channels+=("Kanal ${channel_display} (${current_type:-unbekannt})")
+                continue
+                ;;
+        esac
+    done
+
+    if [ "${#unsupported_channels[@]}" -gt 0 ]; then
+        local unsupported_summary="${unsupported_channels[*]}"
+        logMessage "Fehler: Nicht unterstützte Kanaltypen in der Konfiguration: ${unsupported_summary}."
+        setInstallFailed $EXIT_ERROR "Nicht unterstützte Kanaltypen (${unsupported_summary})."
+        return 1
+    fi
+
+    if [ "$check_mode" = true ]; then
+        logMessage "CHECK-Modus: Konfiguration erfolgreich validiert – keine Dateien wurden geändert."
+        return 0
+    fi
+
     local temp_config
     if ! temp_config="$(mktemp)"; then
         logMessage "Fehler: Konnte temporäre Datei für dbus-adc.conf nicht erstellen."
@@ -1521,47 +1616,7 @@ install_config() {
         return 1
     fi
 
-    local -a unsupported_channels=()
-
-    {
-        echo "$ADC_DEVICE_LINE"
-        echo "vref ${vref_value}"
-        echo "scale ${scale_value}"
-        echo
-        for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
-            local current_type
-            local current_label
-
-            current_type="${channel_types[channel]}"
-            current_label="${channel_labels[channel]}"
-
-            case "$current_type" in
-                tank|temp)
-                    if [ -n "$current_label" ]; then
-                        echo "label ${current_label}"
-                    fi
-                    echo "${current_type} ${channel}"
-                    ;;
-                none|"")
-                    continue
-                    ;;
-                *)
-                    local channel_display
-                    channel_display=$((channel + 1))
-                    unsupported_channels+=("Kanal ${channel_display} (${current_type:-unbekannt})")
-                    continue
-                    ;;
-            esac
-        done
-    } > "$temp_config"
-
-    if [ "${#unsupported_channels[@]}" -gt 0 ]; then
-        local unsupported_summary="${unsupported_channels[*]}"
-        logMessage "Fehler: Nicht unterstützte Kanaltypen in der Konfiguration: ${unsupported_summary}."
-        rm -f "$temp_config"
-        setInstallFailed $EXIT_ERROR "Nicht unterstützte Kanaltypen (${unsupported_summary})."
-        return 1
-    fi
+    printf '%s\n' "${config_lines[@]}" > "$temp_config"
 
     local config_changed=true
     local dbus_config_copied=false
@@ -1699,6 +1754,11 @@ uninstall_config() {
 ## Overlays prüfen und wiederherstellen bzw. entfernen
 # Overlays prüfen und wiederherstellen
 check_and_restore_overlays() {
+    if is_check_mode; then
+        logMessage "CHECK-Modus: Überspringe Wiederherstellung von Device-Tree-Overlays."
+        return 0
+    fi
+
     logMessage "Prüfe und stelle Overlays wieder her..."
     for overlay in "${OVERLAYS[@]}"; do
         local state_file="$OVERLAY_STATE_DIR/${overlay}.state"
@@ -1808,22 +1868,52 @@ remove_overlays() {
 }
 
 ## Kernel-Module prüfen und installieren bzw. deinstallieren
+# Kernel-Module prüfen, ohne Änderungen vorzunehmen
+check_kernel_module_dependencies() {
+    local -n _missing_modules="$1"
+    local -n _present_modules="$2"
+
+    _missing_modules=()
+    _present_modules=()
+
+    local module
+    for module in "${REQUIRED_MODULES[@]}"; do
+        if opkg list-installed | awk '{print $1}' | grep -Fxq "$module"; then
+            _present_modules+=("$module")
+        else
+            _missing_modules+=("$module")
+        fi
+    done
+
+    if [ "${#_missing_modules[@]}" -eq 0 ]; then
+        return 0
+    fi
+
+    return 1
+}
+
 # Kernel-Module prüfen und installieren
 check_and_install_kernel_modules() {
     logMessage "Prüfe und installiere Kernel-Module..."
-    local missing_modules=()
-    local newly_installed=()
+    local -a missing_modules=()
+    local -a present_modules=()
+    local -a newly_installed=()
 
-    for module in "${REQUIRED_MODULES[@]}"; do
-        if opkg list-installed | awk '{print $1}' | grep -Fxq "$module"; then
-            logMessage "$module ist bereits installiert und bleibt unverändert."
-        else
-            missing_modules+=("$module")
-        fi
+    check_kernel_module_dependencies missing_modules present_modules
+
+    local module
+    for module in "${present_modules[@]}"; do
+        logMessage "$module ist bereits installiert und bleibt unverändert."
     done
 
     if [ ${#missing_modules[@]} -eq 0 ]; then
         return
+    fi
+
+    if is_check_mode; then
+        logMessage "CHECK-Modus: Fehlende Kernel-Module erkannt: ${missing_modules[*]}."
+        setInstallFailed $EXIT_ERROR "Fehlende Kernel-Module: ${missing_modules[*]}"
+        return 1
     fi
 
     if [ "$OPKG_UPDATE_PERFORMED" != "true" ]; then
@@ -1990,6 +2080,11 @@ remove_kernel_modules() {
 ## rc.local einrichten und zurücksetzen
 # rc.local einrichten
 setup_rc_local() {
+    if is_check_mode; then
+        logMessage "CHECK-Modus: rc.local wird nicht verändert."
+        return 0
+    fi
+
     logMessage "Richte rc.local ein..."
     prune_legacy_rc_local_entries
     add_entry_to_rc_local "$RC_LOCAL_HW_CLOCK_ENTRY"
@@ -2110,15 +2205,53 @@ reset_rc_local() {
     fi
 }
 
+run_prechecks() {
+    logMessage "Starte Vorprüfungen..."
+
+    if ! backup_originals; then
+        return 1
+    fi
+
+    local default_vref=""
+    local default_scale=""
+    local -a default_channel_types=()
+    local -a default_channel_labels=()
+    load_default_adc_defaults default_vref default_scale default_channel_types default_channel_labels
+
+    local -a present_modules=()
+    local -a missing_modules=()
+    check_kernel_module_dependencies missing_modules present_modules
+
+    if [ "${#missing_modules[@]}" -gt 0 ]; then
+        logMessage "Fehlende Kernel-Module erkannt: ${missing_modules[*]}."
+        if is_check_mode; then
+            setInstallFailed $EXIT_ERROR "Fehlende Kernel-Module: ${missing_modules[*]}"
+            return 1
+        fi
+        logMessage "Installationsmodus: Fehlende Kernel-Module werden im Anschluss installiert."
+    else
+        logMessage "Alle erforderlichen Kernel-Module sind bereits installiert."
+    fi
+
+    return 0
+}
+
 case "$scriptAction" in
     INSTALL|CHECK)
-        backup_originals
-        if install_config; then
-            check_and_restore_overlays
-            check_and_install_kernel_modules
-            setup_rc_local
+        if run_prechecks; then
+            if [ "$scriptAction" = "CHECK" ]; then
+                logMessage "CHECK-Modus abgeschlossen."
+            else
+                if install_config; then
+                    check_and_restore_overlays
+                    check_and_install_kernel_modules
+                    setup_rc_local
+                else
+                    logMessage "install_config meldete einen Fehler – überspringe weitere Installationsschritte."
+                fi
+            fi
         else
-            logMessage "install_config meldete einen Fehler – überspringe weitere Installationsschritte."
+            logMessage "Vorprüfungen fehlgeschlagen – Installationsschritte werden übersprungen."
         fi
         ;;
     UNINSTALL)
@@ -2130,13 +2263,12 @@ case "$scriptAction" in
         ;;
     *)
         logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
-        backup_originals
-        if install_config; then
+        if run_prechecks && install_config; then
             check_and_restore_overlays
             check_and_install_kernel_modules
             setup_rc_local
         else
-            logMessage "install_config meldete einen Fehler – überspringe weitere Installationsschritte."
+            logMessage "Vorprüfungen oder Installation fehlgeschlagen – weitere Schritte werden übersprungen."
         fi
         ;;
 esac

@@ -91,6 +91,10 @@ temp 7
 
 Damit entspricht die erzeugte Datei exakt den Vorgaben aus dem [dbus-adc-README](https://github.com/victronenergy/dbus-adc/blob/master/README.md) und kann ohne weitere Nacharbeit vom Venus OS übernommen werden.
 
+## Setup-Modi und Vorprüfungen
+
+Der Aufruf `setup install` führt weiterhin alle Installationsschritte inklusive Datei- und Systemänderungen aus. Der neue Pfad `setup check` verbleibt hingegen vollständig im Validierungsmodus: Es werden lediglich Sicherungen der Ausgangsdateien angelegt, die Konfigurationsvorlage geparst und die Kernelmodul-Abhängigkeiten geprüft. Der Lauf beendet sich anschließend ohne `dbus-adc.conf`, `config.txt`, Overlays oder `rc.local` anzupassen – exakt das Verhalten, das der SetupHelper für seine nicht-destruktiven Vorprüfungen erwartet.
+
 ## Bedienung
 
 1. SetupHelper öffnen und **Hardware → ExpanderPi DBus-ADC** wählen.
