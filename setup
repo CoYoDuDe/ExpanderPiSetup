@@ -271,7 +271,7 @@ parse_default_adc_configuration() {
             continue
         fi
 
-        local label="$type"
+        local label=""
         if [ $# -gt 0 ]; then
             label="$*"
         fi
@@ -287,10 +287,10 @@ parse_default_adc_configuration() {
     for (( i=0; i<TOTAL_ADC_CHANNELS; i++ )); do
         if [ -n "${parsed_types[i]+set}" ]; then
             _out_types[i]="${parsed_types[i]}"
-            if [ -n "${parsed_labels[i]+set}" ] && [ -n "${parsed_labels[i]}" ]; then
+            if [ -n "${parsed_labels[i]+set}" ]; then
                 _out_labels[i]="${parsed_labels[i]}"
             else
-                _out_labels[i]="${parsed_types[i]}"
+                _out_labels[i]=""
             fi
         fi
     done
