@@ -60,6 +60,15 @@ Das Shell-Skript `setup` liest neben der bestehenden `dbus-adc.user.conf` nun au
 
 Die Standardkanäle orientieren sich an der Victron-Vorbelegung: vier Tank- und vier Temperatursensoren mit den Platzhaltern `tank1` bis `tank4` sowie `temperatur5` bis `temperatur8`. Für bestehende Installationen bleibt die numerische Suffixschreibweise vollständig kompatibel – Labels, die mit `tank` oder `temp` beginnen und daran anschließend Ziffern oder Trennzeichen enthalten, werden weiterhin automatisch den passenden Sensortypen zugeordnet.
 
+## Zulässige Wertebereiche für den dbus-adc
+
+Die dbus-adc-Treiber auf dem Venus OS akzeptieren nur Werte innerhalb definierter Grenzen:
+
+* **Vref:** 1,0 V bis 10,0 V – die Referenzspannung muss innerhalb des vom Treiber akzeptierten Bereichs liegen.
+* **Scale:** 1 023 bis 65 535 – der Skalierungsfaktor darf weder unter die 10-Bit-Untergrenze noch über den maximalen 16-Bit-Wert hinausgehen.
+
+Das Setup-Skript prüft alle interaktiven Eingaben, GUI-Vorbelegungen und Umgebungsvariablen auf diese Bereiche. Abweichende Angaben werden verworfen und automatisch auf die bewährten Standardwerte **Vref = 1,3 V** und **Scale = 4 095** gesetzt. Der Eingriff wird dabei per `logMessage` dokumentiert, bevor die `dbus-adc.conf` erzeugt wird, sodass weder ungültige Konfigurationsdateien noch widersprüchliche GUI-Anzeigen entstehen.
+
 ## Generierte `dbus-adc.conf`
 
 Der Installer schreibt die Konfiguration strikt im von Victron dokumentierten Format (`device`, `vref`, `scale`, gefolgt von optionalen `label`-Zeilen sowie den Sensorzuweisungen `tank` bzw. `temp`). Für jeden aktivierten Kanal wird – falls ein Label gesetzt ist – zuerst `label <wert>` ausgegeben und anschließend die zum Sensortyp passende Direktive (`tank <eingang>` oder `temp <eingang>`). Nicht unterstützte oder deaktivierte Kanäle (z. B. Spannung, Strom, Druck) werden dabei ausgelassen, damit die generierte Datei 1:1 mit der Parser-Logik von `dbus-adc` kompatibel bleibt.
