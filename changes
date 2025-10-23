@@ -1,3 +1,9 @@
+v0.0.4:
+- Device-Zeile der `dbus-adc.conf` wird dynamisch aus der Vorlage übernommen und kann per `EXPANDERPI_DEVICE` oder gespeicherter Benutzerkonfiguration überschrieben werden; Standard bleibt `iio:device0`.
+- Installer persistiert die ausgewählte IIO-Gerätenummer in `dbus-adc.user.conf` und setzt sie beim nächsten Lauf wieder als Basiswert.
+- Regressionstest prüft die Übernahme einer Vorlage mit `device iio:device1`.
+- README um das neue Override-Verhalten erweitert.
+
 v0.0.3:
 - Veraltetes `ds1307-rtc.dtbo` aus den ausgelieferten Overlays entfernt und den Setup-Prozess auf das generische `i2c-rtc`-Overlay mit `ds1307`-Parameter umgestellt.
 - rc.local wird nur noch für den `hwclock -s` Aufruf angepasst; die DS1307-Anlage via `/sys/.../new_device` entfällt zugunsten des i2c-rtc-Overlays.

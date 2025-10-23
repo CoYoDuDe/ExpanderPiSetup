@@ -57,6 +57,23 @@ main() {
     mkdir -p "$(dirname "$CONFIG_FILE")"
     USER_CONFIG_FILE="${temp_root}/user.conf"
 
+    SOURCE_FILE_DIR="${temp_root}/filesets"
+    mkdir -p "${SOURCE_FILE_DIR}/configs"
+    cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
+device iio:device1
+vref 1.3
+scale 4095
+
+tank 0
+tank 1
+tank 2
+tank 3
+temp 4
+temp 5
+temp 6
+temp 7
+TEMPLATE
+
     CONFIG_TXT="${temp_root}/u-boot/config.txt"
     CONFIG_TXT_BACKUP="${CONFIG_TXT}.orig"
     mkdir -p "$(dirname "$CONFIG_TXT")"
@@ -104,6 +121,11 @@ main() {
         return 1
     fi
 
+    if ! grep -q "^device iio:device1$" "$CONFIG_FILE"; then
+        echo "Device aus der Vorlage wurde nicht übernommen" >&2
+        return 1
+    fi
+
     if ! grep -Fq 'USER_VREF="1.3"' "$USER_CONFIG_FILE"; then
         echo "USER_CONFIG_FILE übernahm den Vref-Fallback nicht" >&2
         return 1
@@ -111,6 +133,11 @@ main() {
 
     if ! grep -Fq 'USER_SCALE="4095"' "$USER_CONFIG_FILE"; then
         echo "USER_CONFIG_FILE übernahm den Scale-Fallback nicht" >&2
+        return 1
+    fi
+
+    if ! grep -Fq 'USER_DEVICE="iio:device1"' "$USER_CONFIG_FILE"; then
+        echo "USER_CONFIG_FILE übernahm das Device nicht" >&2
         return 1
     fi
 
