@@ -73,6 +73,8 @@ Die dbus-adc-Treiber auf dem Venus OS akzeptieren nur Werte innerhalb definierte
 
 Das Setup-Skript prüft alle interaktiven Eingaben, GUI-Vorbelegungen und Umgebungsvariablen auf diese Bereiche. Abweichende Angaben werden verworfen und automatisch auf die bewährten Standardwerte **Vref = 1,3 V** und **Scale = 4 095** gesetzt. Der Eingriff wird dabei per `logMessage` dokumentiert, bevor die `dbus-adc.conf` erzeugt wird, sodass weder ungültige Konfigurationsdateien noch widersprüchliche GUI-Anzeigen entstehen.
 
+Auch der `device`-Eintrag unterliegt jetzt einer festen Validierung: Es sind ausschließlich Namen im Format `iio:device<nummer>` zulässig. Jeder andere Wert – beispielsweise `device foo` aus einer Umgebungsvariablen – wird verworfen, automatisch auf **iio:device0** gesetzt und mit einer klaren Meldung wie `logMessage "Umgebungsvariable EXPANDERPI_DEVICE: ungültiger Device-Wert \"foo\" – verwende iio:device0."` protokolliert. So gelangen keine fehlerhaften IIO-Gerätenummern mehr in die Zielkonfiguration.
+
 ## Generierte `dbus-adc.conf`
 
 Der Installer schreibt die Konfiguration strikt im von Victron dokumentierten Format (`device`, `vref`, `scale`, gefolgt von optionalen `label`-Zeilen sowie den Sensorzuweisungen `tank` bzw. `temp`). Für jeden aktivierten Kanal wird – falls ein Label gesetzt ist – zuerst `label <wert>` ausgegeben und anschließend die zum Sensortyp passende Direktive (`tank <eingang>` oder `temp <eingang>`). Nicht unterstützte oder deaktivierte Kanäle (z. B. Spannung, Strom, Druck) werden dabei ausgelassen, damit die generierte Datei 1:1 mit der Parser-Logik von `dbus-adc` kompatibel bleibt.
@@ -104,7 +106,7 @@ temp 7
 
 Damit entspricht die erzeugte Datei exakt den Vorgaben aus dem [dbus-adc-README](https://github.com/victronenergy/dbus-adc/blob/master/README.md) und kann ohne weitere Nacharbeit vom Venus OS übernommen werden.
 
-Das Setup-Skript übernimmt die `device`-Zeile dynamisch aus der Vorlage `FileSets/configs/dbus-adc.conf`. Damit lassen sich angepasste IIO-Gerätenummern (z. B. `iio:device1`) direkt über das Template vorgeben. Zusätzlich akzeptiert das Installationsskript das Environment `EXPANDERPI_DEVICE` sowie den zuletzt gespeicherten Wert aus `dbus-adc.user.conf` als Override. Fehlt eine Angabe, fällt der Installer dokumentiert auf `iio:device0` zurück.
+Das Setup-Skript übernimmt die `device`-Zeile dynamisch aus der Vorlage `FileSets/configs/dbus-adc.conf`. Damit lassen sich angepasste IIO-Gerätenummern (z. B. `iio:device1`) direkt über das Template vorgeben. Alle Gerätewerte – unabhängig davon, ob sie aus der Vorlage, dem gespeicherten Nutzerzustand, der GUI oder Umgebungsvariablen stammen – werden vor dem Schreiben strikt nach `^iio:device[0-9]+$` geprüft. Ungültige Eingaben landen nicht mehr in der `dbus-adc.conf`; stattdessen erfolgt ein dokumentierter Rückfall auf `iio:device0`, sodass die erzeugte Datei immer den von Victron erwarteten Syntaxregeln entspricht.
 
 ## Setup-Modi und Vorprüfungen
 

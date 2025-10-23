@@ -90,6 +90,7 @@ TEMPLATE
     EXPANDERPI_USE_SAVED="false"
     EXPANDERPI_VREF="0.5"
     EXPANDERPI_SCALE="70000"
+    EXPANDERPI_DEVICE="device foo"
 
     for channel in $(seq 0 $((TOTAL_ADC_CHANNELS - 1))); do
         eval "export EXPANDERPI_CHANNEL_${channel}_TYPE='none'"
@@ -121,8 +122,8 @@ TEMPLATE
         return 1
     fi
 
-    if ! grep -q "^device iio:device1$" "$CONFIG_FILE"; then
-        echo "Device aus der Vorlage wurde nicht übernommen" >&2
+    if ! grep -q "^device iio:device0$" "$CONFIG_FILE"; then
+        echo "Device-Fallback iio:device0 wurde nicht in die Konfiguration geschrieben" >&2
         return 1
     fi
 
@@ -136,8 +137,8 @@ TEMPLATE
         return 1
     fi
 
-    if ! grep -Fq 'USER_DEVICE="iio:device1"' "$USER_CONFIG_FILE"; then
-        echo "USER_CONFIG_FILE übernahm das Device nicht" >&2
+    if ! grep -Fq 'USER_DEVICE="iio:device0"' "$USER_CONFIG_FILE"; then
+        echo "USER_CONFIG_FILE übernahm den Device-Fallback nicht" >&2
         return 1
     fi
 
@@ -148,6 +149,11 @@ TEMPLATE
 
     if ! grep -Fq "Scale 70000 liegt außerhalb" "$log_file"; then
         echo "Log meldete die Scale-Korrektur nicht" >&2
+        return 1
+    fi
+
+    if ! grep -Fq 'Umgebungsvariable EXPANDERPI_DEVICE: ungültiger Device-Wert "foo"' "$log_file"; then
+        echo "Log meldete den Device-Fallback nicht" >&2
         return 1
     fi
 
