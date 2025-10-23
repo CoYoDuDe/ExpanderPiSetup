@@ -124,8 +124,6 @@ TEMPLATE
     printf 'overlay-rtc' > "${OVERLAY_DIR}/i2c-rtc.dtbo"
     printf 'overlay-adc' > "${OVERLAY_DIR}/mcp3208.dtbo"
 
-    mkdir -p "$OVERLAY_STATE_DIR"
-    mkdir -p "$MODULE_STATE_DIR"
     mkdir -p "$ROOT_PATH"
 
     local config_before config_txt_before rc_local_before overlay_rtc_before overlay_adc_before
@@ -149,6 +147,29 @@ TEMPLATE
 
     if [ -f "$USER_CONFIG_FILE" ]; then
         echo "CHECK-Modus darf keine Benutzerkonfiguration erzeugen." >&2
+        exit 1
+    fi
+
+    local unexpected_backup
+    for unexpected_backup in "$BACKUP_CONFIG_FILE" "$CONFIG_TXT_BACKUP" "$RC_LOCAL_BACKUP"; do
+        if [ -e "$unexpected_backup" ]; then
+            echo "CHECK-Modus hat unerwartet Sicherungen erzeugt: ${unexpected_backup}" >&2
+            exit 1
+        fi
+    done
+
+    if [ -d "$OVERLAY_STATE_DIR" ]; then
+        echo "CHECK-Modus hat ${OVERLAY_STATE_DIR} angelegt oder verändert." >&2
+        exit 1
+    fi
+
+    if [ -d "$MODULE_STATE_DIR" ]; then
+        echo "CHECK-Modus hat ${MODULE_STATE_DIR} angelegt oder verändert." >&2
+        exit 1
+    fi
+
+    if find "$work_dir" -name '*.orig' -print -quit | grep -q .; then
+        echo "CHECK-Modus darf keine *.orig-Dateien erzeugen." >&2
         exit 1
     fi
 

@@ -449,6 +449,76 @@ get_overlay_state_value() {
 }
 
 ## Originaldateien sichern und wiederherstellen
+# Originaldateien ohne Änderungen prüfen
+validate_backup_prerequisites() {
+    logMessage "CHECK-Modus: Prüfe Sicherungsvoraussetzungen ohne Änderungen..."
+
+    local check_failed=0
+    local path
+    local description
+
+    for path in "$CONFIG_FILE" "$CONFIG_TXT" "$RC_LOCAL_FILE"; do
+        case "$path" in
+            "$CONFIG_FILE")
+                description="dbus-adc.conf"
+                ;;
+            "$CONFIG_TXT")
+                description="config.txt"
+                ;;
+            "$RC_LOCAL_FILE")
+                description="rc.local"
+                ;;
+            *)
+                description="Datei"
+                ;;
+        esac
+
+        if [ -e "$path" ]; then
+            if [ -r "$path" ]; then
+                logMessage "$description (${path}) ist lesbar."
+            else
+                logMessage "CHECK-Modus: $description (${path}) ist nicht lesbar."
+                check_failed=1
+            fi
+        else
+            logMessage "$description (${path}) ist nicht vorhanden – keine Sicherung erforderlich."
+        fi
+    done
+
+    if [ -d "$OVERLAY_DIR" ]; then
+        local overlay
+        for overlay in "${OVERLAYS[@]}"; do
+            local overlay_path="$OVERLAY_DIR/$overlay"
+            if [ -f "$overlay_path" ]; then
+                if [ -r "$overlay_path" ]; then
+                    logMessage "Overlay $overlay ist lesbar."
+                else
+                    logMessage "CHECK-Modus: Overlay $overlay (${overlay_path}) ist nicht lesbar."
+                    check_failed=1
+                fi
+            else
+                logMessage "Overlay $overlay ist nicht vorhanden und wird nicht gesichert."
+            fi
+        done
+    else
+        logMessage "CHECK-Modus: Overlay-Verzeichnis ${OVERLAY_DIR} ist nicht vorhanden."
+        check_failed=1
+    fi
+
+    if [ -d "$OVERLAY_STATE_DIR" ]; then
+        logMessage "Overlay-State-Verzeichnis ${OVERLAY_STATE_DIR} bleibt unangetastet."
+    else
+        logMessage "Overlay-State-Verzeichnis ${OVERLAY_STATE_DIR} wird im CHECK-Modus nicht erstellt."
+    fi
+
+    if [ "$check_failed" -ne 0 ]; then
+        setInstallFailed $EXIT_ERROR "CHECK-Modus: Sicherungsvoraussetzungen nicht erfüllt."
+        return 1
+    fi
+
+    return 0
+}
+
 # Originaldateien sichern
 backup_originals() {
     logMessage "Sichere Originaldateien..."
@@ -2297,8 +2367,14 @@ reset_rc_local() {
 run_prechecks() {
     logMessage "Starte Vorprüfungen..."
 
-    if ! backup_originals; then
-        return 1
+    if is_check_mode; then
+        if ! validate_backup_prerequisites; then
+            return 1
+        fi
+    else
+        if ! backup_originals; then
+            return 1
+        fi
     fi
 
     local default_vref=""
