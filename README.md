@@ -52,6 +52,10 @@ Das Overlay übernimmt zugleich die Anlage des RTC-Geräts im Kernel. Ein manuel
 
 Das Setup-Skript trägt die Overlays `dtoverlay=i2c-rtc,ds1307` und `dtoverlay=mcp3208,spi0-0-present` in `/u-boot/config.txt` ein. Die Komma-Schreibweise aktiviert laut Raspberry-Pi-Dokumentation die boolesche Option `spi0-0-present` direkt beim Laden des Overlays. Nach der Installation empfiehlt sich eine kurze Kontrolle auf dem Zielsystem, z. B. mit `dtoverlay -l`, `dmesg | grep mcp3208` oder über `/sys/bus/iio/devices/`, um sicherzustellen, dass das MCP3208-Overlay tatsächlich geladen wurde. Durch das Setzen des Parameters `ds1307` am generischen `i2c-rtc`-Overlay entfällt das separate `ds1307-rtc.dtbo` vollständig – Konfiguration und Kernel-Modul bleiben dennoch unverändert erhalten.
 
+### Automatische Aktualisierung verwalteter Overlays
+
+Das Setup gleicht bei jedem erneuten `setup install` die ausgelieferten Overlays mit den vorhandenen Dateien auf dem Zielsystem ab. Overlays, die vom Setup verwaltet werden (`original=absent` oder `installed_by_setup=true`) oder deren Checksumme von der bereitgestellten Variante abweicht, werden automatisch ersetzt. Die zugehörigen State-Dateien protokollieren dabei die letzte Aktion und speichern die aktuelle Setup-Checksumme samt Zeitstempel, sodass Administratoren jederzeit nachvollziehen können, welche Overlay-Version aktiv ist.
+
 ## Zusammenspiel mit dem Setup-Skript
 
 Das Shell-Skript `setup` liest neben der bestehenden `dbus-adc.user.conf` nun auch die D-Bus-Werte aus `com.victronenergy.settings/Settings/ExpanderPi/DbusAdc`. Sind dort gültige Werte hinterlegt, werden sie automatisch als nicht-interaktive Eingabe verwendet. Die GUI übergibt zusätzlich sämtliche Werte als `EXPANDERPI_*`-Variablen an den Installationslauf.

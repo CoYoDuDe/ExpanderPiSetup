@@ -542,6 +542,7 @@ backup_originals() {
         local state_file="$OVERLAY_STATE_DIR/${overlay}.state"
         local backup_file="$OVERLAY_STATE_DIR/${overlay}.orig"
         local absent_marker="$OVERLAY_STATE_DIR/${overlay}.absent"
+        local source_overlay="$SOURCE_FILE_DIR/overlays/$overlay"
         local timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
         local previous_original_state="$(get_overlay_state_value "$state_file" "original")"
@@ -593,10 +594,7 @@ backup_originals() {
             fi
             set_overlay_state_value "$state_file" "installed_by_setup" "true"
             set_overlay_state_value "$state_file" "last_action" "absent_preserved"
-            continue
-        fi
-
-        if [ "$retain_existing_backup" = "true" ]; then
+        elif [ "$retain_existing_backup" = "true" ]; then
             logMessage "Overlay $overlay fehlt aktuell; vorhandenes Backup wird beibehalten."
             set_overlay_state_value "$state_file" "original" "present"
             if [ -n "$previous_original_checksum" ]; then
@@ -611,10 +609,7 @@ backup_originals() {
             fi
             set_overlay_state_value "$state_file" "installed_by_setup" "false"
             set_overlay_state_value "$state_file" "last_action" "backup_retained_missing_overlay"
-            continue
-        fi
-
-        if [ "$overlay_currently_present" = "true" ]; then
+        elif [ "$overlay_currently_present" = "true" ]; then
             if cp "$overlay_path" "$backup_file"; then
                 local checksum="unbekannt"
                 if command -v sha256sum >/dev/null 2>&1; then
@@ -639,6 +634,19 @@ backup_originals() {
             set_overlay_state_value "$state_file" "installed_by_setup" "false"
             set_overlay_state_value "$state_file" "last_action" "original_absent_recorded"
         fi
+
+        local setup_checksum_value="sha256_unavailable"
+        if [ -f "$source_overlay" ]; then
+            if command -v sha256sum >/dev/null 2>&1; then
+                setup_checksum_value="$(sha256sum "$source_overlay" | awk '{print $1}')"
+            fi
+            logMessage "Setup-Overlay-Metadaten für $overlay aktualisiert (Checksumme: $setup_checksum_value)."
+        else
+            logMessage "Warnung: Quelle für Overlay $overlay konnte bei der Sicherung nicht ermittelt werden."
+            setup_checksum_value="quelle_nicht_gefunden"
+        fi
+        set_overlay_state_value "$state_file" "setup_checksum" "$setup_checksum_value"
+        set_overlay_state_value "$state_file" "setup_recorded_at" "$timestamp"
     done
 }
 
@@ -2001,24 +2009,105 @@ check_and_restore_overlays() {
 
     logMessage "Prüfe und stelle Overlays wieder her..."
     for overlay in "${OVERLAYS[@]}"; do
+        local overlay_path="$OVERLAY_DIR/$overlay"
+        local source_overlay="$SOURCE_FILE_DIR/overlays/$overlay"
         local state_file="$OVERLAY_STATE_DIR/${overlay}.state"
-        if [ ! -f "$OVERLAY_DIR/$overlay" ]; then
-            logMessage "Overlay $overlay fehlt. Wiederherstellung aus $SOURCE_FILE_DIR/overlays..."
-            if [ -f "$SOURCE_FILE_DIR/overlays/$overlay" ]; then
-                if cp "$SOURCE_FILE_DIR/overlays/$overlay" "$OVERLAY_DIR/"; then
-                    logMessage "Overlay $overlay erfolgreich wiederhergestellt."
-                    set_overlay_state_value "$state_file" "installed_by_setup" "true"
-                    rebootNeeded=true
-                else
-                    logMessage "Fehler beim Wiederherstellen von Overlay $overlay."
-                    setInstallFailed $EXIT_ERROR "Fehler beim Wiederherstellen von Overlay $overlay."
+        local timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+        if [ ! -f "$source_overlay" ]; then
+            logMessage "Fehler: Quelle für Overlay $overlay nicht gefunden."
+            setInstallFailed $EXIT_FILE_SET_ERROR "Fehler: Quelle für Overlay $overlay nicht gefunden."
+            continue
+        fi
+
+        local installed_by_setup_state
+        installed_by_setup_state="$(get_overlay_state_value "$state_file" "installed_by_setup")"
+        local original_state
+        original_state="$(get_overlay_state_value "$state_file" "original")"
+
+        local overlay_present=false
+        if [ -f "$overlay_path" ]; then
+            overlay_present=true
+        fi
+
+        local source_checksum=""
+        local checksum_available=false
+        if command -v sha256sum >/dev/null 2>&1; then
+            source_checksum="$(sha256sum "$source_overlay" | awk '{print $1}')"
+            checksum_available=true
+        fi
+
+        local checksums_differ=false
+        local current_checksum=""
+        if [ "$overlay_present" = true ]; then
+            if [ "$checksum_available" = true ]; then
+                current_checksum="$(sha256sum "$overlay_path" | awk '{print $1}')"
+                if [ "$current_checksum" != "$source_checksum" ]; then
+                    checksums_differ=true
                 fi
             else
-                logMessage "Fehler: Quelle für Overlay $overlay nicht gefunden."
-                setInstallFailed $EXIT_FILE_SET_ERROR "Fehler: Quelle für Overlay $overlay nicht gefunden."
+                if ! cmp -s "$source_overlay" "$overlay_path"; then
+                    checksums_differ=true
+                fi
+            fi
+        fi
+
+        local managed_overlay=false
+        if [ "${installed_by_setup_state,,}" = "true" ] || [ "$original_state" = "absent" ]; then
+            managed_overlay=true
+        fi
+
+        local needs_copy=false
+        local replacement_reason=""
+        if [ "$overlay_present" != true ]; then
+            needs_copy=true
+            replacement_reason="fehlte"
+        elif [ "$managed_overlay" = true ]; then
+            needs_copy=true
+            if [ "$checksums_differ" = true ]; then
+                replacement_reason="verwaltet und veraltet"
+            else
+                replacement_reason="verwaltetes Overlay wird aktualisiert"
+            fi
+        elif [ "$checksums_differ" = true ]; then
+            needs_copy=true
+            replacement_reason="Checksumme weicht ab"
+        fi
+
+        if [ "$needs_copy" = true ]; then
+            mkdir -p "$OVERLAY_DIR"
+            if cp "$source_overlay" "$overlay_path"; then
+                local action_label="overlay_installed"
+                if [ "$overlay_present" = true ]; then
+                    action_label="overlay_refreshed"
+                    logMessage "Overlay $overlay wurde ersetzt (${replacement_reason})."
+                else
+                    logMessage "Overlay $overlay wurde installiert (${replacement_reason})."
+                fi
+                if [ "$checksum_available" = true ]; then
+                    logMessage "Neue Setup-Checksumme für $overlay: $source_checksum"
+                    set_overlay_state_value "$state_file" "setup_checksum" "$source_checksum"
+                else
+                    logMessage "sha256sum nicht verfügbar; Overlay $overlay wurde per Bytevergleich aktualisiert."
+                    set_overlay_state_value "$state_file" "setup_checksum" "sha256_unavailable"
+                fi
+                set_overlay_state_value "$state_file" "setup_recorded_at" "$timestamp"
+                set_overlay_state_value "$state_file" "installed_by_setup" "true"
+                set_overlay_state_value "$state_file" "last_action" "$action_label"
+                rebootNeeded=true
+                logMessage "Neustartbedarf gesetzt, da Overlay $overlay aktualisiert wurde."
+            else
+                logMessage "Fehler beim Wiederherstellen von Overlay $overlay."
+                setInstallFailed $EXIT_ERROR "Fehler beim Wiederherstellen von Overlay $overlay."
             fi
         else
-            logMessage "Overlay $overlay ist bereits vorhanden."
+            logMessage "Overlay $overlay ist bereits auf dem aktuellen Stand."
+            if [ "$checksum_available" = true ]; then
+                set_overlay_state_value "$state_file" "setup_checksum" "$source_checksum"
+            else
+                set_overlay_state_value "$state_file" "setup_checksum" "sha256_unavailable"
+            fi
+            set_overlay_state_value "$state_file" "setup_recorded_at" "$timestamp"
         fi
     done
 }
