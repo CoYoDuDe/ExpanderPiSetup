@@ -100,6 +100,8 @@ temp 7
 
 Damit entspricht die erzeugte Datei exakt den Vorgaben aus dem [dbus-adc-README](https://github.com/victronenergy/dbus-adc/blob/master/README.md) und kann ohne weitere Nacharbeit vom Venus OS übernommen werden.
 
+Das Setup-Skript übernimmt die `device`-Zeile dynamisch aus der Vorlage `FileSets/configs/dbus-adc.conf`. Damit lassen sich angepasste IIO-Gerätenummern (z. B. `iio:device1`) direkt über das Template vorgeben. Zusätzlich akzeptiert das Installationsskript das Environment `EXPANDERPI_DEVICE` sowie den zuletzt gespeicherten Wert aus `dbus-adc.user.conf` als Override. Fehlt eine Angabe, fällt der Installer dokumentiert auf `iio:device0` zurück.
+
 ## Setup-Modi und Vorprüfungen
 
 Der Aufruf `setup install` führt weiterhin alle Installationsschritte inklusive Datei- und Systemänderungen aus. Der neue Pfad `setup check` verbleibt hingegen vollständig im Validierungsmodus: Es werden lediglich Sicherungen der Ausgangsdateien angelegt, die Konfigurationsvorlage geparst und die Kernelmodul-Abhängigkeiten geprüft. Der Lauf beendet sich anschließend ohne `dbus-adc.conf`, `config.txt`, Overlays oder `rc.local` anzupassen – exakt das Verhalten, das der SetupHelper für seine nicht-destruktiven Vorprüfungen erwartet.
