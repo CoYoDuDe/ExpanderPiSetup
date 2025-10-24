@@ -1,2 +1,1 @@
 requiredPackages=SetupHelper,kernel-module-rtc-ds1307,kernel-module-mcp320x
-conflictingPackages=GuiMods
