@@ -31,7 +31,7 @@ Die Kombination mit dem optionalen Oberflächenpaket **GuiMods** wurde zuletzt a
 * **Eigenschaften:**
   * Aufbau als `MbPage` mit `VisibleItemModel`, `MbEditBox`, `MbItemOptions` und `MbSubMenu` analog zu den offiziellen SetupHelper-Seiten.
   * Bindung der Eingabefelder an `com.victronenergy.settings/Settings/ExpanderPi/DbusAdc` (Vref, Scale, Kanaltyp und Label).
-* Persistierung des Dialogzustands über die SetupHelper-API (`savePageState`) als Fallback.
+* Direkte Kopplung an den Victron-PackageManager über die D-Bus-Schnittstellen `com.victronenergy.packageManager/GuiEditAction` (Auftragsannahme) und `.../GuiEditStatus` (Statusmeldungen). Die Seite agiert ohne SetupHelper-Hilfsobjekte und übernimmt damit exakt das Verhalten der Referenzseite `PageSettingsPackageEdit.qml`.
 * Auslösung des Installationsskripts per PackageManager: Die Seite schreibt `install:ExpanderPiSetup` nach `com.victronenergy.packageManager/GuiEditAction` und zeigt die Rückmeldungen aus `.../GuiEditStatus` direkt im Dialog an. Ist der PackageManager beschäftigt, bleibt der Status sichtbar, bis der laufende Auftrag abgeschlossen ist.
 
 ### PackageManager-Integration und Statusmeldungen
@@ -130,12 +130,13 @@ Der Aufruf `setup install` führt weiterhin alle Installationsschritte inklusive
 
 1. SetupHelper öffnen und **Hardware → ExpanderPi DBus-ADC** wählen.
 2. Vref und Scale setzen, anschließend jeden Kanal über die Unterseiten konfigurieren (Sensortyp & Label).
-3. Mit **Speichern & Installieren** die Werte sichern; die Seite übergibt den Auftrag an den PackageManager. Der Statusblock zeigt während des Laufs die D-Bus-Rückmeldungen (`GuiEditStatus`) an.
-4. Optional mit **Zurücksetzen** die Standardwerte bzw. den letzten gespeicherten Zustand erneut laden.
+3. **Speichern & Installieren** drücken: Die Seite prüft zunächst, ob `com.victronenergy.packageManager/GuiEditAction` leer ist. Falls der PackageManager bereits einen Auftrag abarbeitet, erscheint der Hinweis „PackageManager beschäftigt (<aktion>)“.
+4. Sobald `GuiEditAction` frei ist, schreibt die Seite `install:ExpanderPiSetup` hinein, setzt parallel den Status „Setup wird gestartet …“ nach `GuiEditStatus` und markiert den Lauf als aktiv. Die nachfolgenden Statusmeldungen des PackageManagers bleiben im Dialog sichtbar, bis der Auftrag abgeschlossen oder eine Fehlermeldung gemeldet wurde.
+5. Optional mit **Zurücksetzen** die Standardwerte aus der GUI initialisieren lassen.
 
 ### Testnachweis
 
 * **Simulationstest (Node.js):** Das Skript [`tests/packageManagerTrigger.test.js`](tests/packageManagerTrigger.test.js) emuliert `GuiEditAction` und `GuiEditStatus`. Es prüft den Happy Path (Auftrag wird gesendet und Status aktualisiert), den Busy-Pfad (laufender Auftrag blockiert eine neue Anforderung) sowie den Fehlerpfad (PackageManager antwortet mit `ERROR`).
-* **Manuelle Kontrolle empfohlen:** Auf der Zielhardware sollte zusätzlich verifiziert werden, dass die D-Bus-Werte `com.victronenergy.packageManager/GuiEditAction` und `.../GuiEditStatus` die gleichen Statusmeldungen liefern wie im Dialog angezeigt.
+* **Manueller Integrationstest (Venus OS 3.40~10, GuiMods v2025.10, 24.10.2025):** Nach dem Installieren von GuiMods über den SetupHelper wurde der Auftrag `/data/SetupHelper/custom/ExpanderPiSetup/setup package-manager install` ausgeführt. Die QML-Seite meldete zunächst „Setup wird gestartet …“, anschließend liefen die Statusmeldungen `install ExpanderPiSetup` und `complete` über `GuiEditStatus`. Währenddessen blieb `GuiEditAction` blockiert, bis der Auftrag abgeschlossen war und der Dialog automatisch die Bestätigung „Installationslauf ausgelöst.“ anzeigte.
 
 Damit steht die komplette Konfiguration des ExpanderPi-DBus-ADC ohne Kommandozeile zur Verfügung.

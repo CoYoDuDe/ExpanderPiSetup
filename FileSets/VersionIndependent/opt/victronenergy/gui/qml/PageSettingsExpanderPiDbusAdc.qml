@@ -97,21 +97,6 @@ MbPage {
         }
     }
 
-    property var helperApi: ({
-        get instance() {
-            if (typeof SetupHelper !== "undefined") {
-                return SetupHelper;
-            }
-            if (typeof SetupHelperApi !== "undefined") {
-                return SetupHelperApi;
-            }
-            if (typeof helperApp !== "undefined") {
-                return helperApp;
-            }
-            return null;
-        }
-    }).instance
-
     property VBusItem vrefItem: VBusItem { bind: settingsPrefix + "/Vref" }
     property VBusItem scaleItem: VBusItem { bind: settingsPrefix + "/Scale" }
     property VBusItem packageActionItem: VBusItem { bind: "com.victronenergy.packageManager/GuiEditAction" }
@@ -256,122 +241,7 @@ MbPage {
         }
     }
 
-    function buildSnapshot() {
-        var snapshot = {
-            vref: vrefItem.value,
-            scale: scaleItem.value,
-            sensors: []
-        };
-
-        for (var i = 0; i < channelCount; ++i) {
-            var channel = channelBindings[i];
-            if (!channel) {
-                continue;
-            }
-            var canonicalType = canonicalSensorType(channel.typeItem.value);
-            snapshot.sensors.push({
-                index: i,
-                type: canonicalType,
-                label: channel.labelItem.value
-            });
-        }
-        return snapshot;
-    }
-
-    function persistState(state) {
-        if (!state) {
-            return;
-        }
-        var api = helperApi;
-        if (!api) {
-            return;
-        }
-
-        try {
-            if (api.savePageState) {
-                api.savePageState("dbusAdcConfig", state);
-            } else if (api.setPageState) {
-                api.setPageState("dbusAdcConfig", state);
-            } else if (api.savePageData) {
-                api.savePageData("dbusAdcConfig", state);
-            }
-        } catch (error) {
-            console.warn("Speichern des Zustands nicht möglich:", error);
-        }
-    }
-
-    function applyState(state) {
-        if (!state) {
-            return;
-        }
-
-        if (vrefItem.valid) {
-            var vrefValue = (state.vref !== undefined && state.vref !== null) ? String(state.vref) : "";
-            vrefItem.setValue(vrefValue);
-        }
-        if (scaleItem.valid) {
-            var scaleValue = (state.scale !== undefined && state.scale !== null) ? String(state.scale) : "";
-            scaleItem.setValue(scaleValue);
-        }
-
-        if (state.sensors && state.sensors.length) {
-            for (var i = 0; i < state.sensors.length; ++i) {
-                var entry = state.sensors[i];
-                if (!entry) {
-                    continue;
-                }
-                var channelIndex = entry.index !== undefined ? entry.index : i;
-                var channel = channelBindings[channelIndex];
-                if (!channel) {
-                    continue;
-                }
-                var typeValue = (entry.type !== undefined && entry.type !== null) ? String(entry.type) : "none";
-                var canonicalType = canonicalSensorType(typeValue);
-                channel.typeItem.setValue(canonicalType);
-
-                var labelValue = (entry.label !== undefined && entry.label !== null) ? String(entry.label) : "";
-                channel.labelItem.setValue(labelValue);
-            }
-        }
-    }
-
-    function loadPersistedValues() {
-        var api = helperApi;
-        if (!api) {
-            return;
-        }
-        try {
-            if (api.loadPageState) {
-                applyState(api.loadPageState("dbusAdcConfig"));
-            } else if (api.getPageState) {
-                applyState(api.getPageState("dbusAdcConfig"));
-            } else if (api.loadPageData) {
-                applyState(api.loadPageData("dbusAdcConfig"));
-            }
-        } catch (error) {
-            console.warn("Konnte gespeicherten Zustand nicht lesen:", error);
-        }
-    }
-
-    function buildEnvironment(snapshot) {
-        var env = {};
-        var vrefString = (snapshot.vref !== undefined && snapshot.vref !== null) ? String(snapshot.vref) : "";
-        var scaleString = (snapshot.scale !== undefined && snapshot.scale !== null) ? String(snapshot.scale) : "";
-        var trimmedVref = vrefString.trim();
-        var trimmedScale = scaleString.trim();
-        env["EXPANDERPI_VREF"] = trimmedVref.length === 0 ? "" : trimmedVref;
-        env["EXPANDERPI_SCALE"] = trimmedScale.length === 0 ? "" : trimmedScale;
-
-        for (var i = 0; i < snapshot.sensors.length; ++i) {
-            var channel = snapshot.sensors[i];
-            var base = "EXPANDERPI_CHANNEL_" + channel.index;
-            env[base + "_TYPE"] = canonicalSensorType(channel.type || "none");
-            env[base + "_LABEL"] = String(channel.label || "");
-        }
-        return env;
-    }
-
-    function triggerInstall() {
+    function applyChanges() {
         if (!packageActionItem.valid) {
             localStatusMessage = qsTr("PackageManager-Dienst nicht verfügbar.");
             if (packageStatusItem.valid) {
@@ -382,11 +252,17 @@ MbPage {
         }
 
         var currentAction = packageActionItem.value;
-        if (currentAction !== undefined && currentAction !== null && String(currentAction).length > 0) {
-            var busyMessage = qsTr("PackageManager beschäftigt (%1)").arg(String(currentAction));
-            localStatusMessage = busyMessage;
-            console.warn("PackageManager ist noch beschäftigt (", currentAction, ")");
-            return false;
+        if (currentAction !== undefined && currentAction !== null) {
+            var actionText = String(currentAction).trim();
+            if (actionText.length > 0) {
+                var busyMessage = qsTr("PackageManager beschäftigt (%1)").arg(actionText);
+                localStatusMessage = busyMessage;
+                if (packageStatusItem.valid) {
+                    packageStatusItem.setValue(busyMessage);
+                }
+                console.warn("PackageManager ist noch beschäftigt (", actionText, ")");
+                return false;
+            }
         }
 
         installRequestPending = true;
@@ -401,14 +277,8 @@ MbPage {
         return true;
     }
 
-    function applyChanges() {
-        var snapshot = buildSnapshot();
-        persistState(snapshot);
-        triggerInstall();
-    }
-
     function reloadFromPersistedState() {
-        loadPersistedValues();
+        ensureDefaults();
     }
 
     property var channelBindings: new Array(channelCount)
@@ -421,10 +291,7 @@ MbPage {
         ensureChannelDefault(binding);
     }
 
-    Component.onCompleted: {
-        loadPersistedValues();
-        ensureDefaults();
-    }
+    Component.onCompleted: ensureDefaults()
 
     Connections {
         target: packageStatusItem
@@ -930,7 +797,6 @@ MbPage {
             description: ""
             value: qsTr("Zurücksetzen")
             onClicked: {
-                ensureDefaults();
                 reloadFromPersistedState();
             }
         }
