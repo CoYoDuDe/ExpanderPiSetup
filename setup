@@ -71,8 +71,8 @@ if [ "$force_override_active" = true ]; then
     fi
 fi
 
-# Installationsverzeichnis festlegen
-ROOT_PATH=/data/ExpanderPiSetup
+# Installationsverzeichnis dynamisch aus dem Skriptpfad ableiten
+ROOT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Version für Paketierung und Logging aus zentraler Datei lesen
 VERSION_FILE_PATH="${ROOT_PATH}/version"
