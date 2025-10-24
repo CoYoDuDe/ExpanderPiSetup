@@ -71,8 +71,12 @@ if [ "$force_override_active" = true ]; then
     fi
 fi
 
-# Installationsverzeichnis dynamisch aus dem Skriptpfad ableiten
-ROOT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Installationsverzeichnis dynamisch aus dem Skriptpfad ableiten – bevorzugt scriptDir aus den Helper-Ressourcen
+if [ -n "${scriptDir:-}" ]; then
+    ROOT_PATH="$scriptDir"
+else
+    ROOT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 
 # Version für Paketierung und Logging aus zentraler Datei lesen
 VERSION_FILE_PATH="${ROOT_PATH}/version"
