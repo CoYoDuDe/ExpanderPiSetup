@@ -56,7 +56,9 @@ Die Seite wird über einen Patch auf `PageSettings.qml` eingebunden (`FileSets/P
 
 ## Paketabhängigkeiten und Kernel-Anpassungen
 
-Die Datei `packageDependencies` beschreibt nun explizit, welche Pakete der SetupHelper für das ExpanderPi-Setup voraussetzt und welche Konflikte vermieden werden müssen. Neben dem SetupHelper selbst werden die Kernelmodule `kernel-module-rtc-ds1307` und `kernel-module-mcp320x` als Pflichtabhängigkeiten geführt, damit die Installationsroutine weiterhin `/u-boot/config.txt` und `/data/rc.local` für die RTC- und MCP3208-Unterstützung patcht.
+Die Datei `packageDependencies` nutzt das aktuelle, zeilenbasierte SetupHelper-Format und verlangt ausschließlich ein installiertes Basispaket `SetupHelper`. Weitere Abhängigkeiten werden durch das Setup-Skript abgeprüft, damit keine falschen Interpretationen durch den Paketmanager entstehen.
+
+Kernelmodule wie `kernel-module-rtc-ds1307` und `kernel-module-mcp320x` werden weiterhin ausschließlich über das Skript `setup` aktiviert. Der SetupHelper verwaltet über `packageDependencies` lediglich seine eigenen Add-on-Pakete, daher erfolgen Einträge für Kernelmodule, Overlays oder Systemdienste direkt innerhalb des Installationsskripts. Dieser Ansatz stellt sicher, dass der Paketmanager keine unbekannten Abhängigkeiten meldet, während das Setup weiterhin `/u-boot/config.txt`, `/data/rc.local` und die zugehörigen State-Dateien passend anpasst.
 
 Das Paket liefert ausschließlich die Overlays `i2c-rtc.dtbo` und `mcp3208.dtbo` aus. Für DS1307-basierte Echtzeituhrmodule wird nun konsequent das generische `i2c-rtc`-Overlay mit dem Parameter `ds1307` verwendet, wie es die Raspberry-Pi-Dokumentation empfiehlt. Separate, veraltete Varianten wie `ds1307-rtc.dtbo` entfallen damit vollständig.
 
