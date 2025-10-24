@@ -114,6 +114,30 @@ MbPage {
 
     property VBusItem vrefItem: VBusItem { bind: settingsPrefix + "/Vref" }
     property VBusItem scaleItem: VBusItem { bind: settingsPrefix + "/Scale" }
+    property VBusItem packageActionItem: VBusItem { bind: "com.victronenergy.packageManager/GuiEditAction" }
+    property VBusItem packageStatusItem: VBusItem { bind: "com.victronenergy.packageManager/GuiEditStatus" }
+
+    property bool installRequestPending: false
+    property string localStatusMessage: ""
+    readonly property bool packageManagerAvailable: packageActionItem.valid && packageStatusItem.valid
+    readonly property string currentStatusText: {
+        if (!packageManagerAvailable) {
+            return qsTr("PackageManager-Dienst nicht verfügbar.");
+        }
+        if (localStatusMessage && localStatusMessage.length > 0) {
+            return localStatusMessage;
+        }
+        if (packageStatusItem.valid) {
+            var raw = packageStatusItem.value;
+            if (raw !== undefined && raw !== null) {
+                var text = String(raw).trim();
+                if (text.length > 0) {
+                    return text;
+                }
+            }
+        }
+        return "";
+    }
 
     function channelPath(index) {
         return settingsPrefix + "/Channel" + index;
@@ -347,34 +371,40 @@ MbPage {
         return env;
     }
 
-    function triggerInstall(envPayload) {
-        var api = helperApi;
-        if (!api) {
-            console.warn("SetupHelper API nicht verfügbar – Installationsmodus kann nicht gestartet werden.");
-            return;
+    function triggerInstall() {
+        if (!packageActionItem.valid) {
+            localStatusMessage = qsTr("PackageManager-Dienst nicht verfügbar.");
+            if (packageStatusItem.valid) {
+                packageStatusItem.setValue(localStatusMessage);
+            }
+            console.warn("PackageManager-Dienst nicht verfügbar – Installationslauf kann nicht gestartet werden.");
+            return false;
         }
-        try {
-            if (api.runInstallMode) {
-                api.runInstallMode("setup", { env: envPayload });
-                return;
-            }
-            if (api.startInstallMode) {
-                api.startInstallMode("setup", { env: envPayload });
-                return;
-            }
-            if (api.install) {
-                api.install("setup", { env: envPayload });
-                return;
-            }
-        } catch (error) {
-            console.error("Installationsmodus konnte nicht gestartet werden:", error);
+
+        var currentAction = packageActionItem.value;
+        if (currentAction !== undefined && currentAction !== null && String(currentAction).length > 0) {
+            var busyMessage = qsTr("PackageManager beschäftigt (%1)").arg(String(currentAction));
+            localStatusMessage = busyMessage;
+            console.warn("PackageManager ist noch beschäftigt (", currentAction, ")");
+            return false;
         }
+
+        installRequestPending = true;
+
+        var startMessage = qsTr("Setup wird gestartet …");
+        localStatusMessage = startMessage;
+        if (packageStatusItem.valid) {
+            packageStatusItem.setValue(startMessage);
+        }
+
+        packageActionItem.setValue("install:ExpanderPiSetup");
+        return true;
     }
 
     function applyChanges() {
         var snapshot = buildSnapshot();
         persistState(snapshot);
-        triggerInstall(buildEnvironment(snapshot));
+        triggerInstall();
     }
 
     function reloadFromPersistedState() {
@@ -394,6 +424,50 @@ MbPage {
     Component.onCompleted: {
         loadPersistedValues();
         ensureDefaults();
+    }
+
+    Connections {
+        target: packageStatusItem
+        onValueChanged: {
+            if (!packageStatusItem.valid) {
+                return;
+            }
+            var statusText = packageStatusItem.value !== undefined && packageStatusItem.value !== null
+                    ? String(packageStatusItem.value).trim()
+                    : "";
+            if (statusText.length > 0) {
+                localStatusMessage = "";
+            }
+        }
+    }
+
+    Connections {
+        target: packageActionItem
+        onValueChanged: {
+            if (!packageActionItem.valid) {
+                return;
+            }
+            var actionValue = packageActionItem.value !== undefined && packageActionItem.value !== null
+                    ? String(packageActionItem.value)
+                    : "";
+            if (actionValue === "ERROR") {
+                installRequestPending = false;
+                var errorMessage = packageStatusItem.valid && packageStatusItem.value
+                        ? String(packageStatusItem.value)
+                        : qsTr("Fehler beim Installationslauf.");
+                localStatusMessage = errorMessage;
+            } else if (actionValue.length === 0 && installRequestPending) {
+                installRequestPending = false;
+                if (packageStatusItem.valid && packageStatusItem.value) {
+                    var statusText = String(packageStatusItem.value).trim();
+                    if (statusText.length === 0) {
+                        localStatusMessage = qsTr("Installationslauf ausgelöst.");
+                    }
+                } else {
+                    localStatusMessage = qsTr("Installationslauf ausgelöst.");
+                }
+            }
+        }
     }
 
     model: VisibleItemModel {
@@ -859,6 +933,13 @@ MbPage {
                 ensureDefaults();
                 reloadFromPersistedState();
             }
+        }
+
+        MbTextBlock {
+            id: packageStatusBlock
+            text: root.currentStatusText
+            wrapMode: Text.WordWrap
+            show: root.currentStatusText.length > 0
         }
 
         MbOK {
