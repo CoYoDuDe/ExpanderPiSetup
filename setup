@@ -341,6 +341,10 @@ parse_default_adc_configuration() {
 # Status, ob "opkg update" bereits erfolgreich ausgeführt wurde
 OPKG_UPDATE_PERFORMED=false
 
+# Statusflags für Bereinigungen und Installationsabbruchprotokolle
+cleanup_executed=false
+install_abort_logged=false
+
 # Statusflags für Sicherungen und Wiederherstellungen
 configBackupExisted=false
 [ -f "$BACKUP_CONFIG_FILE" ] && configBackupExisted=true
@@ -2575,6 +2579,15 @@ reset_rc_local() {
     fi
 }
 
+run_uninstall_sequence() {
+    restore_originals
+    uninstall_config
+    remove_overlays
+    remove_kernel_modules
+    reset_rc_local
+    cleanup_executed=true
+}
+
 run_prechecks() {
     logMessage "Starte Vorprüfungen..."
 
@@ -2613,18 +2626,100 @@ run_prechecks() {
     return 0
 }
 
+has_install_failed_flag() {
+    if declare -F isInstallFailed >/dev/null 2>&1; then
+        if isInstallFailed; then
+            return 0
+        fi
+    else
+        case "${installFailed:-}" in
+            1|true|yes|y|on|fail|failed)
+                return 0
+                ;;
+        esac
+        if [ -n "${installFailReason:-}" ]; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+should_abort_installation() {
+    if [ "${scriptAction:-}" = "UNINSTALL" ]; then
+        return 0
+    fi
+
+    if has_install_failed_flag; then
+        return 0
+    fi
+
+    return 1
+}
+
+log_install_abort_reason_once() {
+    if [ "$install_abort_logged" = true ]; then
+        return
+    fi
+
+    if [ "${scriptAction:-}" = "UNINSTALL" ]; then
+        logMessage "Skriptaktion wurde auf UNINSTALL gesetzt – Installationsablauf wird beendet."
+    else
+        logMessage "installFailed wurde gesetzt – Installationsablauf wird beendet."
+    fi
+
+    install_abort_logged=true
+}
+
 case "$scriptAction" in
     INSTALL|CHECK)
         if run_prechecks; then
             if [ "$scriptAction" = "CHECK" ]; then
                 logMessage "CHECK-Modus abgeschlossen."
             else
+                continue_install=true
                 if install_config; then
-                    check_and_restore_overlays
-                    check_and_install_kernel_modules
-                    setup_rc_local
+                    if should_abort_installation; then
+                        log_install_abort_reason_once
+                        continue_install=false
+                    fi
                 else
                     logMessage "install_config meldete einen Fehler – überspringe weitere Installationsschritte."
+                    continue_install=false
+                fi
+
+                if [ "$continue_install" = true ]; then
+                    if check_and_restore_overlays; then
+                        if should_abort_installation; then
+                            log_install_abort_reason_once
+                            continue_install=false
+                        fi
+                    else
+                        logMessage "check_and_restore_overlays meldete einen Fehler – weitere Installationsschritte werden nicht ausgeführt."
+                        continue_install=false
+                    fi
+                fi
+
+                if [ "$continue_install" = true ]; then
+                    if check_and_install_kernel_modules; then
+                        if should_abort_installation; then
+                            log_install_abort_reason_once
+                            continue_install=false
+                        fi
+                    else
+                        logMessage "check_and_install_kernel_modules meldete einen Fehler – weitere Installationsschritte werden nicht ausgeführt."
+                        continue_install=false
+                    fi
+                fi
+
+                if [ "$continue_install" = true ]; then
+                    setup_rc_local
+                else
+                    if should_abort_installation; then
+                        log_install_abort_reason_once
+                    else
+                        logMessage "Installationsablauf wurde vor der rc.local-Konfiguration beendet."
+                    fi
                 fi
             fi
         else
@@ -2632,23 +2727,70 @@ case "$scriptAction" in
         fi
         ;;
     UNINSTALL)
-        restore_originals
-        uninstall_config
-        remove_overlays
-        remove_kernel_modules
-        reset_rc_local
+        run_uninstall_sequence
         ;;
     *)
         logMessage "Keine spezifische Aktion angegeben. Führe Standardinstallation durch..."
-        if run_prechecks && install_config; then
-            check_and_restore_overlays
-            check_and_install_kernel_modules
-            setup_rc_local
+        if run_prechecks; then
+            continue_install=true
+            if install_config; then
+                if should_abort_installation; then
+                    log_install_abort_reason_once
+                    continue_install=false
+                fi
+            else
+                logMessage "install_config meldete einen Fehler – überspringe weitere Installationsschritte."
+                continue_install=false
+            fi
+
+            if [ "$continue_install" = true ]; then
+                if check_and_restore_overlays; then
+                    if should_abort_installation; then
+                        log_install_abort_reason_once
+                        continue_install=false
+                    fi
+                else
+                    logMessage "check_and_restore_overlays meldete einen Fehler – weitere Installationsschritte werden nicht ausgeführt."
+                    continue_install=false
+                fi
+            fi
+
+            if [ "$continue_install" = true ]; then
+                if check_and_install_kernel_modules; then
+                    if should_abort_installation; then
+                        log_install_abort_reason_once
+                        continue_install=false
+                    fi
+                else
+                    logMessage "check_and_install_kernel_modules meldete einen Fehler – weitere Installationsschritte werden nicht ausgeführt."
+                    continue_install=false
+                fi
+            fi
+
+            if [ "$continue_install" = true ]; then
+                setup_rc_local
+            else
+                if should_abort_installation; then
+                    log_install_abort_reason_once
+                else
+                    logMessage "Installationsablauf wurde vor der rc.local-Konfiguration beendet."
+                fi
+            fi
         else
-            logMessage "Vorprüfungen oder Installation fehlgeschlagen – weitere Schritte werden übersprungen."
+            logMessage "Vorprüfungen fehlgeschlagen – Installationsschritte werden übersprungen."
         fi
         ;;
 esac
+
+if [ "$cleanup_executed" != true ]; then
+    if [ "${scriptAction:-}" = "UNINSTALL" ]; then
+        logMessage "UNINSTALL-Aktion erkannt – führe Bereinigungsschritte aus."
+        run_uninstall_sequence
+    elif has_install_failed_flag; then
+        logMessage "Installationsfehler erkannt – führe Bereinigung wie im UNINSTALL-Fall aus."
+        run_uninstall_sequence
+    fi
+fi
 
 logMessage "Skriptausführung abgeschlossen."
 endScript
