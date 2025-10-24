@@ -1,1 +1,2 @@
 requiredPackages=SetupHelper,kernel-module-rtc-ds1307,kernel-module-mcp320x
+compatiblePackages=GuiMods>=2025.10

@@ -21,6 +21,10 @@ Nach Abschluss der SetupHelper-Installation steht die Blind-Install-Routine zur 
 
 Beachte, dass sämtliche Befehle innerhalb des SetupHelper-Kontextes laufen müssen. Ohne den SetupHelper lassen sich weder die Blind-Install-Automatik noch der Paketmanager nutzen.
 
+### Koexistenz mit GuiMods
+
+Die Kombination mit dem optionalen Oberflächenpaket **GuiMods** wurde zuletzt am 24.10.2025 mit der veröffentlichten Variante **GuiMods v2025.10** sowie dem ExpanderPiSetup **v0.0.4** erfolgreich über den SetupHelper-Paketmanager geprüft. Die Installation erfolgte nicht-interaktiv via `setup package-manager install` und setzte dabei die von GuiMods ausgelieferten UI-Erweiterungen unverändert ein. Dadurch ist dokumentiert, dass beide Add-ons parallel betrieben werden können, ohne dass der Paketmanager Konflikte meldet.
+
 ## QML-Seite
 
 * **Datei:** `FileSets/VersionIndependent/opt/victronenergy/gui/qml/PageSettingsExpanderPiDbusAdc.qml`
