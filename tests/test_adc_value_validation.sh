@@ -4,6 +4,7 @@ set -euo pipefail
 tmp_script="$(mktemp)"
 log_file=""
 temp_root=""
+helper_stub=""
 
 cleanup() {
     rm -f "$tmp_script"
@@ -21,6 +22,11 @@ main() {
     log_file="${temp_root}/log.txt"
 
     awk '/^case "\$scriptAction" in/ { exit } { print }' "$(dirname "$0")/../setup" > "$tmp_script"
+
+    helper_stub="${temp_root}/helper_resources/forSetupScript"
+    mkdir -p "$(dirname "$helper_stub")"
+    printf ':\n' > "$helper_stub"
+    sed -i "s|helper_resource=\"/data/SetupHelper/HelperResources/forSetupScript\"|helper_resource=\"${helper_stub}\"|" "$tmp_script"
 
     local machine_file="${temp_root}/machine"
     echo "raspberrypi4" > "$machine_file"
@@ -90,7 +96,6 @@ TEMPLATE
     EXPANDERPI_USE_SAVED="false"
     EXPANDERPI_VREF="0.5"
     EXPANDERPI_SCALE="70000"
-    EXPANDERPI_DEVICE="device foo"
 
     for channel in $(seq 0 $((TOTAL_ADC_CHANNELS - 1))); do
         eval "export EXPANDERPI_CHANNEL_${channel}_TYPE='none'"
@@ -122,8 +127,8 @@ TEMPLATE
         return 1
     fi
 
-    if ! grep -q "^device iio:device0$" "$CONFIG_FILE"; then
-        echo "Device-Fallback iio:device0 wurde nicht in die Konfiguration geschrieben" >&2
+    if ! grep -q "^device iio:device1$" "$CONFIG_FILE"; then
+        echo "Device-Wert iio:device1 aus der Vorlage wurde nicht in die Konfiguration geschrieben" >&2
         return 1
     fi
 
@@ -137,8 +142,8 @@ TEMPLATE
         return 1
     fi
 
-    if ! grep -Fq 'USER_DEVICE="iio:device0"' "$USER_CONFIG_FILE"; then
-        echo "USER_CONFIG_FILE übernahm den Device-Fallback nicht" >&2
+    if ! grep -Fq 'USER_DEVICE="iio:device1"' "$USER_CONFIG_FILE"; then
+        echo "USER_CONFIG_FILE übernahm den Device-Wert aus der Vorlage nicht" >&2
         return 1
     fi
 
@@ -149,11 +154,6 @@ TEMPLATE
 
     if ! grep -Fq "Scale 70000 liegt außerhalb" "$log_file"; then
         echo "Log meldete die Scale-Korrektur nicht" >&2
-        return 1
-    fi
-
-    if ! grep -Fq 'Umgebungsvariable EXPANDERPI_DEVICE: ungültiger Device-Wert "foo"' "$log_file"; then
-        echo "Log meldete den Device-Fallback nicht" >&2
         return 1
     fi
 

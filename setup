@@ -1001,6 +1001,7 @@ load_default_adc_defaults() {
     local -n _out_scale="$2"
     local -n _out_types="$3"
     local -n _out_labels="$4"
+    # Erwartet als fünftes Argument den Variablennamen für die Device-Ausgabe (Namens-Referenz).
     local -n _out_device="$5"
 
     local template_file="${SOURCE_FILE_DIR}/configs/dbus-adc.conf"
