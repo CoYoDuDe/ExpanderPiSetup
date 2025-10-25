@@ -8,7 +8,17 @@ if [ ! -r "$helper_resource" ]; then
     echo "Bitte SetupHelper gemäß Dokumentation installieren oder den Pfad anpassen." >&2
     exit 1
 fi
-. "$helper_resource"
+if ! . "$helper_resource"; then
+    echo "Fehler: Helper-Ressourcen konnten nicht geladen werden (source $helper_resource)." >&2
+    echo "Bitte SetupHelper-Installation prüfen und erneut versuchen." >&2
+    exit 1
+fi
+
+if ! declare -F logMessage >/dev/null 2>&1; then
+    echo "Fehler: Erwartete Helper-Funktion logMessage ist nach dem Laden nicht verfügbar." >&2
+    echo "Bitte SetupHelper-Installation prüfen und erneut versuchen." >&2
+    exit 1
+fi
 
 # Standardaktionen aktivieren
 standardPromptAndActions='yes'
