@@ -1001,7 +1001,7 @@ load_default_adc_defaults() {
     local -n _out_scale="$2"
     local -n _out_types="$3"
     local -n _out_labels="$4"
-    local _out_device_name="$5"
+    local -n _out_device="$5"
 
     local template_file="${SOURCE_FILE_DIR}/configs/dbus-adc.conf"
     local template_loaded=false
@@ -1085,7 +1085,7 @@ load_default_adc_defaults() {
 
     _out_vref="$default_vref"
     _out_scale="$default_scale"
-    printf -v "${_out_device_name}" '%s' "$template_device"
+    _out_device="$template_device"
 }
 
 is_truthy() {
