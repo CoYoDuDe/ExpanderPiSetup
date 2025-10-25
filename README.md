@@ -23,6 +23,16 @@ Beachte, dass sämtliche Befehle innerhalb des SetupHelper-Kontextes laufen müs
 
 > **Hinweis:** Das Setup-Skript erwartet die SetupHelper-Hilfsbibliothek exakt unter `/data/SetupHelper/HelperResources/forSetupScript`, wie sie vom offiziellen SetupHelper-Archiv ausgeliefert wird. Wird der SetupHelper an einen anderen Ort entpackt, muss dieser Pfad per Symlink bereitgestellt oder das Skript entsprechend angepasst werden. Andernfalls bricht der Installer frühzeitig mit der Meldung „SetupHelper-Ressourcen wurden nicht … gefunden.“ ab.
 
+### Unterstützte Raspberry-Pi-Modelle
+
+Das Setup prüft den Venus-Gerätetyp (`/etc/venus/machine`) und lässt nur freigegebene Raspberry-Pi-Varianten zu. Aktuell werden folgende Boards unterstützt:
+
+* **Raspberry Pi 2** – Venus-Gerätekennung `raspberrypi2`
+* **Raspberry Pi 3** – Venus-Gerätekennung `raspberrypi3`
+* **Raspberry Pi 4** – Venus-Gerätekennung `raspberrypi4`
+
+Diese Auswahl deckt die Modelle ab, die laut [AB Electronics Expander Pi Produktseite](https://www.abelectronics.co.uk/p/65/expander-pi) ausdrücklich unterstützt werden. Damit bleibt die Hardware-Matrix mit den offiziellen Herstellerangaben abgeglichen und kann bei Bedarf unkompliziert erweitert werden.
+
 ### Koexistenz mit GuiMods
 
 Die Kombination mit dem optionalen Oberflächenpaket **GuiMods** wurde zuletzt am 24.10.2025 mit der veröffentlichten Variante **GuiMods v2025.10** sowie dem ExpanderPiSetup **v0.0.4** erfolgreich über den SetupHelper-Paketmanager geprüft. Die Installation erfolgte nicht-interaktiv via `setup package-manager install` und setzte dabei die von GuiMods ausgelieferten UI-Erweiterungen unverändert ein. Dadurch ist dokumentiert, dass beide Add-ons parallel betrieben werden können, ohne dass der Paketmanager Konflikte meldet.
