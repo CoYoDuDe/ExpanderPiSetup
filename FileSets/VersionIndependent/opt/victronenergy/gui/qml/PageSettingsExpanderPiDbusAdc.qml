@@ -173,18 +173,48 @@ MbPage {
         return labelText + " • " + typeText;
     }
 
-    function ensureChannelDefault(binding) {
+    function ensureChannelDefault(binding, overrideExisting) {
         if (!binding) {
             return;
         }
 
-        var defaults = defaultChannelSetup[binding.channelIndex] || { type: "none", label: "" };
-
-        if (!binding.typeItem.valid || !binding.typeItem.value || binding.typeItem.value === "") {
-            binding.typeItem.setValue(defaults.type);
+        var forceOverride = false;
+        if (overrideExisting === true) {
+            forceOverride = true;
+        } else if (overrideExisting && overrideExisting.overrideExisting) {
+            forceOverride = true;
         }
 
-        var effectiveType = String(binding.typeItem.value || defaults.type || "none");
+        var defaults = defaultChannelSetup[binding.channelIndex] || { type: "none", label: "" };
+        var defaultType = canonicalSensorType(defaults.type || "none");
+        var defaultLabel = defaults.label;
+        if (defaultLabel === undefined || defaultLabel === null) {
+            defaultLabel = defaultLabelForType(defaultType, binding.channelIndex);
+        }
+        if (defaultType === "none") {
+            defaultLabel = "";
+        }
+        if (defaultLabel === undefined || defaultLabel === null) {
+            defaultLabel = "";
+        }
+
+        if (forceOverride) {
+            if (binding.typeItem && binding.typeItem.valid) {
+                binding.typeItem.setValue(defaultType);
+            }
+            if (binding.labelItem && binding.labelItem.valid) {
+                binding.labelItem.setValue(defaultLabel);
+            }
+            return;
+        }
+
+        if (!binding.typeItem.valid || binding.typeItem.value === undefined || binding.typeItem.value === null || String(binding.typeItem.value).trim().length === 0) {
+            if (binding.typeItem.valid) {
+                binding.typeItem.setValue(defaultType);
+            }
+        }
+
+        var effectiveType = String(binding.typeItem.value || defaultType || "none");
         var canonicalType = canonicalSensorType(effectiveType);
         if (binding.typeItem.valid && canonicalType !== binding.typeItem.value) {
             binding.typeItem.setValue(canonicalType);
@@ -192,18 +222,21 @@ MbPage {
         } else {
             effectiveType = canonicalType;
         }
+
         var normalizedType = effectiveType.toLowerCase();
         var currentLabel = binding.labelItem.value;
-        var trimmedLabel = String(currentLabel === undefined ? "" : currentLabel).trim();
-        var labelMissing = !binding.labelItem.valid || currentLabel === undefined || trimmedLabel.length === 0;
+        var trimmedLabel = String(currentLabel === undefined || currentLabel === null ? "" : currentLabel).trim();
+        var labelMissing = !binding.labelItem.valid || currentLabel === undefined || currentLabel === null || trimmedLabel.length === 0;
 
-        if (binding.labelItem.valid && currentLabel !== undefined && currentLabel !== "" && trimmedLabel.length === 0) {
+        if (binding.labelItem.valid && currentLabel !== undefined && currentLabel !== null && currentLabel !== "" && trimmedLabel.length === 0) {
             binding.labelItem.setValue("");
             currentLabel = "";
+            trimmedLabel = "";
+            labelMissing = true;
         }
 
         if (normalizedType === "none") {
-            if (!labelMissing) {
+            if (!labelMissing && binding.labelItem.valid) {
                 binding.labelItem.setValue("");
             }
             return;
@@ -214,7 +247,12 @@ MbPage {
         }
 
         var typeDefaultLabel = defaultLabelForType(effectiveType, binding.channelIndex);
-        if (typeDefaultLabel && typeDefaultLabel.length > 0) {
+        var normalizedDefaultLabel = defaultLabel;
+        if (normalizedDefaultLabel && String(normalizedDefaultLabel).length > 0) {
+            binding.labelItem.setValue(normalizedDefaultLabel);
+            return;
+        }
+        if (typeDefaultLabel && String(typeDefaultLabel).length > 0) {
             binding.labelItem.setValue(typeDefaultLabel);
             return;
         }
@@ -278,7 +316,20 @@ MbPage {
     }
 
     function reloadFromPersistedState() {
-        ensureDefaults();
+        if (vrefItem && vrefItem.valid) {
+            vrefItem.setValue("1.300");
+        }
+        if (scaleItem && scaleItem.valid) {
+            scaleItem.setValue("4095");
+        }
+
+        for (var i = 0; i < channelCount; ++i) {
+            var channel = channelBindings[i];
+            if (!channel) {
+                continue;
+            }
+            ensureChannelDefault(channel, true);
+        }
     }
 
     property var channelBindings: new Array(channelCount)
