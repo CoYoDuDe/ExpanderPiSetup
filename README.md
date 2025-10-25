@@ -130,6 +130,8 @@ Das Setup-Skript übernimmt die `device`-Zeile dynamisch aus der Vorlage `FileSe
 
 Der Aufruf `setup install` führt weiterhin alle Installationsschritte inklusive Datei- und Systemänderungen aus. Der neue Pfad `setup check` verbleibt hingegen vollständig im Validierungsmodus: Es werden lediglich Sicherungen der Ausgangsdateien angelegt, die Konfigurationsvorlage geparst und die Kernelmodul-Abhängigkeiten geprüft. Der Lauf beendet sich anschließend ohne `dbus-adc.conf`, `config.txt`, Overlays oder `rc.local` anzupassen – exakt das Verhalten, das der SetupHelper für seine nicht-destruktiven Vorprüfungen erwartet.
 
+Fehler im CHECK-Modus brechen seit Version v0.0.4 ohne jegliche Bereinigung ab: Weder Overlays noch State-Dateien werden entfernt oder verändert. Damit lassen sich Validierungsläufe gefahrlos wiederholen, selbst wenn einzelne Prüfungen scheitern.
+
 ## Bedienung
 
 1. SetupHelper öffnen und **Hardware → ExpanderPi DBus-ADC** wählen.

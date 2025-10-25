@@ -6,6 +6,8 @@ temp_machine_dir=""
 work_dir=""
 install_failed=0
 last_failure=""
+helper_resource_file=""
+helper_resource_created=false
 
 cleanup() {
     rm -f "$tmp_script"
@@ -14,6 +16,11 @@ cleanup() {
     fi
     if [ -n "${work_dir:-}" ] && [ -d "$work_dir" ]; then
         rm -rf "$work_dir"
+    fi
+    if [ "$helper_resource_created" = true ] && [ -n "${helper_resource_file:-}" ]; then
+        rm -f "$helper_resource_file"
+        rmdir --ignore-fail-on-non-empty "$(dirname "$helper_resource_file")" 2>/dev/null || true
+        rmdir --ignore-fail-on-non-empty "$(dirname "$(dirname "$helper_resource_file")")" 2>/dev/null || true
     fi
 }
 trap cleanup EXIT
@@ -74,6 +81,13 @@ main() {
     EXIT_INCOMPATIBLE_PLATFORM=${EXIT_INCOMPATIBLE_PLATFORM:-2}
     EXIT_ERROR=${EXIT_ERROR:-1}
     EXIT_FILE_SET_ERROR=${EXIT_FILE_SET_ERROR:-3}
+
+    helper_resource_file="/data/SetupHelper/HelperResources/forSetupScript"
+    if [ ! -e "$helper_resource_file" ]; then
+        helper_resource_created=true
+        mkdir -p "$(dirname "$helper_resource_file")"
+        : > "$helper_resource_file"
+    fi
 
     # shellcheck source=/dev/null
     source "$tmp_script"
@@ -195,6 +209,58 @@ TEMPLATE
 
     if [ "$(sha256sum "${OVERLAY_DIR}/mcp3208.dtbo" | awk '{print $1}')" != "$overlay_adc_before" ]; then
         echo "Overlay mcp3208.dtbo wurde im CHECK-Modus verändert." >&2
+        exit 1
+    fi
+
+    echo "Prüfe Regression: CHECK-Fehlschlag darf keine Bereinigung auslösen."
+
+    run_uninstall_sequence_called=0
+    run_uninstall_sequence() {
+        run_uninstall_sequence_called=$((run_uninstall_sequence_called + 1))
+    }
+
+    has_install_failed_flag() {
+        return 0
+    }
+
+    cleanup_executed=false
+    scriptAction="CHECK"
+
+    final_block="$(awk '
+        /^if \[ "\$cleanup_executed" != true \]; then$/ { capture=1 }
+        capture { print }
+        /^endScript$/ { if (capture) exit }
+    ' "$(dirname "$0")/../setup")"
+
+    if [ -z "$final_block" ]; then
+        echo "Abschlussblock konnte nicht extrahiert werden." >&2
+        exit 1
+    fi
+
+    eval "$final_block"
+
+    if [ "$run_uninstall_sequence_called" -ne 0 ]; then
+        echo "run_uninstall_sequence wurde im CHECK-Fehlerfall unerwartet aufgerufen." >&2
+        exit 1
+    fi
+
+    if [ ! -f "${OVERLAY_DIR}/i2c-rtc.dtbo" ] || [ ! -f "${OVERLAY_DIR}/mcp3208.dtbo" ]; then
+        echo "Overlays wurden nach CHECK-Fehler unerwartet entfernt." >&2
+        exit 1
+    fi
+
+    if [ -d "$OVERLAY_STATE_DIR" ] || [ -d "$MODULE_STATE_DIR" ]; then
+        echo "CHECK-Fehler darf keine Zustandsverzeichnisse anlegen." >&2
+        exit 1
+    fi
+
+    if [ "$(sha256sum "${OVERLAY_DIR}/i2c-rtc.dtbo" | awk '{print $1}')" != "$overlay_rtc_before" ]; then
+        echo "Overlay i2c-rtc.dtbo wurde im CHECK-Fehlerfall verändert." >&2
+        exit 1
+    fi
+
+    if [ "$(sha256sum "${OVERLAY_DIR}/mcp3208.dtbo" | awk '{print $1}')" != "$overlay_adc_before" ]; then
+        echo "Overlay mcp3208.dtbo wurde im CHECK-Fehlerfall verändert." >&2
         exit 1
     fi
 
