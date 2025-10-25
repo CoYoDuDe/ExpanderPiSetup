@@ -21,6 +21,8 @@ Nach Abschluss der SetupHelper-Installation steht die Blind-Install-Routine zur 
 
 Beachte, dass sämtliche Befehle innerhalb des SetupHelper-Kontextes laufen müssen. Ohne den SetupHelper lassen sich weder die Blind-Install-Automatik noch der Paketmanager nutzen.
 
+> **Hinweis:** Das Setup-Skript erwartet die SetupHelper-Hilfsbibliothek exakt unter `/data/SetupHelper/HelperResources/forSetupScript`, wie sie vom offiziellen SetupHelper-Archiv ausgeliefert wird. Wird der SetupHelper an einen anderen Ort entpackt, muss dieser Pfad per Symlink bereitgestellt oder das Skript entsprechend angepasst werden. Andernfalls bricht der Installer frühzeitig mit der Meldung „SetupHelper-Ressourcen wurden nicht … gefunden.“ ab.
+
 ### Koexistenz mit GuiMods
 
 Die Kombination mit dem optionalen Oberflächenpaket **GuiMods** wurde zuletzt am 24.10.2025 mit der veröffentlichten Variante **GuiMods v2025.10** sowie dem ExpanderPiSetup **v0.0.4** erfolgreich über den SetupHelper-Paketmanager geprüft. Die Installation erfolgte nicht-interaktiv via `setup package-manager install` und setzte dabei die von GuiMods ausgelieferten UI-Erweiterungen unverändert ein. Dadurch ist dokumentiert, dass beide Add-ons parallel betrieben werden können, ohne dass der Paketmanager Konflikte meldet.

@@ -2,7 +2,13 @@
 
 # Setup-Skript für ExpanderPiSetup
 # Einbinden der Helper-Ressourcen
-. /data/SetupHelper/HelperResources/forSetupScript || true
+helper_resource="/data/SetupHelper/HelperResources/forSetupScript"
+if [ ! -r "$helper_resource" ]; then
+    echo "Fehler: SetupHelper-Ressourcen wurden nicht unter $helper_resource gefunden." >&2
+    echo "Bitte SetupHelper gemäß Dokumentation installieren oder den Pfad anpassen." >&2
+    exit 1
+fi
+. "$helper_resource"
 
 # Standardaktionen aktivieren
 standardPromptAndActions='yes'
