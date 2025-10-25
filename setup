@@ -387,11 +387,15 @@ if [ ! -f "$machine_file" ]; then
 fi
 
 machine=$(cat "$machine_file")
-if [[ "$machine" != "raspberrypi2" && "$machine" != "raspberrypi4" ]]; then
-    logMessage "$machine wird nicht unterstützt - Skript wird beendet."
-    setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "$machine wird nicht unterstützt."
-    abort_incompatible_platform
-fi
+case "$machine" in
+    raspberrypi2|raspberrypi3|raspberrypi4)
+        ;;
+    *)
+        logMessage "$machine wird nicht unterstützt - Skript wird beendet."
+        setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "$machine wird nicht unterstützt."
+        abort_incompatible_platform
+        ;;
+esac
 
 # Hilfsfunktion zur Erkennung des CHECK-Modus
 is_check_mode() {

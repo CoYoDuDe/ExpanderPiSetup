@@ -121,6 +121,32 @@ if [ -d "${work_dir}/state" ]; then
     exit 1
 fi
 
+: >"$log_file"
+echo "raspberrypi3" >"$machine_file"
+
+set +e
+bash "$script_dir" >/dev/null 2>&1
+status=$?
+set -e
+
+if [ "$status" -ne 0 ]; then
+    echo "Skript bricht für raspberrypi3 weiterhin ab (Status: $status)." >&2
+    cat "$log_file" >&2
+    exit 1
+fi
+
+if grep -q 'LOG:Abbruch wegen inkompatibler Plattform.' "$log_file"; then
+    echo "raspberrypi3 löst weiterhin den Inkompatibilitätsabbruch aus." >&2
+    cat "$log_file" >&2
+    exit 1
+fi
+
+if grep -q 'SETINSTALLFAILED' "$log_file"; then
+    echo "setInstallFailed wird für raspberrypi3 weiterhin gesetzt." >&2
+    cat "$log_file" >&2
+    exit 1
+fi
+
 if find "$work_dir" -name '*.orig' -print -quit | grep -q .; then
     echo "Es wurden unerwartet .orig-Dateien erzeugt." >&2
     find "$work_dir" -name '*.orig' -print >&2
