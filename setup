@@ -27,6 +27,7 @@ standardPromptAndActions='yes'
 nonInteractiveMode=false
 force_override_active=false
 forced_non_interactive=""
+rebootNeeded=false
 
 if [ "${SETUPHELPER_FORCE_NONINTERACTIVE:-}" != "" ]; then
     case "${SETUPHELPER_FORCE_NONINTERACTIVE,,}" in
@@ -2806,6 +2807,15 @@ if [ "$cleanup_executed" != true ]; then
     elif [ "${scriptAction:-}" != "CHECK" ] && has_install_failed_flag; then
         logMessage "Installationsfehler erkannt – führe Bereinigung wie im UNINSTALL-Fall aus."
         run_uninstall_sequence
+    fi
+fi
+
+if [ "${rebootNeeded:-false}" = true ]; then
+    if declare -F setRebootRequired >/dev/null 2>&1; then
+        logMessage "Neustart erforderlich – melde Bedarf über setRebootRequired."
+        setRebootRequired
+    else
+        logMessage "Warnung: Neustart erforderlich, aber Helper-Funktion setRebootRequired ist nicht verfügbar."
     fi
 fi
 
