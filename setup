@@ -1142,7 +1142,9 @@ sanitize_numeric_value() {
             in_range=false
         fi
     else
-        if ! awk -v v="$sanitized_value" -v min="$min_value" -v max="$max_value" 'BEGIN { if (v < min || v > max) exit 1; exit 0 }'; then
+        if ! [[ "$sanitized_value" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
+            in_range=false
+        elif ! awk -v v="$sanitized_value" -v min="$min_value" -v max="$max_value" 'BEGIN { if (v < min || v > max) exit 1; exit 0 }'; then
             in_range=false
         fi
     fi
@@ -1168,7 +1170,9 @@ sanitize_numeric_value() {
                 fallback_valid=false
             fi
         else
-            if ! awk -v v="$fallback_candidate" -v min="$min_value" -v max="$max_value" 'BEGIN { if (v < min || v > max) exit 1; exit 0 }'; then
+            if ! [[ "$fallback_candidate" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
+                fallback_valid=false
+            elif ! awk -v v="$fallback_candidate" -v min="$min_value" -v max="$max_value" 'BEGIN { if (v < min || v > max) exit 1; exit 0 }'; then
                 fallback_valid=false
             fi
         fi
