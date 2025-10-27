@@ -860,28 +860,24 @@ normalize_channel_label() {
         trimmed="$fallback"
     fi
 
-    local lowered
-    lowered="$(printf '%s' "$trimmed" | tr '[:upper:]' '[:lower:]')"
+    if [ "${#trimmed}" -ge 2 ]; then
+        local first_char="${trimmed:0:1}"
+        local last_char="${trimmed: -1}"
 
-    if [[ "$lowered" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
-        printf '%s' "$lowered"
-        return 0
+        if [[ "$first_char" == '"' && "$last_char" == '"' ]]; then
+            trimmed="${trimmed:1:-1}"
+        elif [[ "$first_char" == $'\'' && "$last_char" == $'\'' ]]; then
+            trimmed="${trimmed:1:-1}"
+        fi
     fi
 
-    local sanitized
-    sanitized="$(printf '%s' "$lowered" | tr -cd '[:alnum:]_.:/-')"
+    trimmed="$(printf '%s' "$trimmed" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 
-    if [ -z "$sanitized" ]; then
-        sanitized="$fallback"
+    if [ -z "$trimmed" ]; then
+        trimmed="$fallback"
     fi
 
-    sanitized="$(printf '%s' "$sanitized" | tr '[:upper:]' '[:lower:]')"
-
-    if [[ "$sanitized" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
-        printf '%s' "$sanitized"
-    else
-        printf '%s' "$(printf '%s' "$fallback" | tr '[:upper:]' '[:lower:]')"
-    fi
+    printf '%s' "$trimmed"
 }
 
 trim_whitespace() {
@@ -1501,7 +1497,7 @@ prompt_sensor_label() {
         local trimmed_input
         trimmed_input="$(printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
         local lowered_input
-        lowered_input="$(printf '%s' "$trimmed_input" | tr '[:upper:]' '[:lower:]')"
+        lowered_input="${trimmed_input,,}"
 
         if [ -z "$trimmed_input" ] || [[ "$lowered_input" =~ ^(-|none|leer|kein|keine|aus)$ ]]; then
             if [ "$require_non_empty" = "true" ]; then
@@ -1523,25 +1519,31 @@ prompt_sensor_label() {
             fi
         fi
 
-        if [[ "$trimmed_input" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]]; then
-            local normalized_input
-            normalized_input="$(printf '%s' "$trimmed_input" | tr '[:upper:]' '[:lower:]')"
-
-            if declare -F yesNoPrompt >/dev/null 2>&1; then
-                if yesNoPrompt "Sensor '${normalized_input}' für Kanal ${channel_display} übernehmen (y/n)? "; then
-                    echo "$normalized_input"
-                    return 0
-                else
-                    logMessage "Eingabe verworfen. Bitte erneut angeben."
-                    continue
-                fi
-            else
-                echo "$normalized_input"
-                return 0
-            fi
+        local fallback_label="$default_value"
+        if [ -z "$fallback_label" ]; then
+            fallback_label="$(channel_label_fallback "$channel" "none")"
         fi
 
-        logMessage "Ungültige Eingabe für Kanal ${channel_display}. Bitte nur Buchstaben, Zahlen sowie '._:/-' verwenden."
+        local normalized_input
+        normalized_input="$(normalize_channel_label "$trimmed_input" "$fallback_label")"
+
+        if [ -z "$normalized_input" ]; then
+            logMessage "Bitte eine Sensorbezeichnung für Kanal ${channel_display} angeben."
+            continue
+        fi
+
+        if declare -F yesNoPrompt >/dev/null 2>&1; then
+            if yesNoPrompt "Sensor '${normalized_input}' für Kanal ${channel_display} übernehmen (y/n)? "; then
+                echo "$normalized_input"
+                return 0
+            else
+                logMessage "Eingabe verworfen. Bitte erneut angeben."
+                continue
+            fi
+        else
+            echo "$normalized_input"
+            return 0
+        fi
     done
 }
 
@@ -1730,6 +1732,29 @@ prompt_channel_assignment() {
                 ;;
         esac
     done
+}
+
+format_label_for_dbus_config() {
+    local label="$1"
+
+    local escaped=${label//\/\\}
+    local dq='"'
+    local dq_escape='\"'
+    escaped=${escaped//"$dq"/$dq_escape}
+
+    local needs_quotes=false
+    local without_quotes=${label//"$dq"/}
+    if [ "$without_quotes" != "$label" ]; then
+        needs_quotes=true
+    elif [[ "$label" == *[[:space:]]* || "$label" == *#* ]]; then
+        needs_quotes=true
+    fi
+
+    if [ "$needs_quotes" = true ]; then
+        printf '%s%s%s' "$dq" "$escaped" "$dq"
+    else
+        printf '%s' "$escaped"
+    fi
 }
 
 ## Konfigurationsdateien installieren und deinstallieren
@@ -2058,7 +2083,9 @@ install_config() {
         case "$current_type" in
             tank|temp)
                 if [ -n "$current_label" ]; then
-                    config_lines+=("label ${current_label}")
+                    local formatted_label
+                    formatted_label="$(format_label_for_dbus_config "$current_label")"
+                    config_lines+=("label ${formatted_label}")
                 fi
                 config_lines+=("${current_type} ${channel}")
                 ;;

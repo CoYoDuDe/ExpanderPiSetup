@@ -98,6 +98,8 @@ Die Standardkanäle orientieren sich an der Victron-Vorbelegung: vier Tank- und 
 
 Zusätzliche Label-Defaults lassen sich direkt in der Vorlagedatei (`FileSets/configs/dbus-adc.conf`) über klassische `label <text>`-Zeilen vor den jeweiligen `tank`-/`temp`-Einträgen hinterlegen. Das Setup merkt sich den zuletzt gelesenen Label-Text und verknüpft ihn beim Laden der Standardwerte automatisch mit dem nachfolgenden Kanal. Inline-Beschriftungen wie `tank 0 Brauchwasser` bleiben parallel nutzbar und überschreiben den gepufferten Wert.
 
+Labels, die aus Templates, der GUI oder Umgebungsvariablen stammen, bleiben künftig vollständig erhalten: Das Setup entfernt ausschließlich umschließende Anführungszeichen, konserviert Leerzeichen sowie Sonderzeichen und schreibt die Angaben unverändert in die Benutzerkonfiguration zurück. Beim Erzeugen der `dbus-adc.conf` werden alle Label-Zeilen gemäß `dbus-adc`-Spezifikation automatisch in doppelte Anführungszeichen gesetzt, sobald Leerzeichen oder ein `#` enthalten sind; vorhandene doppelte Anführungszeichen im Text werden dafür maskiert. So sind sprechende Namen wie `"Tank Alpha"` oder `Service #1` ohne manuelle Nacharbeit zulässig.
+
 ## Zulässige Wertebereiche für den dbus-adc
 
 Die dbus-adc-Treiber auf dem Venus OS akzeptieren nur Werte innerhalb definierter Grenzen:
