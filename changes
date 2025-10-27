@@ -1,6 +1,5 @@
 Unveröffentlicht:
-- Default-Template-Parser entfernt Kommentare jetzt nur noch außerhalb von Anführungszeichen, sodass Labels wie `Temp "#1"` un
-  verändert bleiben; Regressionstest schützt das Verhalten.
+- Default-Template-Parser nutzt eine Shell-basierte Zeichenanalyse, entfernt Kommentarzeichen ausschließlich außerhalb von Quotes und bewahrt so Labeltexte wie `Temp "#1"` sowie `label "Service #1"`; ein Regressionstest deckt das Szenario ab.
 - Python-D-Bus-Loader prüft vor dem Einsatz von `shlex.quote`, ob die Funktion verfügbar ist, und verwendet andernfalls automatisch `pipes.quote` bzw. eine POSIX-konforme Fallback-Routine mit identischem Escaping.
 - Neuer Shell-Test simuliert einen Interpreter ohne `shlex.quote`, inklusive Stub-D-Bus-Modul, und verifiziert korrekte Maskierung für Leerzeichen und einfache Anführungszeichen.
 - README dokumentiert explizit die unterstützten Python-Interpreter (Python 2.7 sowie alle Python-3-Varianten) für den nicht-interaktiven Konfigurationsabruf.
