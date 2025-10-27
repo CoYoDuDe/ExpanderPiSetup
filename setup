@@ -926,6 +926,17 @@ trim_whitespace() {
     printf '%s' "$input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
 
+escape_for_shell_assignment() {
+    local value="$1"
+    local dq=$'"'
+    local dq_escape='\"'
+
+    value=${value//\\/\\\\}
+    value=${value//${dq}/${dq_escape}}
+
+    printf '%s' "$value"
+}
+
 normalize_device_value() {
     local raw_value="$1"
 
@@ -2190,9 +2201,11 @@ install_config() {
             local type_value="${channel_types[channel]}"
             type_value="$(canonicalize_sensor_type "$type_value")"
             channel_types[channel]="$type_value"
-            echo "USER_CHANNEL_${channel}=\"${value}\""
+            local escaped_value
+            escaped_value="$(escape_for_shell_assignment "$value")"
+            echo "USER_CHANNEL_${channel}=\"${escaped_value}\""
             echo "USER_CHANNEL_${channel}_TYPE=\"${type_value}\""
-            echo "USER_CHANNEL_${channel}_LABEL=\"${value}\""
+            echo "USER_CHANNEL_${channel}_LABEL=\"${escaped_value}\""
         done
     } > "$USER_CONFIG_FILE"; then
         logMessage "Fehler beim Schreiben der Benutzerkonfiguration nach ${USER_CONFIG_FILE}."

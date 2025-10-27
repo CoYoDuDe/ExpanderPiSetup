@@ -394,6 +394,113 @@ if ! grep -Fq 'USER_CHANNEL_0_LABEL="Tank Alpha"' "$USER_CONFIG_FILE"; then
     exit 1
 fi
 
+log_messages=()
+
+escape_root="${work_root}/escape_case"
+ROOT_PATH="${escape_root}/root"
+CONFIG_FILE="${escape_root}/venus/dbus-adc.conf"
+BACKUP_CONFIG_FILE="${CONFIG_FILE}.orig"
+USER_CONFIG_FILE="${escape_root}/dbus-adc.user.conf"
+CONFIG_TXT="${escape_root}/u-boot/config.txt"
+CONFIG_TXT_BACKUP="${CONFIG_TXT}.orig"
+OVERLAY_DIR="${escape_root}/overlays"
+MODULE_STATE_DIR="${escape_root}/modules"
+RC_LOCAL_FILE="${escape_root}/rc.local"
+RC_LOCAL_BACKUP="${RC_LOCAL_FILE}.orig"
+RC_LOCAL_STATE_FILE="${escape_root}/rc_local_state"
+
+mkdir -p "$(dirname "$CONFIG_FILE")" "$(dirname "$CONFIG_TXT")" "$OVERLAY_DIR" "$MODULE_STATE_DIR" "$(dirname "$RC_LOCAL_FILE")" \
+    "$(dirname "$USER_CONFIG_FILE")"
+
+mkdir -p "$ROOT_PATH"
+
+SOURCE_FILE_DIR="${escape_root}/filesets"
+mkdir -p "${SOURCE_FILE_DIR}/configs"
+
+cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
+device iio:device3
+vref 2.5
+scale 32767
+
+tank 0 Tank "Default"
+TEMPLATE
+
+> "$CONFIG_TXT"
+
+complex_label=$'Temp "Außen"\\Backslash'
+
+for channel in $(seq 0 $((TOTAL_ADC_CHANNELS - 1))); do
+    type_var="EXPANDERPI_CHANNEL_${channel}_TYPE"
+    label_var="EXPANDERPI_CHANNEL_${channel}_LABEL"
+
+    if [ "$channel" -eq 0 ]; then
+        printf -v "$type_var" '%s' "temp"
+        printf -v "$label_var" '%s' "$complex_label"
+    else
+        printf -v "$type_var" '%s' "none"
+        printf -v "$label_var" '%s' ""
+    fi
+
+    export "$type_var"
+    export "$label_var"
+done
+
+unset EXPANDERPI_VREF
+unset EXPANDERPI_SCALE
+unset EXPANDERPI_DEVICE
+
+if ! install_config; then
+    echo "install_config schlug für das Label mit Sonderzeichen fehl" >&2
+    exit 1
+fi
+
+expected_serialized='USER_CHANNEL_0_LABEL="Temp \"Außen\"\\Backslash"'
+
+if ! grep -Fq "$expected_serialized" "$USER_CONFIG_FILE"; then
+    echo "USER_CONFIG_FILE enthält keine korrekt serialisierte Zeile für das Sonderzeichen-Label." >&2
+    exit 1
+fi
+
+if ! env -i bash -n "$USER_CONFIG_FILE"; then
+    echo "dbus-adc.user.conf enthält Syntaxfehler und ist nicht bash-kompatibel." >&2
+    exit 1
+fi
+
+if ! python3 - "$USER_CONFIG_FILE" <<'PY'; then
+import shlex
+import sys
+
+expected = 'Temp "Außen"\\Backslash'
+values = {}
+with open(sys.argv[1], 'r', encoding='utf-8') as fh:
+    for raw_line in fh:
+        line = raw_line.strip()
+        if not line or line.startswith('#'):
+            continue
+        if '=' not in line:
+            continue
+        key, raw_value = line.split('=', 1)
+        try:
+            parsed = shlex.split(raw_value, posix=True)
+        except ValueError as exc:  # pragma: no cover - defensiv
+            raise SystemExit(f"Fehler beim Parsen von {key}: {exc}")
+        if not parsed:
+            continue
+        values[key] = parsed[0]
+
+if values.get('USER_CHANNEL_0_LABEL') != expected:
+    raise SystemExit(
+        f"Unerwarteter Wert für USER_CHANNEL_0_LABEL: {values.get('USER_CHANNEL_0_LABEL')!r}"
+    )
+if values.get('USER_CHANNEL_0') != expected:
+    raise SystemExit(
+        f"Unerwarteter Wert für USER_CHANNEL_0: {values.get('USER_CHANNEL_0')!r}"
+    )
+PY
+    echo "USER_CONFIG_FILE liefert nach dem Parsen nicht den ursprünglichen Labelwert." >&2
+    exit 1
+fi
+
 for msg in "${log_messages[@]}"; do
     if [[ "$msg" == *"Ungültige Eingabe"* ]]; then
         echo "install_config meldete eine ungültige Eingabe trotz gültigem Label: ${msg}" >&2
