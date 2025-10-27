@@ -1944,11 +1944,11 @@ install_config() {
             local saved_label=""
             local saved_type=""
 
-            if [ "${!label_var+x}" = x ]; then
+            if [[ -v ${label_var} ]]; then
                 saved_label="${!label_var}"
             fi
 
-            if [ "${!type_var+x}" = x ]; then
+            if [[ -v ${type_var} ]]; then
                 saved_type="${!type_var}"
             fi
 
