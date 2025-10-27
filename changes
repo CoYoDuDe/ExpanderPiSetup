@@ -1,3 +1,8 @@
+Unveröffentlicht:
+- Python-D-Bus-Loader prüft vor dem Einsatz von `shlex.quote`, ob die Funktion verfügbar ist, und verwendet andernfalls automatisch `pipes.quote` bzw. eine POSIX-konforme Fallback-Routine mit identischem Escaping.
+- Neuer Shell-Test simuliert einen Interpreter ohne `shlex.quote`, inklusive Stub-D-Bus-Modul, und verifiziert korrekte Maskierung für Leerzeichen und einfache Anführungszeichen.
+- README dokumentiert explizit die unterstützten Python-Interpreter (Python 2.7 sowie alle Python-3-Varianten) für den nicht-interaktiven Konfigurationsabruf.
+
 v0.0.4:
 - Float-Validierung akzeptiert nur noch Werte mit optionalem Vorzeichen und exakt einem Dezimalpunkt; Dezimalkomma-Eingaben fallen zuverlässig auf den dokumentierten Vref-Fallback zurück und werden inklusive Log-Meldung getestet.
 - Device-Zeile der `dbus-adc.conf` wird dynamisch aus der Vorlage übernommen und kann per `EXPANDERPI_DEVICE` oder gespeicherter Benutzerkonfiguration überschrieben werden; Standard bleibt `iio:device0`.

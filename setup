@@ -172,8 +172,84 @@ _run_gui_configuration_loader() {
     local _python_cmd="$1"
 
     "$_python_cmd" <<'PY'
-import shlex
+from __future__ import print_function
+
 import sys
+
+try:
+    text_type = unicode  # type: ignore[name-defined]
+    binary_type = str
+except NameError:
+    text_type = str
+    binary_type = bytes
+
+
+def _get_shell_quote():
+    try:
+        import shlex  # noqa: F401
+    except ImportError:
+        shlex = None
+
+    if shlex is not None and hasattr(shlex, "quote"):
+        return shlex.quote
+
+    try:
+        from pipes import quote as pipes_quote
+    except ImportError:
+        pipes_quote = None
+
+    if pipes_quote is not None:
+        return pipes_quote
+
+    import re
+
+    _find_unsafe = re.compile(r"[^\w@%+=:,./-]").search
+
+    def _manual_quote(value):
+        if value is None:
+            value = ""
+        else:
+            value = str(value)
+
+        if not value:
+            return "''"
+
+        if _find_unsafe(value) is None:
+            return value
+
+        return "'" + value.replace("'", "'\"'\"'") + "'"
+
+    return _manual_quote
+
+
+shell_quote = _get_shell_quote()
+del _get_shell_quote
+
+
+def safe_quote(value):
+    if value is None:
+        text = ""
+    elif isinstance(value, text_type):
+        text = value
+    elif isinstance(value, binary_type):
+        try:
+            text = value.decode("utf-8", "surrogateescape")
+        except Exception:
+            text = value.decode("utf-8", "ignore")
+    else:
+        try:
+            text = text_type(value)
+        except Exception:
+            text = str(value)
+
+    if sys.version_info[0] < 3 and isinstance(text, text_type):
+        try:
+            text = text.encode("utf-8")
+        except Exception:
+            text = text.encode("utf-8", "ignore")
+
+    return shell_quote(text)
+
 
 try:
     import dbus
@@ -205,15 +281,15 @@ values["EXPANDERPI_VREF"] = get_value(root + "/Vref")
 values["EXPANDERPI_SCALE"] = get_value(root + "/Scale")
 
 for idx in range(8):
-    base = f"{root}/Channel{idx}"
-    values[f"EXPANDERPI_CHANNEL_{idx}_TYPE"] = get_value(base + "/Type")
-    values[f"EXPANDERPI_CHANNEL_{idx}_LABEL"] = get_value(base + "/Label")
+    base = "{}/Channel{}".format(root, idx)
+    values["EXPANDERPI_CHANNEL_{}_TYPE".format(idx)] = get_value(base + "/Type")
+    values["EXPANDERPI_CHANNEL_{}_LABEL".format(idx)] = get_value(base + "/Label")
 
 if not any(values.values()):
     sys.exit(1)
 
 for key, val in values.items():
-    print(f"{key}={shlex.quote(val)}")
+    print("{}={}".format(key, safe_quote(val)))
 PY
 }
 
