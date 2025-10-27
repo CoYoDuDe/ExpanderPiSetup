@@ -158,6 +158,20 @@ TEMPLATE
     fi
 
     : > "$log_file"
+    local sanitized_integer
+    sanitized_integer="$(sanitize_numeric_value "2" "$ADC_VREF_MIN" "$ADC_VREF_MAX" "$DEFAULT_VREF_FALLBACK" "Vref" "float")"
+
+    if [ "$sanitized_integer" != "2" ]; then
+        echo "sanitize_numeric_value wandelte die Ganzzahl 2 in \"${sanitized_integer}\" um" >&2
+        return 1
+    fi
+
+    if [ -s "$log_file" ]; then
+        echo "sanitize_numeric_value löste beim Wert 2 fälschlicherweise eine Fallback-Logmeldung aus" >&2
+        return 1
+    fi
+
+    : > "$log_file"
     local sanitized_with_comma
     sanitized_with_comma="$(sanitize_numeric_value "1,3" "$ADC_VREF_MIN" "$ADC_VREF_MAX" "$DEFAULT_VREF_FALLBACK" "Vref" "float")"
 
