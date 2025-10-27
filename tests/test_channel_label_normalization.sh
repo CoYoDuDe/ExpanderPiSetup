@@ -345,6 +345,63 @@ main() {
     unset EXPANDERPI_CHANNEL_0_TYPE EXPANDERPI_CHANNEL_0_LABEL EXPANDERPI_VREF EXPANDERPI_SCALE EXPANDERPI_USE_SAVED
     unset USER_VREF USER_SCALE USER_DEVICE USER_CHANNEL_0 USER_CHANNEL_0_LABEL USER_CHANNEL_0_TYPE
 
+    local command_marker
+    command_marker="${user_config_work_dir}/command_marker"
+    rm -f "$command_marker"
+
+    local service_literal
+    service_literal='Service $1'
+    local touch_literal
+    touch_literal="Label \`touch ${command_marker}\`"
+    local escaped_service
+    escaped_service="$(printf '%q' "$service_literal")"
+    local escaped_touch
+    escaped_touch="$(printf '%q' "$touch_literal")"
+
+    {
+        printf 'USER_VREF=%s\n' "$(printf '%q' '1.8')"
+        printf 'USER_SCALE=%s\n' "$(printf '%q' '512')"
+        printf 'USER_CHANNEL_0=%s\n' "$escaped_service"
+        printf 'USER_CHANNEL_0_TYPE=%s\n' "$(printf '%q' 'tank')"
+        printf 'USER_CHANNEL_1=%s\n' "$escaped_touch"
+        printf 'USER_CHANNEL_1_TYPE=%s\n' "$(printf '%q' 'temp')"
+    } > "$USER_CONFIG_FILE"
+
+    export EXPANDERPI_USE_SAVED="true"
+
+    if ! install_config; then
+        echo "install_config schlug beim Einlesen der vordefinierten Benutzerkonfiguration fehl" >&2
+        return 1
+    fi
+
+    if [ -e "$command_marker" ]; then
+        echo "Beim Laden der Benutzerkonfiguration wurde unerwartet ein Kommando ausgeführt." >&2
+        return 1
+    fi
+
+    unset EXPANDERPI_USE_SAVED
+    unset USER_VREF USER_SCALE USER_DEVICE USER_CHANNEL_0 USER_CHANNEL_0_LABEL USER_CHANNEL_0_TYPE USER_CHANNEL_1 USER_CHANNEL_1_TYPE
+
+    # shellcheck source=/dev/null
+    source "$USER_CONFIG_FILE"
+
+    if [ "${USER_CHANNEL_0}" != "$service_literal" ]; then
+        echo "USER_CHANNEL_0 verlor Sonderzeichen: '${USER_CHANNEL_0}'" >&2
+        return 1
+    fi
+
+    if [ "${USER_CHANNEL_1}" != "$touch_literal" ]; then
+        echo "USER_CHANNEL_1 verlor Sonderzeichen: '${USER_CHANNEL_1}'" >&2
+        return 1
+    fi
+
+    if [ -e "$command_marker" ]; then
+        echo "Beim erneuten Laden der Benutzerkonfiguration wurde ein Kommando ausgeführt." >&2
+        return 1
+    fi
+
+    unset USER_VREF USER_SCALE USER_DEVICE USER_CHANNEL_0 USER_CHANNEL_0_LABEL USER_CHANNEL_0_TYPE USER_CHANNEL_1 USER_CHANNEL_1_TYPE
+
     ROOT_PATH="$prev_root_path"
     SOURCE_FILE_DIR="$prev_source_file_dir"
     USER_CONFIG_FILE="$prev_user_config_file"
