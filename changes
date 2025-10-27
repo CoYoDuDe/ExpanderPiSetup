@@ -10,6 +10,7 @@ Unveröffentlicht:
 - Standard-Template-Parser deaktiviert während der Tokenisierung die Pathname-Expansion und verarbeitet Label-Vorgaben inklusive `*` unverändert bis in die Gerätekonfiguration; Regressionstest deckt das Literal-Szenario ab.
 - Device-Tokenisierung wertet `device`-Zeilen ohne Pathname-Expansion aus, so dass Wildcard-Literale wie `iio:device*` unverändert übernommen werden; Regressionstest schützt das Verhalten.
 - Shell-Escape-Routine für `dbus-adc.user.conf` verwendet nun `printf '%q'` für alle `USER_*`-Zuweisungen, verhindert damit jede Substitution von `$`, Backticks oder `$(...)` beim erneuten Sourcen und wird durch einen Regressionstest mit Sonderzeichen-Label abgesichert.
+- install_config ignoriert nun kommentierte `dtoverlay=`-Zeilen in `config.txt`, ergänzt ausschließlich aktive Overlays und wird durch einen Regressionstest mit auskommentierter Ausgangskonfiguration abgesichert.
 
 v0.0.4:
 - Float-Validierung akzeptiert nur noch Werte mit optionalem Vorzeichen; Ganzzahlen und Dezimalwerte mit Punkt sind erlaubt, während Dezimalkomma-Eingaben zuverlässig auf den dokumentierten Vref-Fallback zurückfallen und inklusive Log-Meldung getestet werden.
