@@ -333,8 +333,22 @@ load_gui_configuration() {
     return 0
 }
 
+_comment_parser_python=""
+
 strip_comments_outside_quotes() {
-    python3 - "$1" <<'PY'
+    if [ -z "$_comment_parser_python" ]; then
+        if command -v python3 >/dev/null 2>&1; then
+            _comment_parser_python="python3"
+        elif command -v python >/dev/null 2>&1; then
+            _comment_parser_python="python"
+        else
+            _comment_parser_python="none"
+        fi
+    fi
+
+    if [ "$_comment_parser_python" != "none" ]; then
+        "$_comment_parser_python" - "$1" <<'PY'
+from __future__ import print_function
 import sys
 
 line = sys.argv[1] if len(sys.argv) > 1 else ''
@@ -371,6 +385,10 @@ for ch in line:
 
 print(''.join(result), end='')
 PY
+        return
+    fi
+
+    printf '%s' "${1%%#*}"
 }
 
 parse_default_adc_configuration() {
