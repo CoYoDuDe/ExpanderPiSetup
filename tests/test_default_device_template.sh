@@ -198,6 +198,76 @@ done
 log_messages=()
 
 cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
+device iio:device9
+vref 2.75
+scale 16383
+
+tank 0 Tank Sigma
+tank 1 Tank Tau
+tank 2 Tank Upsilon
+tank 3 Tank Phi
+temp 4 Sensor Chi
+temp 5 Sensor Psi
+temp 6 Sensor Omega
+temp 7 Sensor Lambda
+TEMPLATE
+
+python_only_dir="$(mktemp -d)"
+python_cmd=""
+if command -v python >/dev/null 2>&1; then
+    python_cmd="$(command -v python)"
+else
+    python_cmd="$(command -v python3)"
+fi
+ln -s "$python_cmd" "${python_only_dir}/python"
+ln -s "$(command -v tr)" "${python_only_dir}/tr"
+
+if ! (
+    PATH="${python_only_dir}:/bin"
+    unset _STRIP_COMMENTS_INTERPRETER
+    declare local_default_vref=""
+    declare local_default_scale=""
+    declare local_default_device=""
+    declare -a local_default_types=()
+    declare -a local_default_labels=()
+    declare -a log_messages=()
+
+    load_default_adc_defaults local_default_vref local_default_scale local_default_types local_default_labels local_default_device
+
+    if [ "$local_default_device" != "iio:device9" ]; then
+        echo "Python-Fallback übernahm das Device nicht aus der Vorlage: '${local_default_device}'." >&2
+        exit 1
+    fi
+
+    if [ "${local_default_labels[0]}" != "Tank Sigma" ]; then
+        echo "Python-Fallback übernahm das erste Label nicht korrekt: '${local_default_labels[0]}'." >&2
+        exit 1
+    fi
+
+    if [ "${local_default_labels[1]}" != "Tank Tau" ]; then
+        echo "Python-Fallback übernahm das zweite Label nicht korrekt: '${local_default_labels[1]}'." >&2
+        exit 1
+    fi
+
+    if [ "${local_default_labels[6]}" != "Sensor Omega" ]; then
+        echo "Python-Fallback übernahm das siebte Label nicht korrekt: '${local_default_labels[6]}'." >&2
+        exit 1
+    fi
+
+    if [ "${#log_messages[@]}" -ne 0 ]; then
+        echo "Python-Fallback erzeugte unerwartete Log-Meldungen: ${log_messages[*]}" >&2
+        exit 1
+    fi
+); then
+    rm -rf "$python_only_dir"
+    exit 1
+fi
+
+rm -rf "$python_only_dir"
+
+log_messages=()
+
+cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
 device iio:device2
 vref 2.5
 scale 32767
