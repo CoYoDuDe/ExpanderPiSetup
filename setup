@@ -334,43 +334,57 @@ load_gui_configuration() {
 }
 
 strip_comments_outside_quotes() {
-    python3 - "$1" <<'PY'
-import sys
+    local input="$1"
+    local length="${#input}"
+    local in_single=0
+    local in_double=0
+    local escaped=0
+    local result=""
+    local char=""
 
-line = sys.argv[1] if len(sys.argv) > 1 else ''
-result = []
-in_single = False
-in_double = False
-escaped = False
+    for (( i=0; i<length; i++ )); do
+        char="${input:i:1}"
 
-for ch in line:
-    if escaped:
-        result.append(ch)
-        escaped = False
-        continue
+        if [ $escaped -eq 1 ]; then
+            result+="$char"
+            escaped=0
+            continue
+        fi
 
-    if ch == '\\':
-        result.append(ch)
-        escaped = True
-        continue
+        if [ "$char" = "\\" ]; then
+            result+="$char"
+            escaped=1
+            continue
+        fi
 
-    if ch == '"' and not in_single:
-        in_double = not in_double
-        result.append(ch)
-        continue
+        if [ "$char" = '"' ] && [ $in_single -eq 0 ]; then
+            result+="$char"
+            if [ $in_double -eq 1 ]; then
+                in_double=0
+            else
+                in_double=1
+            fi
+            continue
+        fi
 
-    if ch == "'" and not in_double:
-        in_single = not in_single
-        result.append(ch)
-        continue
+        if [ "$char" = "'" ] && [ $in_double -eq 0 ]; then
+            result+="$char"
+            if [ $in_single -eq 1 ]; then
+                in_single=0
+            else
+                in_single=1
+            fi
+            continue
+        fi
 
-    if ch == '#' and not in_single and not in_double:
-        break
+        if [ "$char" = "#" ] && [ $in_single -eq 0 ] && [ $in_double -eq 0 ]; then
+            break
+        fi
 
-    result.append(ch)
+        result+="$char"
+    done
 
-print(''.join(result), end='')
-PY
+    printf '%s' "$result"
 }
 
 parse_default_adc_configuration() {
@@ -398,19 +412,21 @@ parse_default_adc_configuration() {
     local pending_label=""
 
     while IFS= read -r line || [ -n "$line" ]; do
-        line="$(strip_comments_outside_quotes "$line")"
-        line="${line%$'\r'}"
-        line="${line#${line%%[![:space:]]*}}"
-        line="${line%${line##*[![:space:]]}}"
+        local processed_line
+        processed_line="$(strip_comments_outside_quotes "$line")"
+        processed_line="${processed_line%$'\r'}"
+        processed_line="${processed_line#${processed_line%%[![:space:]]*}}"
+        processed_line="${processed_line%${processed_line##*[![:space:]]}}"
 
-        if [ -z "$line" ]; then
+        if [ -z "$processed_line" ]; then
             continue
         fi
 
         read_any=true
 
         local -a tokens=()
-        read -r -a tokens <<<"$line"
+        read -r -a tokens <<<"$processed_line"
+        line="$processed_line"
         if [ "${#tokens[@]}" -eq 0 ]; then
             continue
         fi
