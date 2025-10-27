@@ -1757,6 +1757,21 @@ format_label_for_dbus_config() {
     fi
 }
 
+format_value_for_user_config() {
+    local value="$1"
+
+    local escaped=${value//\/\\}
+    local dq='"'
+    local dq_escape='\"'
+    escaped=${escaped//"$dq"/$dq_escape}
+    escaped=${escaped//\$/\\\$}
+    local bt='`'
+    local bt_escape='\\`'
+    escaped=${escaped//"$bt"/$bt_escape}
+
+    printf '%s%s%s' "$dq" "$escaped" "$dq"
+}
+
 ## Konfigurationsdateien installieren und deinstallieren
 # Konfigurationsdateien installieren
 install_config() {
@@ -2142,17 +2157,27 @@ install_config() {
     rm -f "$temp_config"
 
     if ! {
-        echo "USER_VREF=\"${vref_value}\""
-        echo "USER_SCALE=\"${scale_value}\""
-        echo "USER_DEVICE=\"${device_value}\""
+        local quoted_vref
+        local quoted_scale
+        local quoted_device
+        quoted_vref="$(format_value_for_user_config "$vref_value")"
+        quoted_scale="$(format_value_for_user_config "$scale_value")"
+        quoted_device="$(format_value_for_user_config "$device_value")"
+        echo "USER_VREF=${quoted_vref}"
+        echo "USER_SCALE=${quoted_scale}"
+        echo "USER_DEVICE=${quoted_device}"
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
             local value="${channel_labels[channel]}"
             local type_value="${channel_types[channel]}"
             type_value="$(canonicalize_sensor_type "$type_value")"
             channel_types[channel]="$type_value"
-            echo "USER_CHANNEL_${channel}=\"${value}\""
-            echo "USER_CHANNEL_${channel}_TYPE=\"${type_value}\""
-            echo "USER_CHANNEL_${channel}_LABEL=\"${value}\""
+            local quoted_label
+            local quoted_type
+            quoted_label="$(format_value_for_user_config "$value")"
+            quoted_type="$(format_value_for_user_config "$type_value")"
+            echo "USER_CHANNEL_${channel}=${quoted_label}"
+            echo "USER_CHANNEL_${channel}_TYPE=${quoted_type}"
+            echo "USER_CHANNEL_${channel}_LABEL=${quoted_label}"
         done
     } > "$USER_CONFIG_FILE"; then
         logMessage "Fehler beim Schreiben der Benutzerkonfiguration nach ${USER_CONFIG_FILE}."
