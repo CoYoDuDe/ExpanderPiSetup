@@ -333,7 +333,7 @@ load_gui_configuration() {
     return 0
 }
 
-strip_comments_outside_quotes() {
+strip_comments_outside_quotes_shell() {
     local input="$1"
     local length="${#input}"
     local in_single=0
@@ -385,6 +385,63 @@ strip_comments_outside_quotes() {
     done
 
     printf '%s' "$result"
+}
+
+strip_comments_outside_quotes() {
+    local input="$1"
+
+    if [ -z "${_STRIP_COMMENTS_INTERPRETER:-}" ]; then
+        if command -v python3 >/dev/null 2>&1; then
+            _STRIP_COMMENTS_INTERPRETER="python3"
+        elif command -v python >/dev/null 2>&1; then
+            _STRIP_COMMENTS_INTERPRETER="python"
+        else
+            _STRIP_COMMENTS_INTERPRETER="shell"
+        fi
+    fi
+
+    if [ "$_STRIP_COMMENTS_INTERPRETER" = "shell" ]; then
+        strip_comments_outside_quotes_shell "$input"
+        return
+    fi
+
+    "$_STRIP_COMMENTS_INTERPRETER" - "$input" <<'PY'
+import sys
+
+line = sys.argv[1]
+in_single = False
+in_double = False
+escaped = False
+result = []
+
+for char in line:
+    if escaped:
+        result.append(char)
+        escaped = False
+        continue
+
+    if char == '\\':
+        result.append(char)
+        escaped = True
+        continue
+
+    if char == '"' and not in_single:
+        result.append(char)
+        in_double = not in_double
+        continue
+
+    if char == "'" and not in_double:
+        result.append(char)
+        in_single = not in_single
+        continue
+
+    if char == '#' and not in_single and not in_double:
+        break
+
+    result.append(char)
+
+sys.stdout.write(''.join(result))
+PY
 }
 
 parse_default_adc_configuration() {
