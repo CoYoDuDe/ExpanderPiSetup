@@ -4,6 +4,7 @@ Unveröffentlicht:
 - README dokumentiert explizit die unterstützten Python-Interpreter (Python 2.7 sowie alle Python-3-Varianten) für den nicht-interaktiven Konfigurationsabruf.
 - Vref-Validierung akzeptiert nun auch ganzzahlige Eingaben im Float-Modus und nutzt für Primär- und Fallback-Prüfung denselben Regex.
 - README stellt klar, dass Ganzzahlen zulässig sind und Eingaben mit Dezimalkomma konsequent auf den Fallback-Wert zurückfallen.
+- Standard-Template-Parser deaktiviert während der Tokenisierung die Pathname-Expansion und verarbeitet Label-Vorgaben inklusive `*` unverändert bis in die Gerätekonfiguration; Regressionstest deckt das Literal-Szenario ab.
 
 v0.0.4:
 - Float-Validierung akzeptiert nur noch Werte mit optionalem Vorzeichen; Ganzzahlen und Dezimalwerte mit Punkt sind erlaubt, während Dezimalkomma-Eingaben zuverlässig auf den dokumentierten Vref-Fallback zurückfallen und inklusive Log-Meldung getestet werden.

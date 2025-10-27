@@ -195,4 +195,49 @@ for msg in "${log_messages[@]}"; do
     fi
 done
 
+log_messages=()
+
+cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
+device iio:device3
+vref 2.5
+scale 32767
+
+label Tank *
+tank 0
+label Tank Beta
+tank 1
+label Tank Gamma
+tank 2
+label Tank Delta
+tank 3
+label Temp Epsilon
+temp 4
+label Temp Zeta
+temp 5
+label Temp Eta
+temp 6
+label Temp Theta
+temp 7
+TEMPLATE
+
+local_default_vref=""
+local_default_scale=""
+local_default_device=""
+local_default_types=()
+local_default_labels=()
+
+load_default_adc_defaults local_default_vref local_default_scale local_default_types local_default_labels local_default_device
+
+if [ "${local_default_labels[0]}" != "Tank *" ]; then
+    echo "Label mit Literal-Stern wurde verändert: '${local_default_labels[0]}'" >&2
+    exit 1
+fi
+
+for msg in "${log_messages[@]}"; do
+    if [[ "$msg" == *"Kanäle ("* ]]; then
+        echo "Es wurden unerwartete Kanal-Fallback-Logs erzeugt: ${msg}" >&2
+        exit 1
+    fi
+done
+
 printf 'OK\n'
