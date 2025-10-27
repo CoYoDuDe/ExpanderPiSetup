@@ -1134,18 +1134,26 @@ sanitize_numeric_value() {
     fi
 
     local in_range=true
+    local rejection_reason=""
 
     if [ "$numeric_mode" = "int" ]; then
         if ! [[ "$sanitized_value" =~ ^-?[0-9]+$ ]]; then
             in_range=false
+            rejection_reason="pattern"
         elif [ "$sanitized_value" -lt "$min_value" ] || [ "$sanitized_value" -gt "$max_value" ]; then
             in_range=false
+            rejection_reason="range"
         fi
     else
-        if ! [[ "$sanitized_value" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
+        if [[ "$sanitized_value" == *","* ]]; then
             in_range=false
+            rejection_reason="decimal_comma"
+        elif ! [[ "$sanitized_value" =~ ^[-+]?[0-9]+([.][0-9]+)$ ]]; then
+            in_range=false
+            rejection_reason="pattern"
         elif ! awk -v v="$sanitized_value" -v min="$min_value" -v max="$max_value" 'BEGIN { if (v < min || v > max) exit 1; exit 0 }'; then
             in_range=false
+            rejection_reason="range"
         fi
     fi
 
@@ -1170,7 +1178,9 @@ sanitize_numeric_value() {
                 fallback_valid=false
             fi
         else
-            if ! [[ "$fallback_candidate" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
+            if [[ "$fallback_candidate" == *","* ]]; then
+                fallback_valid=false
+            elif ! [[ "$fallback_candidate" =~ ^[-+]?[0-9]+([.][0-9]+)$ ]]; then
                 fallback_valid=false
             elif ! awk -v v="$fallback_candidate" -v min="$min_value" -v max="$max_value" 'BEGIN { if (v < min || v > max) exit 1; exit 0 }'; then
                 fallback_valid=false
@@ -1182,7 +1192,23 @@ sanitize_numeric_value() {
         fi
     fi
 
-    logMessage "${value_label:-Wert} ${sanitized_value} liegt außerhalb des zulässigen Bereichs (${min_value} – ${max_value}). Verwende ${fallback_candidate}."
+    local rejection_message=""
+    case "$rejection_reason" in
+        decimal_comma)
+            rejection_message="${value_label:-Wert} ${sanitized_value} verwendet ein Dezimalkomma – verwende ${fallback_candidate}."
+            ;;
+        pattern)
+            rejection_message="${value_label:-Wert} ${sanitized_value} hat ein ungültiges Zahlenformat – verwende ${fallback_candidate}."
+            ;;
+        range)
+            rejection_message="${value_label:-Wert} ${sanitized_value} liegt außerhalb des zulässigen Bereichs (${min_value} – ${max_value}). Verwende ${fallback_candidate}."
+            ;;
+        *)
+            rejection_message="${value_label:-Wert} ${sanitized_value} ist ungültig – verwende ${fallback_candidate}."
+            ;;
+    esac
+
+    logMessage "$rejection_message"
 
     printf '%s\n' "$fallback_candidate"
 }

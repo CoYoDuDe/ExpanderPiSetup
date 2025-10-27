@@ -1,4 +1,5 @@
 v0.0.4:
+- Float-Validierung akzeptiert nur noch Werte mit optionalem Vorzeichen und exakt einem Dezimalpunkt; Dezimalkomma-Eingaben fallen zuverlässig auf den dokumentierten Vref-Fallback zurück und werden inklusive Log-Meldung getestet.
 - Device-Zeile der `dbus-adc.conf` wird dynamisch aus der Vorlage übernommen und kann per `EXPANDERPI_DEVICE` oder gespeicherter Benutzerkonfiguration überschrieben werden; Standard bleibt `iio:device0`.
 - Installer persistiert die ausgewählte IIO-Gerätenummer in `dbus-adc.user.conf` und setzt sie beim nächsten Lauf wieder als Basiswert.
 - Regressionstest prüft die Übernahme einer Vorlage mit `device iio:device1`.
