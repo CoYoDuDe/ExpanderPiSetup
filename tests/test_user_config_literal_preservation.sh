@@ -185,7 +185,11 @@ if [ -e "$channel_injection_file" ]; then
     exit 1
 fi
 
-expected_label="literal\$VALUE\`backtick\`\$(touch ${channel_injection_file})"
+expected_label="$(python3 - "${channel_injection_file}" <<'PY'
+import sys
+sys.stdout.write(f"literal$VALUE`backtick`$(touch {sys.argv[1]})")
+PY
+)"
 
 python3 - "$CONFIG_FILE" "$expected_label" <<'PY'
 import sys
