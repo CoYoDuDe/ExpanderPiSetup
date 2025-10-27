@@ -4,6 +4,7 @@ v0.0.4:
 - Regressionstest prüft die Übernahme einer Vorlage mit `device iio:device1`.
 - README um das neue Override-Verhalten erweitert.
 - Versionsdatei und Change-Log auf den ausgelieferten Stand v0.0.4 validiert.
+- ReadMe führt die unterstützten Raspberry-Pi-Modelle 2/3/4 konsistent zum Setup und zur README auf.
 
 v0.0.3:
 - Veraltetes `ds1307-rtc.dtbo` aus den ausgelieferten Overlays entfernt und den Setup-Prozess auf das generische `i2c-rtc`-Overlay mit `ds1307`-Parameter umgestellt.
