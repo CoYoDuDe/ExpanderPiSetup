@@ -101,6 +101,8 @@ Die dbus-adc-Treiber auf dem Venus OS akzeptieren nur Werte innerhalb definierte
 
 Das Setup-Skript prüft alle interaktiven Eingaben, GUI-Vorbelegungen und Umgebungsvariablen auf diese Bereiche. Abweichende Angaben werden verworfen und automatisch auf die bewährten Standardwerte **Vref = 1,3 V** und **Scale = 4 095** gesetzt. Der Eingriff wird dabei per `logMessage` dokumentiert, bevor die `dbus-adc.conf` erzeugt wird, sodass weder ungültige Konfigurationsdateien noch widersprüchliche GUI-Anzeigen entstehen.
 
+> **Wichtig:** Dezimalzahlen müssen mit einem Punkt (`.`) geschrieben werden. Werte wie `1,3` mit Komma gelten als ungültig und führen automatisch zum Fallback auf den Standardwert.
+
 Auch der `device`-Eintrag unterliegt jetzt einer festen Validierung: Es sind ausschließlich Namen im Format `iio:device<nummer>` zulässig. Jeder andere Wert – beispielsweise `device foo` aus einer Umgebungsvariablen – wird verworfen, automatisch auf **iio:device0** gesetzt und mit einer klaren Meldung wie `logMessage "Umgebungsvariable EXPANDERPI_DEVICE: ungültiger Device-Wert \"foo\" – verwende iio:device0."` protokolliert. So gelangen keine fehlerhaften IIO-Gerätenummern mehr in die Zielkonfiguration.
 
 ## Generierte `dbus-adc.conf`

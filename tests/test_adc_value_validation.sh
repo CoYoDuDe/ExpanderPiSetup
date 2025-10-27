@@ -157,6 +157,20 @@ TEMPLATE
         return 1
     fi
 
+    : > "$log_file"
+    local sanitized_with_comma
+    sanitized_with_comma="$(sanitize_numeric_value "1,3" "$ADC_VREF_MIN" "$ADC_VREF_MAX" "$DEFAULT_VREF_FALLBACK" "Vref" "float")"
+
+    if [ "$sanitized_with_comma" != "$DEFAULT_VREF_FALLBACK" ]; then
+        echo "sanitize_numeric_value akzeptierte den Kommawert 1,3" >&2
+        return 1
+    fi
+
+    if ! grep -Fq "Vref 1,3 liegt außerhalb" "$log_file"; then
+        echo "Log meldete die Ablehnung der Eingabe 1,3 nicht" >&2
+        return 1
+    fi
+
     printf 'OK\n'
 }
 
