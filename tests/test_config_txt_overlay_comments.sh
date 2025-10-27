@@ -99,25 +99,25 @@ CFG
         return 1
     fi
 
-    if ! grep -Eq '^[[:space:]]*dtoverlay=i2c-rtc,ds1307([[:space:]]|$)' "$CONFIG_TXT"; then
+    if ! grep -Eq '^[[:space:]]*dtoverlay=i2c-rtc,ds1307([[:space:],]|$)' "$CONFIG_TXT"; then
         echo "Aktive dtoverlay=i2c-rtc,ds1307 Zeile wurde nicht hinzugefügt." >&2
         return 1
     fi
 
-    if ! grep -Eq '^[[:space:]]*dtoverlay=mcp3208,spi0-0-present([[:space:]]|$)' "$CONFIG_TXT"; then
+    if ! grep -Eq '^[[:space:]]*dtoverlay=mcp3208,spi0-0-present([[:space:],]|$)' "$CONFIG_TXT"; then
         echo "Aktive dtoverlay=mcp3208,spi0-0-present Zeile wurde nicht hinzugefügt." >&2
         return 1
     fi
 
     local rtc_count
-    rtc_count=$(grep -Ec '^[[:space:]]*dtoverlay=i2c-rtc,ds1307([[:space:]]|$)' "$CONFIG_TXT")
+    rtc_count=$(grep -Ec '^[[:space:]]*dtoverlay=i2c-rtc,ds1307([[:space:],]|$)' "$CONFIG_TXT")
     if [ "$rtc_count" -ne 1 ]; then
         echo "dtoverlay=i2c-rtc,ds1307 sollte genau einmal aktiv vorhanden sein (gefunden: ${rtc_count})." >&2
         return 1
     fi
 
     local mcp_count
-    mcp_count=$(grep -Ec '^[[:space:]]*dtoverlay=mcp3208,spi0-0-present([[:space:]]|$)' "$CONFIG_TXT")
+    mcp_count=$(grep -Ec '^[[:space:]]*dtoverlay=mcp3208,spi0-0-present([[:space:],]|$)' "$CONFIG_TXT")
     if [ "$mcp_count" -ne 1 ]; then
         echo "dtoverlay=mcp3208,spi0-0-present sollte genau einmal aktiv vorhanden sein (gefunden: ${mcp_count})." >&2
         return 1
