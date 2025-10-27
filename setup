@@ -1001,13 +1001,13 @@ trim_whitespace() {
 
 escape_for_shell_assignment() {
     local value="$1"
-    local dq=$'"'
-    local dq_escape='\"'
 
-    value=${value//\\/\\\\}
-    value=${value//${dq}/${dq_escape}}
+    if [ -z "$value" ]; then
+        printf '%s' '""'
+        return 0
+    fi
 
-    printf '%s' "$value"
+    printf '%q' "$value"
 }
 
 normalize_device_value() {
@@ -2265,20 +2265,30 @@ install_config() {
 
     rm -f "$temp_config"
 
+    local escaped_vref=""
+    local escaped_scale=""
+    local escaped_device=""
+
+    escaped_vref="$(escape_for_shell_assignment "$vref_value")"
+    escaped_scale="$(escape_for_shell_assignment "$scale_value")"
+    escaped_device="$(escape_for_shell_assignment "$device_value")"
+
     if ! {
-        echo "USER_VREF=\"${vref_value}\""
-        echo "USER_SCALE=\"${scale_value}\""
-        echo "USER_DEVICE=\"${device_value}\""
+        printf 'USER_VREF=%s\n' "$escaped_vref"
+        printf 'USER_SCALE=%s\n' "$escaped_scale"
+        printf 'USER_DEVICE=%s\n' "$escaped_device"
         for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
             local value="${channel_labels[channel]}"
             local type_value="${channel_types[channel]}"
             type_value="$(canonicalize_sensor_type "$type_value")"
             channel_types[channel]="$type_value"
             local escaped_value
+            local escaped_type
             escaped_value="$(escape_for_shell_assignment "$value")"
-            echo "USER_CHANNEL_${channel}=\"${escaped_value}\""
-            echo "USER_CHANNEL_${channel}_TYPE=\"${type_value}\""
-            echo "USER_CHANNEL_${channel}_LABEL=\"${escaped_value}\""
+            escaped_type="$(escape_for_shell_assignment "$type_value")"
+            printf 'USER_CHANNEL_%d=%s\n' "$channel" "$escaped_value"
+            printf 'USER_CHANNEL_%d_TYPE=%s\n' "$channel" "$escaped_type"
+            printf 'USER_CHANNEL_%d_LABEL=%s\n' "$channel" "$escaped_value"
         done
     } > "$USER_CONFIG_FILE"; then
         logMessage "Fehler beim Schreiben der Benutzerkonfiguration nach ${USER_CONFIG_FILE}."
