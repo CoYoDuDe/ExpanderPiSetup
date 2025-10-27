@@ -1944,12 +1944,12 @@ install_config() {
             local saved_label=""
             local saved_type=""
 
-            if eval "[[ -v ${label_var} ]]" 2>/dev/null; then
-                saved_label="$(eval "printf '%s' \"\${$label_var}\"")"
+            if [ "${!label_var+x}" = x ]; then
+                saved_label="${!label_var}"
             fi
 
-            if eval "[[ -v ${type_var} ]]" 2>/dev/null; then
-                saved_type="$(eval "printf '%s' \"\${$type_var}\"")"
+            if [ "${!type_var+x}" = x ]; then
+                saved_type="${!type_var}"
             fi
 
             if [ -z "$saved_type" ]; then

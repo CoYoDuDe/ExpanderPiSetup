@@ -1,4 +1,5 @@
 Unveröffentlicht:
+- install_config wertet USER_CHANNEL_* und USER_CHANNEL_*_TYPE ausschließlich per indirekter Expansion aus, entfernt alle eval-Calls und bewahrt Literalzeichen wie $, Backticks oder $(...) ohne Substitution; ein Regressionstest deckt die unveränderte Übernahme aus dbus-adc.user.conf ab.
 - Kommentarparser erkennt `python3`, fällt andernfalls auf `python` bzw. eine Shell-Implementierung zurück und nutzt denselben Automaten für alle Varianten; ein neuer Test simuliert eine Umgebung ohne `python3` und bestätigt weiterhin korrekt übernommene Template-Werte.
 - Default-Template-Parser nutzt eine Shell-basierte Zeichenanalyse, entfernt Kommentarzeichen ausschließlich außerhalb von Quotes und bewahrt so Labeltexte wie `Temp "#1"` sowie `label "Service #1"`; ein Regressionstest deckt das Szenario ab.
 - Python-D-Bus-Loader prüft vor dem Einsatz von `shlex.quote`, ob die Funktion verfügbar ist, und verwendet andernfalls automatisch `pipes.quote` bzw. eine POSIX-konforme Fallback-Routine mit identischem Escaping.
