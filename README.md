@@ -96,6 +96,8 @@ Das Shell-Skript `setup` liest neben der bestehenden `dbus-adc.user.conf` nun au
 
 Die Standardkanäle orientieren sich an der Victron-Vorbelegung: vier Tank- und vier Temperatursensoren mit den Platzhaltern `tank1` bis `tank4` sowie `temperatur5` bis `temperatur8`. Für bestehende Installationen bleibt die numerische Suffixschreibweise vollständig kompatibel – Labels, die mit `tank` oder `temp` beginnen und daran anschließend Ziffern oder Trennzeichen enthalten, werden weiterhin automatisch den passenden Sensortypen zugeordnet.
 
+Zusätzliche Label-Defaults lassen sich direkt in der Vorlagedatei (`FileSets/configs/dbus-adc.conf`) über klassische `label <text>`-Zeilen vor den jeweiligen `tank`-/`temp`-Einträgen hinterlegen. Das Setup merkt sich den zuletzt gelesenen Label-Text und verknüpft ihn beim Laden der Standardwerte automatisch mit dem nachfolgenden Kanal. Inline-Beschriftungen wie `tank 0 Brauchwasser` bleiben parallel nutzbar und überschreiben den gepufferten Wert.
+
 ## Zulässige Wertebereiche für den dbus-adc
 
 Die dbus-adc-Treiber auf dem Venus OS akzeptieren nur Werte innerhalb definierter Grenzen:

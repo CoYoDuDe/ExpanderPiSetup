@@ -137,4 +137,62 @@ for msg in "${log_messages[@]}"; do
     fi
 done
 
+log_messages=()
+
+cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
+device iio:device2
+vref 2.5
+scale 32767
+
+label Tank Alpha
+tank 0
+label Tank Beta
+tank 1
+label Tank Gamma
+tank 2
+label Tank Delta
+tank 3
+label Temp Epsilon
+temp 4
+label Temp Zeta
+temp 5
+label Temp Eta
+temp 6
+label Temp Theta
+temp 7
+TEMPLATE
+
+local_default_vref=""
+local_default_scale=""
+local_default_device=""
+local_default_types=()
+local_default_labels=()
+
+load_default_adc_defaults local_default_vref local_default_scale local_default_types local_default_labels local_default_device
+
+expected_labels=(
+    "Tank Alpha"
+    "Tank Beta"
+    "Tank Gamma"
+    "Tank Delta"
+    "Temp Epsilon"
+    "Temp Zeta"
+    "Temp Eta"
+    "Temp Theta"
+)
+
+for i in "${!expected_labels[@]}"; do
+    if [ "${local_default_labels[i]}" != "${expected_labels[i]}" ]; then
+        echo "Label an Index ${i} entspricht nicht der Vorlage: '${local_default_labels[i]}' statt '${expected_labels[i]}'." >&2
+        exit 1
+    fi
+done
+
+for msg in "${log_messages[@]}"; do
+    if [[ "$msg" == *"Kanäle ("* ]]; then
+        echo "Es wurden unerwartete Kanal-Fallback-Logs erzeugt: ${msg}" >&2
+        exit 1
+    fi
+done
+
 printf 'OK\n'
