@@ -279,4 +279,97 @@ done
 rm -f -- 'iio:device-literal-match'
 popd >/dev/null
 
+log_messages=()
+
+load_gui_configuration() { return 1; }
+
+nonInteractiveMode=true
+filesUpdated=false
+rebootNeeded=false
+configRestorePerformed=false
+configTxtRestorePerformed=false
+
+scriptAction="INSTALL"
+
+quote_root="${work_root}/quote_case"
+ROOT_PATH="${quote_root}/root"
+CONFIG_FILE="${quote_root}/venus/dbus-adc.conf"
+BACKUP_CONFIG_FILE="${CONFIG_FILE}.orig"
+USER_CONFIG_FILE="${quote_root}/user.conf"
+CONFIG_TXT="${quote_root}/u-boot/config.txt"
+CONFIG_TXT_BACKUP="${CONFIG_TXT}.orig"
+OVERLAY_DIR="${quote_root}/overlays"
+MODULE_STATE_DIR="${quote_root}/modules"
+RC_LOCAL_FILE="${quote_root}/rc.local"
+RC_LOCAL_BACKUP="${RC_LOCAL_FILE}.orig"
+RC_LOCAL_STATE_FILE="${quote_root}/rc_local_state"
+
+mkdir -p "$(dirname "$CONFIG_FILE")" "$(dirname "$CONFIG_TXT")" "$OVERLAY_DIR" "$MODULE_STATE_DIR" "$(dirname "$RC_LOCAL_FILE")" "$(dirname "$USER_CONFIG_FILE")"
+
+mkdir -p "$ROOT_PATH"
+
+SOURCE_FILE_DIR="${quote_root}/filesets"
+mkdir -p "${SOURCE_FILE_DIR}/configs"
+
+cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
+device iio:device0
+vref 1.3
+scale 4095
+
+tank 0
+TEMPLATE
+
+> "$CONFIG_TXT"
+
+for channel in $(seq 0 $((TOTAL_ADC_CHANNELS - 1))); do
+    if [ "$channel" -eq 0 ]; then
+        eval "export EXPANDERPI_CHANNEL_${channel}_TYPE='tank'"
+        eval "export EXPANDERPI_CHANNEL_${channel}_LABEL='"Tank Alpha"'"
+    else
+        eval "export EXPANDERPI_CHANNEL_${channel}_TYPE='none'"
+        eval "export EXPANDERPI_CHANNEL_${channel}_LABEL=''"
+    fi
+done
+
+unset EXPANDERPI_VREF
+unset EXPANDERPI_SCALE
+unset EXPANDERPI_DEVICE
+
+result="$(prompt_sensor_label 0 "" true)"
+if [ "$result" != "Tank Alpha" ]; then
+    echo "prompt_sensor_label entfernte das umschließende Anführungszeichen nicht korrekt: '${result}'." >&2
+    exit 1
+fi
+
+for msg in "${log_messages[@]}"; do
+    if [[ "$msg" == *"Bitte Sensorbezeichnung"* ]] || [[ "$msg" == *"Ungültige Eingabe"* ]]; then
+        echo "prompt_sensor_label geriet trotz gültigem Label in eine Fehlerschleife: ${msg}" >&2
+        exit 1
+    fi
+done
+
+log_messages=()
+
+if ! install_config; then
+    echo "install_config schlug für das Label mit Leerzeichen fehl" >&2
+    exit 1
+fi
+
+if ! grep -q '^label "Tank Alpha"$' "$CONFIG_FILE"; then
+    echo "dbus-adc.conf enthält keine korrekt gequotete Label-Zeile für 'Tank Alpha'." >&2
+    exit 1
+fi
+
+if ! grep -Fq 'USER_CHANNEL_0_LABEL="Tank Alpha"' "$USER_CONFIG_FILE"; then
+    echo "USER_CONFIG_FILE übernahm das bereinigte Label nicht im Rohformat." >&2
+    exit 1
+fi
+
+for msg in "${log_messages[@]}"; do
+    if [[ "$msg" == *"Ungültige Eingabe"* ]]; then
+        echo "install_config meldete eine ungültige Eingabe trotz gültigem Label: ${msg}" >&2
+        exit 1
+    fi
+done
+
 printf 'OK\n'
