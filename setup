@@ -368,9 +368,16 @@ parse_default_adc_configuration() {
         fi
 
         read_any=true
-        set -- $line
 
-        case "$1" in
+        local -a tokens=()
+        read -r -a tokens <<<"$line"
+        if [ "${#tokens[@]}" -eq 0 ]; then
+            continue
+        fi
+
+        local directive="${tokens[0]}"
+
+        case "$directive" in
             device)
                 local parsed_device
                 parsed_device="$(normalize_device_value "$line")"
@@ -380,28 +387,26 @@ parse_default_adc_configuration() {
                 continue
                 ;;
             vref)
-                if [ $# -ge 2 ]; then
-                    _out_vref="$2"
+                if [ "${#tokens[@]}" -ge 2 ]; then
+                    _out_vref="${tokens[1]}"
                 fi
                 continue
                 ;;
             scale)
-                if [ $# -ge 2 ]; then
-                    _out_scale="$2"
+                if [ "${#tokens[@]}" -ge 2 ]; then
+                    _out_scale="${tokens[1]}"
                 fi
                 continue
                 ;;
             label)
-                shift
-                if [ $# -eq 0 ]; then
+                if [ "${#tokens[@]}" -le 1 ]; then
                     pending_label=""
                     continue
                 fi
 
-                if [[ "$1" =~ ^[0-9]+$ ]]; then
-                    local label_index="$1"
-                    shift
-                    local label_text="$*"
+                if [[ "${tokens[1]}" =~ ^[0-9]+$ ]]; then
+                    local label_index="${tokens[1]}"
+                    local label_text="${tokens[@]:2}"
                     if [ -n "$label_text" ]; then
                         collected_labels[label_index]="$label_text"
                     else
@@ -409,18 +414,16 @@ parse_default_adc_configuration() {
                     fi
                     pending_label=""
                 else
-                    pending_label="$*"
+                    pending_label="${tokens[@]:1}"
                 fi
                 continue
                 ;;
         esac
 
-        local type="$1"
-        shift
+        local type="$directive"
         local index=""
-        if [ $# -gt 0 ]; then
-            index="$1"
-            shift
+        if [ "${#tokens[@]}" -gt 1 ]; then
+            index="${tokens[1]}"
         fi
 
         if [[ ! "$index" =~ ^[0-9]+$ ]]; then
@@ -428,8 +431,8 @@ parse_default_adc_configuration() {
         fi
 
         local label=""
-        if [ $# -gt 0 ]; then
-            label="$*"
+        if [ "${#tokens[@]}" -gt 2 ]; then
+            label="${tokens[@]:2}"
         elif [ -n "$pending_label" ]; then
             label="$pending_label"
         fi
