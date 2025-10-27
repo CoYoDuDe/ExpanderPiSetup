@@ -906,19 +906,24 @@ normalize_device_value() {
         return 0
     fi
 
-    set -- $trimmed_value
-    local first_token="${1:-}"
+    local -a tokens=()
+    read -r -a tokens <<<"$trimmed_value"
+
+    if [ "${#tokens[@]}" -eq 0 ]; then
+        printf '%s' ""
+        return 0
+    fi
+
+    local first_token="${tokens[0]:-}"
 
     if [ -z "$first_token" ]; then
         printf '%s' ""
         return 0
     fi
 
-    shift
-
     if [[ "${first_token,,}" = device ]]; then
-        if [ $# -ge 1 ]; then
-            first_token="${1:-}"
+        if [ "${#tokens[@]}" -ge 2 ]; then
+            first_token="${tokens[1]:-}"
         else
             first_token=""
         fi
