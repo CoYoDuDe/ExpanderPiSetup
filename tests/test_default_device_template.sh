@@ -240,4 +240,43 @@ for msg in "${log_messages[@]}"; do
     fi
 done
 
+log_messages=()
+
+local_default_vref=""
+local_default_scale=""
+local_default_device=""
+local_default_types=()
+local_default_labels=()
+
+pushd "$work_root" >/dev/null
+touch 'iio:device-literal-match'
+
+cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
+device iio:device*
+vref 2.5
+scale 32767
+
+tank 0 Tank Stern
+tank 1 Tank Nova
+TEMPLATE
+
+load_default_adc_defaults local_default_vref local_default_scale local_default_types local_default_labels local_default_device
+
+if [ "$local_default_device" != "iio:device*" ]; then
+    echo "Device-Literal mit Wildcard wurde nicht unverändert übernommen: '${local_default_device}'." >&2
+    popd >/dev/null
+    exit 1
+fi
+
+for msg in "${log_messages[@]}"; do
+    if [[ "$msg" == *"Device ("* ]]; then
+        echo "Es wurden unerwartete Device-Fallback-Logs erzeugt: ${msg}" >&2
+        popd >/dev/null
+        exit 1
+    fi
+done
+
+rm -f -- 'iio:device-literal-match'
+popd >/dev/null
+
 printf 'OK\n'
