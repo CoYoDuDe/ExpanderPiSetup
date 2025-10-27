@@ -23,6 +23,10 @@ Beachte, dass sämtliche Befehle innerhalb des SetupHelper-Kontextes laufen müs
 
 > **Hinweis:** Das Setup-Skript erwartet die SetupHelper-Hilfsbibliothek exakt unter `/data/SetupHelper/HelperResources/forSetupScript`, wie sie vom offiziellen SetupHelper-Archiv ausgeliefert wird. Wird der SetupHelper an einen anderen Ort entpackt, muss dieser Pfad per Symlink bereitgestellt oder das Skript entsprechend angepasst werden. Andernfalls bricht der Installer frühzeitig mit der Meldung „SetupHelper-Ressourcen wurden nicht … gefunden.“ ab.
 
+### Unterstützte Python-Interpreter
+
+Der nicht-interaktive GUI-Loader des Setup-Skripts (`_run_gui_configuration_loader`) läuft jetzt sowohl mit Python 2.7 als auch mit allen Python-3-Varianten zuverlässig. Vor dem Einsatz von `shlex.quote` prüft der Loader die Verfügbarkeit der Funktion und weicht bei älteren Interpreter-Builds automatisch auf `pipes.quote` beziehungsweise eine POSIX-konforme Fallback-Routine mit identischem Escaping aus. Damit bleibt der Shell-Aufruf gegen den D-Bus auch auf Systemen ohne modernes `shlex` vor Shell-Injection geschützt.
+
 ### Unterstützte Raspberry-Pi-Modelle
 
 Das Setup prüft den Venus-Gerätetyp (`/etc/venus/machine`) und lässt nur freigegebene Raspberry-Pi-Varianten zu. Aktuell werden folgende Boards unterstützt:
