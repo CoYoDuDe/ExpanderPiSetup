@@ -166,8 +166,8 @@ TEMPLATE
         return 1
     fi
 
-    if ! grep -Fq "Vref 1,3 liegt außerhalb" "$log_file"; then
-        echo "Log meldete die Ablehnung der Eingabe 1,3 nicht" >&2
+    if ! grep -Fq "Vref 1,3 verwendet ein Dezimalkomma" "$log_file"; then
+        echo "Log meldete die Ablehnung der Eingabe 1,3 aufgrund des Dezimalkommas nicht" >&2
         return 1
     fi
 
