@@ -352,9 +352,10 @@ parse_default_adc_configuration() {
     fi
 
     local line=""
-    local -a parsed_types=()
-    local -a parsed_labels=()
+    local -a collected_types=()
+    local -a collected_labels=()
     local read_any=false
+    local pending_label=""
 
     while IFS= read -r line || [ -n "$line" ]; do
         line="${line%%#*}"
@@ -390,6 +391,28 @@ parse_default_adc_configuration() {
                 fi
                 continue
                 ;;
+            label)
+                shift
+                if [ $# -eq 0 ]; then
+                    pending_label=""
+                    continue
+                fi
+
+                if [[ "$1" =~ ^[0-9]+$ ]]; then
+                    local label_index="$1"
+                    shift
+                    local label_text="$*"
+                    if [ -n "$label_text" ]; then
+                        collected_labels[label_index]="$label_text"
+                    else
+                        unset 'collected_labels[label_index]'
+                    fi
+                    pending_label=""
+                else
+                    pending_label="$*"
+                fi
+                continue
+                ;;
         esac
 
         local type="$1"
@@ -407,10 +430,18 @@ parse_default_adc_configuration() {
         local label=""
         if [ $# -gt 0 ]; then
             label="$*"
+        elif [ -n "$pending_label" ]; then
+            label="$pending_label"
         fi
 
-        parsed_types[index]="$type"
-        parsed_labels[index]="$label"
+        collected_types[index]="$type"
+        if [ -n "$label" ]; then
+            collected_labels[index]="$label"
+        else
+            unset 'collected_labels[index]'
+        fi
+
+        pending_label=""
     done <"$template_file"
 
     if [ "$read_any" = false ]; then
@@ -418,10 +449,10 @@ parse_default_adc_configuration() {
     fi
 
     for (( i=0; i<TOTAL_ADC_CHANNELS; i++ )); do
-        if [ -n "${parsed_types[i]+set}" ]; then
-            _out_types[i]="${parsed_types[i]}"
-            if [ -n "${parsed_labels[i]+set}" ]; then
-                _out_labels[i]="${parsed_labels[i]}"
+        if [ -n "${collected_types[i]+set}" ]; then
+            _out_types[i]="${collected_types[i]}"
+            if [ -n "${collected_labels[i]+set}" ]; then
+                _out_labels[i]="${collected_labels[i]}"
             else
                 _out_labels[i]=""
             fi
@@ -1128,6 +1159,7 @@ load_default_adc_defaults() {
     for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
         local type_value=""
         local label_value=""
+        local label_from_template=false
 
         if [ -n "${parsed_types[channel]+set}" ] && [ -n "${parsed_types[channel]}" ]; then
             type_value="${parsed_types[channel]}"
@@ -1142,8 +1174,11 @@ load_default_adc_defaults() {
             channels_fallback=true
         fi
 
-        if [ -n "${parsed_labels[channel]+set}" ] && [ -n "${parsed_labels[channel]}" ]; then
+        if [ -n "${parsed_labels[channel]+set}" ]; then
             label_value="${parsed_labels[channel]}"
+            if [ -n "$label_value" ]; then
+                label_from_template=true
+            fi
         fi
 
         if [ -z "$label_value" ]; then
@@ -1154,6 +1189,8 @@ load_default_adc_defaults() {
             else
                 label_value="$(channel_label_fallback "$channel" "none")"
             fi
+            channels_fallback=true
+        elif [ "$label_from_template" = false ]; then
             channels_fallback=true
         fi
 
