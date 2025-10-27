@@ -198,6 +198,35 @@ done
 log_messages=()
 
 cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
+device iio:device2
+vref 2.5
+scale 32767
+
+tank 0 Temp "#1"
+tank 1 Reservoir "#2" # Kommentar nach dem Label
+TEMPLATE
+
+local_default_vref=""
+local_default_scale=""
+local_default_device=""
+local_default_types=()
+local_default_labels=()
+
+load_default_adc_defaults local_default_vref local_default_scale local_default_types local_default_labels local_default_device
+
+if [ "${local_default_labels[0]}" != 'Temp "#1"' ]; then
+    echo "Label mit Anführungszeichen und # wurde nicht korrekt übernommen: '${local_default_labels[0]}'" >&2
+    exit 1
+fi
+
+if [ "${local_default_labels[1]}" != 'Reservoir "#2"' ]; then
+    echo "Label mit # innerhalb von Anführungszeichen wurde abgeschnitten: '${local_default_labels[1]}'" >&2
+    exit 1
+fi
+
+log_messages=()
+
+cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
 device iio:device3
 vref 2.5
 scale 32767

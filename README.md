@@ -100,6 +100,8 @@ Zusätzliche Label-Defaults lassen sich direkt in der Vorlagedatei (`FileSets/co
 
 Labels, die aus Templates, der GUI oder Umgebungsvariablen stammen, bleiben künftig vollständig erhalten: Das Setup entfernt ausschließlich umschließende Anführungszeichen, konserviert Leerzeichen sowie Sonderzeichen und schreibt die Angaben unverändert in die Benutzerkonfiguration zurück. Beim Erzeugen der `dbus-adc.conf` werden alle Label-Zeilen gemäß `dbus-adc`-Spezifikation automatisch in doppelte Anführungszeichen gesetzt, sobald Leerzeichen oder ein `#` enthalten sind; vorhandene doppelte Anführungszeichen im Text werden dafür maskiert. So sind sprechende Namen wie `"Tank Alpha"` oder `Service #1` ohne manuelle Nacharbeit zulässig.
 
+Vorlagendateien dürfen jetzt auch `#`-Zeichen innerhalb von Anführungszeichen enthalten, ohne dass diese als Kommentar interpretiert werden. Dadurch bleiben Kennzeichnungen wie `Temp "#1"` oder `Reservoir "#2"` beim Laden der Standardwerte vollständig erhalten.
+
 ## Zulässige Wertebereiche für den dbus-adc
 
 Die dbus-adc-Treiber auf dem Venus OS akzeptieren nur Werte innerhalb definierter Grenzen:
