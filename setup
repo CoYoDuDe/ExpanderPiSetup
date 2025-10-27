@@ -481,14 +481,21 @@ parse_default_adc_configuration() {
 
         read_any=true
 
-        local -a tokens=()
-        read -r -a tokens <<<"$processed_line"
         line="$processed_line"
-        if [ "${#tokens[@]}" -eq 0 ]; then
-            continue
+
+        local directive="$processed_line"
+        local rest=""
+        if [[ "$processed_line" =~ ^([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+            directive="${BASH_REMATCH[1]}"
+            rest="${BASH_REMATCH[2]}"
+        else
+            directive="$processed_line"
+            rest=""
         fi
 
-        local directive="${tokens[0]}"
+        if [ -z "$directive" ]; then
+            continue
+        fi
 
         case "$directive" in
             device)
@@ -500,26 +507,30 @@ parse_default_adc_configuration() {
                 continue
                 ;;
             vref)
-                if [ "${#tokens[@]}" -ge 2 ]; then
-                    _out_vref="${tokens[1]}"
+                if [ -n "$rest" ]; then
+                    local vref_value="$rest"
+                    vref_value="${vref_value%%[[:space:]]*}"
+                    _out_vref="$vref_value"
                 fi
                 continue
                 ;;
             scale)
-                if [ "${#tokens[@]}" -ge 2 ]; then
-                    _out_scale="${tokens[1]}"
+                if [ -n "$rest" ]; then
+                    local scale_value="$rest"
+                    scale_value="${scale_value%%[[:space:]]*}"
+                    _out_scale="$scale_value"
                 fi
                 continue
                 ;;
             label)
-                if [ "${#tokens[@]}" -le 1 ]; then
+                if [ -z "$rest" ]; then
                     pending_label=""
                     continue
                 fi
 
-                if [[ "${tokens[1]}" =~ ^[0-9]+$ ]]; then
-                    local label_index="${tokens[1]}"
-                    local label_text="${tokens[@]:2}"
+                if [[ "$rest" =~ ^([0-9]+)([[:space:]]+(.*))?$ ]]; then
+                    local label_index="${BASH_REMATCH[1]}"
+                    local label_text="${BASH_REMATCH[3]-}"
                     if [ -n "$label_text" ]; then
                         collected_labels[label_index]="$label_text"
                     else
@@ -527,7 +538,7 @@ parse_default_adc_configuration() {
                     fi
                     pending_label=""
                 else
-                    pending_label="${tokens[@]:1}"
+                    pending_label="$rest"
                 fi
                 continue
                 ;;
@@ -535,18 +546,18 @@ parse_default_adc_configuration() {
 
         local type="$directive"
         local index=""
-        if [ "${#tokens[@]}" -gt 1 ]; then
-            index="${tokens[1]}"
+        local label=""
+
+        if [[ "$rest" =~ ^([0-9]+)([[:space:]]+(.*))?$ ]]; then
+            index="${BASH_REMATCH[1]}"
+            label="${BASH_REMATCH[3]-}"
         fi
 
         if [[ ! "$index" =~ ^[0-9]+$ ]]; then
             continue
         fi
 
-        local label=""
-        if [ "${#tokens[@]}" -gt 2 ]; then
-            label="${tokens[@]:2}"
-        elif [ -n "$pending_label" ]; then
+        if [ -z "$label" ] && [ -n "$pending_label" ]; then
             label="$pending_label"
         fi
 
@@ -1008,6 +1019,18 @@ escape_for_shell_assignment() {
     fi
 
     printf '%q' "$value"
+}
+
+escape_label_for_user_config() {
+    local value="$1"
+
+    local escaped="$value"
+    escaped="${escaped//\\/\\\\}"
+    escaped="${escaped//\"/\\\"}"
+    escaped="${escaped//\$/\\\$}"
+    escaped="${escaped//\`/\\\`}"
+
+    printf '"%s"' "$escaped"
 }
 
 normalize_device_value() {
@@ -1917,7 +1940,11 @@ install_config() {
 
     for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
         channel_types[channel]="${default_channel_types[channel]}"
-        channel_labels[channel]="${default_channel_labels[channel]}"
+        local initial_label="${default_channel_labels[channel]}"
+        local fallback_type="${channel_types[channel]}"
+        local fallback_label
+        fallback_label="$(channel_label_fallback "$channel" "$fallback_type")"
+        channel_labels[channel]="$(normalize_channel_label "$initial_label" "$fallback_label")"
         saved_channel_types[channel]=""
         saved_channel_labels[channel]=""
     done
@@ -2286,9 +2313,11 @@ install_config() {
             local escaped_type
             escaped_value="$(escape_for_shell_assignment "$value")"
             escaped_type="$(escape_for_shell_assignment "$type_value")"
+            local serialized_label
+            serialized_label="$(escape_label_for_user_config "$value")"
             printf 'USER_CHANNEL_%d=%s\n' "$channel" "$escaped_value"
             printf 'USER_CHANNEL_%d_TYPE=%s\n' "$channel" "$escaped_type"
-            printf 'USER_CHANNEL_%d_LABEL=%s\n' "$channel" "$escaped_value"
+            printf 'USER_CHANNEL_%d_LABEL=%s\n' "$channel" "$serialized_label"
         done
     } > "$USER_CONFIG_FILE"; then
         logMessage "Fehler beim Schreiben der Benutzerkonfiguration nach ${USER_CONFIG_FILE}."

@@ -318,6 +318,28 @@ if [ "${local_default_labels[0]}" != '"Service #1"' ]; then
     exit 1
 fi
 
+cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
+device iio:device2
+vref 2.5
+scale 32767
+
+label "Tank  Alpha"
+tank 0
+TEMPLATE
+
+local_default_vref=""
+local_default_scale=""
+local_default_device=""
+local_default_types=()
+local_default_labels=()
+
+load_default_adc_defaults local_default_vref local_default_scale local_default_types local_default_labels local_default_device
+
+if [ "${local_default_labels[0]}" != '"Tank  Alpha"' ]; then
+    echo "Label mit mehrfachen Leerzeichen wurde verändert: '${local_default_labels[0]}'" >&2
+    exit 1
+fi
+
 log_messages=()
 
 cat > "${SOURCE_FILE_DIR}/configs/dbus-adc.conf" <<'TEMPLATE'
