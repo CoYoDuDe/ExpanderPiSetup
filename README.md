@@ -13,6 +13,7 @@ Unterstuetzte Geraetetypen:
 - `raspberrypi2`
 - `raspberrypi3`
 - `raspberrypi4`
+- `raspberrypi5`
 
 ## Installation
 
