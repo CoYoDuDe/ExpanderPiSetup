@@ -1,6 +1,6 @@
 --- a/opt/victronenergy/gui/qml/PageSettings.qml
 +++ b/opt/victronenergy/gui/qml/PageSettings.qml
-@@ -171,6 +171,12 @@
+@@ -140,6 +140,12 @@
  			show: ioSettings.haveSubMenus
  			PageSettingsIo { id: ioSettings }
  		}
