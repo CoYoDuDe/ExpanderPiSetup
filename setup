@@ -625,6 +625,18 @@ backup_file_if_needed() {
     fi
 }
 
+restore_file_if_available() {
+    local backup_file="$1"
+    local target_file="$2"
+
+    if [ ! -f "$backup_file" ]; then
+        return 1
+    fi
+
+    mkdir -p "$(dirname "$target_file")" || return 1
+    cp -p "$backup_file" "$target_file"
+}
+
 # Funktionen definieren
 
 ## Einträge in rc.local hinzufügen und entfernen
@@ -913,7 +925,7 @@ backup_originals() {
 # Originaldateien wiederherstellen
 restore_originals() {
     logMessage "Stelle Originaldateien wieder her..."
-    if restoreFile "$BACKUP_CONFIG_FILE" "$CONFIG_FILE"; then
+    if restore_file_if_available "$BACKUP_CONFIG_FILE" "$CONFIG_FILE"; then
         configRestorePerformed=true
         logMessage "Originale dbus-adc.conf wurde erfolgreich wiederhergestellt."
     else
@@ -931,7 +943,7 @@ restore_originals() {
         configBackupExisted=false
     fi
 
-    if restoreFile "$CONFIG_TXT_BACKUP" "$CONFIG_TXT"; then
+    if restore_file_if_available "$CONFIG_TXT_BACKUP" "$CONFIG_TXT"; then
         configTxtRestorePerformed=true
         logMessage "config.txt wurde erfolgreich aus der Sicherung wiederhergestellt."
     else
@@ -948,7 +960,7 @@ restore_originals() {
         rcLocalBackupAvailable=false
     fi
 
-    if restoreFile "$RC_LOCAL_BACKUP" "$RC_LOCAL_FILE"; then
+    if restore_file_if_available "$RC_LOCAL_BACKUP" "$RC_LOCAL_FILE"; then
         rcLocalRestorePerformed=true
         logMessage "rc.local wurde erfolgreich aus der Sicherung wiederhergestellt."
     else
