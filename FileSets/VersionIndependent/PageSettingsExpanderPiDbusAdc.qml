@@ -8,13 +8,13 @@ MbPage {
     property string settingsPrefix: "com.victronenergy.settings/Settings/ExpanderPi/DbusAdc"
     property int channelCount: 8
 
-    readonly property var sensorTypeOptions: [
+    property var sensorTypeOptions: [
         { text: qsTr("Nicht belegt"), value: "none" },
         { text: qsTr("Tank"), value: "tank" },
         { text: qsTr("Temperatur"), value: "temp" }
     ]
 
-    readonly property var sensorTypeCanonicalMap: ({
+    property var sensorTypeCanonicalMap: ({
         "": "none",
         "none": "none",
         "nicht belegt": "none",
@@ -46,10 +46,17 @@ MbPage {
         "tempsensor": "temp"
     })
 
+    function trimValue(value) {
+        if (value === undefined || value === null) {
+            return "";
+        }
+        return String(value).replace(/^\s+|\s+$/g, "");
+    }
+
     function canonicalSensorType(typeValue) {
         var raw = "";
         if (typeValue !== undefined && typeValue !== null) {
-            raw = String(typeValue).trim();
+            raw = trimValue(typeValue);
         }
         var normalized = raw.toLowerCase();
         var compact = normalized.replace(/[\s_-]+/g, "");
@@ -70,7 +77,7 @@ MbPage {
         }
     }
 
-    readonly property var defaultChannelSetup: [
+    property var defaultChannelSetup: [
         { type: "tank", label: qsTr("Tank %1").arg(1) },
         { type: "tank", label: qsTr("Tank %1").arg(2) },
         { type: "tank", label: qsTr("Tank %1").arg(3) },
@@ -104,8 +111,8 @@ MbPage {
 
     property bool installRequestPending: false
     property string localStatusMessage: ""
-    readonly property bool packageManagerAvailable: packageActionItem.valid && packageStatusItem.valid
-    readonly property string currentStatusText: {
+    property bool packageManagerAvailable: packageActionItem.valid && packageStatusItem.valid
+    property string currentStatusText: {
         if (!packageManagerAvailable) {
             return qsTr("PackageManager-Dienst nicht verfügbar.");
         }
@@ -115,7 +122,7 @@ MbPage {
         if (packageStatusItem.valid) {
             var raw = packageStatusItem.value;
             if (raw !== undefined && raw !== null) {
-                var text = String(raw).trim();
+                var text = trimValue(raw);
                 if (text.length > 0) {
                     return text;
                 }
@@ -157,15 +164,12 @@ MbPage {
             typeText = qsTr("Temperatur");
             break;
         default:
-            var trimmedOriginalType = rawType;
-            if (trimmedOriginalType.trim) {
-                trimmedOriginalType = trimmedOriginalType.trim();
-            }
+            var trimmedOriginalType = trimValue(rawType);
             typeText = trimmedOriginalType.length > 0 ? trimmedOriginalType : rawType;
             break;
         }
 
-        var labelText = String(labelValue || "").trim();
+        var labelText = trimValue(labelValue || "");
         if (labelText.length === 0) {
             labelText = typeText;
         }
@@ -208,7 +212,7 @@ MbPage {
             return;
         }
 
-        if (!binding.typeItem.valid || binding.typeItem.value === undefined || binding.typeItem.value === null || String(binding.typeItem.value).trim().length === 0) {
+        if (!binding.typeItem.valid || binding.typeItem.value === undefined || binding.typeItem.value === null || trimValue(binding.typeItem.value).length === 0) {
             if (binding.typeItem.valid) {
                 binding.typeItem.setValue(defaultType);
             }
@@ -225,7 +229,7 @@ MbPage {
 
         var normalizedType = effectiveType.toLowerCase();
         var currentLabel = binding.labelItem.value;
-        var trimmedLabel = String(currentLabel === undefined || currentLabel === null ? "" : currentLabel).trim();
+        var trimmedLabel = trimValue(currentLabel === undefined || currentLabel === null ? "" : currentLabel);
         var labelMissing = !binding.labelItem.valid || currentLabel === undefined || currentLabel === null || trimmedLabel.length === 0;
 
         if (binding.labelItem.valid && currentLabel !== undefined && currentLabel !== null && currentLabel !== "" && trimmedLabel.length === 0) {
@@ -263,10 +267,10 @@ MbPage {
     }
 
     function ensureDefaults() {
-        if (!vrefItem.valid || vrefItem.value === undefined || vrefItem.value === null || String(vrefItem.value).trim().length === 0) {
+        if (!vrefItem.valid || vrefItem.value === undefined || vrefItem.value === null || trimValue(vrefItem.value).length === 0) {
             vrefItem.setValue("1.300");
         }
-        if (!scaleItem.valid || scaleItem.value === undefined || scaleItem.value === null || String(scaleItem.value).trim().length === 0) {
+        if (!scaleItem.valid || scaleItem.value === undefined || scaleItem.value === null || trimValue(scaleItem.value).length === 0) {
             scaleItem.setValue("4095");
         }
 
@@ -285,20 +289,18 @@ MbPage {
             if (packageStatusItem.valid) {
                 packageStatusItem.setValue(localStatusMessage);
             }
-            console.warn("PackageManager-Dienst nicht verfügbar – Installationslauf kann nicht gestartet werden.");
             return false;
         }
 
         var currentAction = packageActionItem.value;
         if (currentAction !== undefined && currentAction !== null) {
-            var actionText = String(currentAction).trim();
+            var actionText = trimValue(currentAction);
             if (actionText.length > 0) {
                 var busyMessage = qsTr("PackageManager beschäftigt (%1)").arg(actionText);
                 localStatusMessage = busyMessage;
                 if (packageStatusItem.valid) {
                     packageStatusItem.setValue(busyMessage);
                 }
-                console.warn("PackageManager ist noch beschäftigt (", actionText, ")");
                 return false;
             }
         }
@@ -351,7 +353,7 @@ MbPage {
                 return;
             }
             var statusText = packageStatusItem.value !== undefined && packageStatusItem.value !== null
-                    ? String(packageStatusItem.value).trim()
+                    ? trimValue(packageStatusItem.value)
                     : "";
             if (statusText.length > 0) {
                 localStatusMessage = "";
@@ -377,7 +379,7 @@ MbPage {
             } else if (actionValue.length === 0 && installRequestPending) {
                 installRequestPending = false;
                 if (packageStatusItem.valid && packageStatusItem.value) {
-                    var statusText = String(packageStatusItem.value).trim();
+                    var statusText = trimValue(packageStatusItem.value);
                     if (statusText.length === 0) {
                         localStatusMessage = qsTr("Installationslauf ausgelöst.");
                     }
