@@ -164,7 +164,6 @@ Fehler im CHECK-Modus brechen seit Version v0.0.4 ohne jegliche Bereinigung ab: 
 
 ### Testnachweis
 
-* **Simulationstest (Node.js):** Das Skript [`tests/packageManagerTrigger.test.js`](tests/packageManagerTrigger.test.js) emuliert `GuiEditAction` und `GuiEditStatus`. Es prüft den Happy Path (Auftrag wird gesendet und Status aktualisiert), den Busy-Pfad (laufender Auftrag blockiert eine neue Anforderung) sowie den Fehlerpfad (PackageManager antwortet mit `ERROR`).
 * **Manueller Integrationstest (Venus OS 3.40~10, GuiMods v2025.10, 24.10.2025):** Nach dem Installieren von GuiMods über den SetupHelper wurde der Auftrag `/data/SetupHelper/custom/ExpanderPiSetup/setup package-manager install` ausgeführt. Die QML-Seite meldete zunächst „Setup wird gestartet …“, anschließend liefen die Statusmeldungen `install ExpanderPiSetup` und `complete` über `GuiEditStatus`. Währenddessen blieb `GuiEditAction` blockiert, bis der Auftrag abgeschlossen war und der Dialog automatisch die Bestätigung „Installationslauf ausgelöst.“ anzeigte.
 
 Damit steht die komplette Konfiguration des ExpanderPi-DBus-ADC ohne Kommandozeile zur Verfügung.
