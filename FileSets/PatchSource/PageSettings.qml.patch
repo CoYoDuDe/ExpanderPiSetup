@@ -6,7 +6,7 @@
  		}
 +		// ExpanderPiSetup: Hardware submenu for the DBus ADC page
 +		MbSubMenu {
-+			description: qsTr("ExpanderPi DBus-ADC")
++			description: qsTr("ExpanderPi")
 +			subpage: Component { PageSettingsExpanderPiDbusAdc {} }
 +			showAccessLevel: User.AccessInstaller
 +		}

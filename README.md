@@ -1,6 +1,6 @@
 # ExpanderPiSetup
 
-ExpanderPiSetup ist ein SetupHelper-Paket fuer Venus OS. Es fuegt eine GUI-Seite fuer den ExpanderPi-DBus-ADC hinzu und fuehrt die benoetigten Setup-Schritte fuer `dbus-adc`, Overlays und Systemanpassungen aus.
+ExpanderPiSetup ist ein SetupHelper-Paket fuer Venus OS. Es fuegt eine GUI-Seite `ExpanderPi` hinzu und fuehrt die benoetigten Setup-Schritte fuer `dbus-adc`, Overlays und Systemanpassungen aus.
 
 ## Voraussetzungen
 

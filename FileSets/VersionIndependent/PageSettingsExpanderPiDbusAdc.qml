@@ -4,7 +4,7 @@ import "utils.js" as Utils
 
 MbPage {
     id: root
-    title: qsTr("ExpanderPi DBus-ADC")
+    title: qsTr("ExpanderPi")
 
     property string settingsPrefix: "com.victronenergy.settings/Settings/ExpanderPi/DbusAdc"
 
