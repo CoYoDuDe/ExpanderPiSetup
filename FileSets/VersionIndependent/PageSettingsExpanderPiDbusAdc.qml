@@ -39,7 +39,7 @@ MbPage {
                     model: VisibleItemModel {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
-                            item: typeItem0
+                            bind: Utils.path(root.settingsPrefix, "/Channel0/Type")
                             possibleValues: [
                                 MbOption { description: qsTr("Nicht belegt"); value: "none" },
                                 MbOption { description: qsTr("Tank"); value: "tank" },
@@ -49,7 +49,7 @@ MbPage {
                         }
                         MbEditBox {
                             description: qsTr("Anzeige-Label")
-                            item: labelItem0
+                            item.bind: Utils.path(root.settingsPrefix, "/Channel0/Label")
                             maximumLength: 24
                             writeAccessLevel: User.AccessInstaller
                         }
@@ -68,7 +68,7 @@ MbPage {
                     model: VisibleItemModel {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
-                            item: typeItem1
+                            bind: Utils.path(root.settingsPrefix, "/Channel1/Type")
                             possibleValues: [
                                 MbOption { description: qsTr("Nicht belegt"); value: "none" },
                                 MbOption { description: qsTr("Tank"); value: "tank" },
@@ -78,7 +78,7 @@ MbPage {
                         }
                         MbEditBox {
                             description: qsTr("Anzeige-Label")
-                            item: labelItem1
+                            item.bind: Utils.path(root.settingsPrefix, "/Channel1/Label")
                             maximumLength: 24
                             writeAccessLevel: User.AccessInstaller
                         }
@@ -97,7 +97,7 @@ MbPage {
                     model: VisibleItemModel {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
-                            item: typeItem2
+                            bind: Utils.path(root.settingsPrefix, "/Channel2/Type")
                             possibleValues: [
                                 MbOption { description: qsTr("Nicht belegt"); value: "none" },
                                 MbOption { description: qsTr("Tank"); value: "tank" },
@@ -107,7 +107,7 @@ MbPage {
                         }
                         MbEditBox {
                             description: qsTr("Anzeige-Label")
-                            item: labelItem2
+                            item.bind: Utils.path(root.settingsPrefix, "/Channel2/Label")
                             maximumLength: 24
                             writeAccessLevel: User.AccessInstaller
                         }
@@ -126,7 +126,7 @@ MbPage {
                     model: VisibleItemModel {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
-                            item: typeItem3
+                            bind: Utils.path(root.settingsPrefix, "/Channel3/Type")
                             possibleValues: [
                                 MbOption { description: qsTr("Nicht belegt"); value: "none" },
                                 MbOption { description: qsTr("Tank"); value: "tank" },
@@ -136,7 +136,7 @@ MbPage {
                         }
                         MbEditBox {
                             description: qsTr("Anzeige-Label")
-                            item: labelItem3
+                            item.bind: Utils.path(root.settingsPrefix, "/Channel3/Label")
                             maximumLength: 24
                             writeAccessLevel: User.AccessInstaller
                         }
@@ -155,7 +155,7 @@ MbPage {
                     model: VisibleItemModel {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
-                            item: typeItem4
+                            bind: Utils.path(root.settingsPrefix, "/Channel4/Type")
                             possibleValues: [
                                 MbOption { description: qsTr("Nicht belegt"); value: "none" },
                                 MbOption { description: qsTr("Tank"); value: "tank" },
@@ -165,7 +165,7 @@ MbPage {
                         }
                         MbEditBox {
                             description: qsTr("Anzeige-Label")
-                            item: labelItem4
+                            item.bind: Utils.path(root.settingsPrefix, "/Channel4/Label")
                             maximumLength: 24
                             writeAccessLevel: User.AccessInstaller
                         }
@@ -184,7 +184,7 @@ MbPage {
                     model: VisibleItemModel {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
-                            item: typeItem5
+                            bind: Utils.path(root.settingsPrefix, "/Channel5/Type")
                             possibleValues: [
                                 MbOption { description: qsTr("Nicht belegt"); value: "none" },
                                 MbOption { description: qsTr("Tank"); value: "tank" },
@@ -194,7 +194,7 @@ MbPage {
                         }
                         MbEditBox {
                             description: qsTr("Anzeige-Label")
-                            item: labelItem5
+                            item.bind: Utils.path(root.settingsPrefix, "/Channel5/Label")
                             maximumLength: 24
                             writeAccessLevel: User.AccessInstaller
                         }
@@ -213,7 +213,7 @@ MbPage {
                     model: VisibleItemModel {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
-                            item: typeItem6
+                            bind: Utils.path(root.settingsPrefix, "/Channel6/Type")
                             possibleValues: [
                                 MbOption { description: qsTr("Nicht belegt"); value: "none" },
                                 MbOption { description: qsTr("Tank"); value: "tank" },
@@ -223,7 +223,7 @@ MbPage {
                         }
                         MbEditBox {
                             description: qsTr("Anzeige-Label")
-                            item: labelItem6
+                            item.bind: Utils.path(root.settingsPrefix, "/Channel6/Label")
                             maximumLength: 24
                             writeAccessLevel: User.AccessInstaller
                         }
@@ -242,7 +242,7 @@ MbPage {
                     model: VisibleItemModel {
                         MbItemOptions {
                             description: qsTr("Sensortyp")
-                            item: typeItem7
+                            bind: Utils.path(root.settingsPrefix, "/Channel7/Type")
                             possibleValues: [
                                 MbOption { description: qsTr("Nicht belegt"); value: "none" },
                                 MbOption { description: qsTr("Tank"); value: "tank" },
@@ -252,7 +252,7 @@ MbPage {
                         }
                         MbEditBox {
                             description: qsTr("Anzeige-Label")
-                            item: labelItem7
+                            item.bind: Utils.path(root.settingsPrefix, "/Channel7/Label")
                             maximumLength: 24
                             writeAccessLevel: User.AccessInstaller
                         }
