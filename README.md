@@ -25,6 +25,7 @@ Das Paket nutzt den offiziellen SetupHelper-Ablauf:
 - `endScript INSTALL_FILES`
 - FileSets fuer GUI-Datei und Patch
 - `gitHubInfo` im offiziellen Format fuer den PackageManager
+- `raspberryPiOnly` fuer die Plattformbegrenzung auf Venus-Raspberry-Pi-Systeme
 
 ## GUI
 

@@ -605,32 +605,6 @@ rcLocalBackupAvailable=false
 [ -f "$RC_LOCAL_BACKUP" ] && rcLocalBackupAvailable=true
 rcLocalRestorePerformed=false
 
-# Kompatibilität prüfen
-abort_incompatible_platform() {
-    logMessage "Abbruch wegen inkompatibler Plattform."
-    endScript
-    exit $EXIT_INCOMPATIBLE_PLATFORM
-}
-
-machine_file="${EXPANDERPI_MACHINE_FILE:-${VENUS_MACHINE_FILE:-/etc/venus/machine}}"
-
-if [ ! -f "$machine_file" ]; then
-    logMessage "Kann den Venus-Gerätetyp nicht bestimmen - Skript wird beendet."
-    setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "Kann den Venus-Gerätetyp nicht bestimmen."
-    abort_incompatible_platform
-fi
-
-machine=$(cat "$machine_file")
-case "$machine" in
-    raspberrypi2|raspberrypi3|raspberrypi4|raspberrypi5)
-        ;;
-    *)
-        logMessage "$machine wird nicht unterstützt - Skript wird beendet."
-        setInstallFailed $EXIT_INCOMPATIBLE_PLATFORM "$machine wird nicht unterstützt."
-        abort_incompatible_platform
-        ;;
-esac
-
 # Hilfsfunktion zur Erkennung des CHECK-Modus
 is_check_mode() {
     [ "${scriptAction:-}" = "CHECK" ]
