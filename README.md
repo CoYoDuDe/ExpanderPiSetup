@@ -21,7 +21,7 @@ Nach Abschluss der SetupHelper-Installation steht die Blind-Install-Routine zur 
 
 Beachte, dass sämtliche Befehle innerhalb des SetupHelper-Kontextes laufen müssen. Ohne den SetupHelper lassen sich weder die Blind-Install-Automatik noch der Paketmanager nutzen.
 
-> **Hinweis:** Das Setup-Skript erwartet die SetupHelper-Hilfsbibliothek exakt unter `/data/SetupHelper/HelperResources/forSetupScript`, wie sie vom offiziellen SetupHelper-Archiv ausgeliefert wird. Wird der SetupHelper an einen anderen Ort entpackt, muss dieser Pfad per Symlink bereitgestellt oder das Skript entsprechend angepasst werden. Andernfalls bricht der Installer frühzeitig mit der Meldung „SetupHelper-Ressourcen wurden nicht … gefunden.“ ab.
+> **Hinweis:** Das Setup-Skript nutzt den offiziellen SetupHelper-Einstiegspunkt `/data/SetupHelper/HelperResources/IncludeHelpers`. Dieser Pfad entspricht der aktuellen `kwindrem`-Spezifikation. Wird der SetupHelper an einen anderen Ort entpackt, muss dieser Pfad per Symlink bereitgestellt oder das Skript entsprechend angepasst werden. Andernfalls bricht der Installer frühzeitig mit der Meldung „SetupHelper-Ressourcen wurden nicht … gefunden.“ ab.
 
 ### Unterstützte Python-Interpreter
 
@@ -43,7 +43,7 @@ Die Kombination mit dem optionalen Oberflächenpaket **GuiMods** wurde zuletzt a
 
 ## QML-Seite
 
-* **Datei:** `FileSets/VersionIndependent/opt/victronenergy/gui/qml/PageSettingsExpanderPiDbusAdc.qml`
+* **Datei:** `FileSets/VersionIndependent/PageSettingsExpanderPiDbusAdc.qml`
 * **Eigenschaften:**
   * Aufbau als `MbPage` mit `VisibleItemModel`, `MbEditBox`, `MbItemOptions` und `MbSubMenu` analog zu den offiziellen SetupHelper-Seiten.
   * Bindung der Eingabefelder an `com.victronenergy.settings/Settings/ExpanderPi/DbusAdc` (Vref, Scale, Kanaltyp und Label).
@@ -68,7 +68,7 @@ Sobald Victron weitere Sensortypen im Parser hinterlegt, wird die Erweiterung um
 
 ## Registrierung im SetupHelper
 
-Die Seite wird über einen Patch auf `PageSettings.qml` eingebunden (`FileSets/PatchSource/PageSettings.qml.patch`). Der Eintrag platziert den Menüpunkt **ExpanderPi DBus-ADC** im Bereich der Hardware-/I/O-Konfiguration. Nach dem Kopieren der `FileSets`-Struktur in das SetupHelper-Dateisystem (z. B. `/data/SetupHelper/custom`) stellen `fileListPatched` und `fileListVersionIndependent` sicher, dass der Patch angewendet und die neue Seite nach `/opt/victronenergy/gui/qml` installiert wird.
+Die Seite wird über einen Patch auf `PageSettings.qml` eingebunden (`FileSets/PatchSource/PageSettings.qml.patch`). Der Eintrag platziert den Menüpunkt **ExpanderPi DBus-ADC** im Bereich der Hardware-/I/O-Konfiguration. Beim Abschluss des Setups ruft das Skript `endScript INSTALL_FILES` auf, sodass der SetupHelper die Einträge aus `fileListPatched` und `fileListVersionIndependent` offiziell verarbeitet, den Patch auf `PageSettings.qml` anwendet und die neue Seite nach `/opt/victronenergy/gui/qml` installiert.
 
 ## Paketabhängigkeiten und Kernel-Anpassungen
 

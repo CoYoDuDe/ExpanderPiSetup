@@ -2,7 +2,7 @@
 
 # Setup-Skript für ExpanderPiSetup
 # Einbinden der Helper-Ressourcen
-helper_resource="/data/SetupHelper/HelperResources/forSetupScript"
+helper_resource="/data/SetupHelper/HelperResources/IncludeHelpers"
 if [ ! -r "$helper_resource" ]; then
     echo "Fehler: SetupHelper-Ressourcen wurden nicht unter $helper_resource gefunden." >&2
     echo "Bitte SetupHelper gemäß Dokumentation installieren oder den Pfad anpassen." >&2
@@ -2296,9 +2296,9 @@ install_config() {
     local escaped_scale=""
     local escaped_device=""
 
-    escaped_vref="$(escape_for_shell_assignment "$vref_value")"
-    escaped_scale="$(escape_for_shell_assignment "$scale_value")"
-    escaped_device="$(escape_for_shell_assignment "$device_value")"
+    escaped_vref="$(escape_label_for_user_config "$vref_value")"
+    escaped_scale="$(escape_label_for_user_config "$scale_value")"
+    escaped_device="$(escape_label_for_user_config "$device_value")"
 
     if ! {
         printf 'USER_VREF=%s\n' "$escaped_vref"
@@ -3180,4 +3180,4 @@ if [ "${rebootNeeded:-false}" = true ]; then
 fi
 
 logMessage "Skriptausführung abgeschlossen."
-endScript
+endScript INSTALL_FILES

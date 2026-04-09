@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
-const qmlFile = path.resolve(__dirname, '../FileSets/VersionIndependent/opt/victronenergy/gui/qml/PageSettingsExpanderPiDbusAdc.qml');
+const qmlFile = path.resolve(__dirname, '../FileSets/VersionIndependent/PageSettingsExpanderPiDbusAdc.qml');
 const source = fs.readFileSync(qmlFile, 'utf8');
 
 function extractFunction(name) {

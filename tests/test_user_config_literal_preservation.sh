@@ -84,7 +84,7 @@ import sys
 path, helper = sys.argv[1:3]
 with open(path, 'r', encoding='utf-8') as handle:
     data = handle.read()
-needle = 'helper_resource="/data/SetupHelper/HelperResources/forSetupScript"'
+needle = 'helper_resource="/data/SetupHelper/HelperResources/IncludeHelpers"'
 if needle not in data:
     raise SystemExit('helper_resource assignment not found')
 data = data.replace(needle, f'helper_resource="{helper}"', 1)

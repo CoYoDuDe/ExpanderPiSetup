@@ -28,7 +28,7 @@ main() {
     helper_stub="${temp_root}/helper_resources/forSetupScript"
     mkdir -p "$(dirname "$helper_stub")"
     printf ':\n' > "$helper_stub"
-    sed -i "s|helper_resource=\"/data/SetupHelper/HelperResources/forSetupScript\"|helper_resource=\"${helper_stub}\"|" "$tmp_script"
+    sed -i "s|helper_resource=\"/data/SetupHelper/HelperResources/IncludeHelpers\"|helper_resource=\"${helper_stub}\"|" "$tmp_script"
 
     machine_dir="${temp_root}/machine"
     mkdir -p "$machine_dir"

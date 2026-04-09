@@ -5,6 +5,7 @@ set -euo pipefail
 tmp_script="$(mktemp)"
 temp_machine_dir=""
 work_dir=""
+helper_stub=""
 awk '/^case "\$scriptAction" in/ { exit } { print }' "$(dirname "$0")/../setup" > "$tmp_script"
 
 cleanup() {
@@ -15,6 +16,9 @@ cleanup() {
     if [ -n "${work_dir:-}" ] && [ -d "$work_dir" ]; then
         rm -rf "$work_dir"
     fi
+    if [ -n "${helper_stub:-}" ] && [ -f "$helper_stub" ]; then
+        rm -f "$helper_stub"
+    fi
 }
 trap cleanup EXIT
 
@@ -22,6 +26,10 @@ main() {
     temp_machine_dir="$(mktemp -d)"
     echo "raspberrypi4" > "${temp_machine_dir}/machine"
     export EXPANDERPI_MACHINE_FILE="${temp_machine_dir}/machine"
+    helper_stub="${temp_machine_dir}/helper_resources/forSetupScript"
+    mkdir -p "$(dirname "$helper_stub")"
+    printf ':\n' > "$helper_stub"
+    sed -i "s|helper_resource=\"/data/SetupHelper/HelperResources/IncludeHelpers\"|helper_resource=\"${helper_stub}\"|" "$tmp_script"
 
     EXIT_INCOMPATIBLE_PLATFORM=${EXIT_INCOMPATIBLE_PLATFORM:-2}
     EXIT_ERROR=${EXIT_ERROR:-1}

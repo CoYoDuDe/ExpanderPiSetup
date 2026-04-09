@@ -38,7 +38,7 @@ STUB
 python3 - "$tmp_script" "$helper_stub" <<'PY'
 import sys
 path, stub = sys.argv[1:3]
-needle = 'helper_resource="/data/SetupHelper/HelperResources/forSetupScript"'
+needle = 'helper_resource="/data/SetupHelper/HelperResources/IncludeHelpers"'
 with open(path, 'r', encoding='utf-8') as handle:
     data = handle.read()
 if needle not in data:

@@ -5,11 +5,13 @@ TMP_SCRIPT="$(mktemp)"
 MOCK_BIN_DIR="$(mktemp -d)"
 MOCK_PY_DIR="${MOCK_BIN_DIR}/py"
 ORIGINAL_PATH="${PATH:-}"
-HELPER_RESOURCE_FILE="/data/SetupHelper/HelperResources/forSetupScript"
+HELPER_RESOURCE_FILE="/data/SetupHelper/HelperResources/IncludeHelpers"
 HELPER_RESOURCE_CREATED=false
+MACHINE_FILE="$(mktemp)"
 
 cleanup() {
     rm -f "$TMP_SCRIPT"
+    rm -f "$MACHINE_FILE"
     if [ -d "$MOCK_BIN_DIR" ]; then
         rm -rf "$MOCK_BIN_DIR"
     fi
@@ -92,6 +94,8 @@ class SystemBus:
 PY
 
 PATH="${MOCK_BIN_DIR}:${PATH}"
+printf 'raspberrypi4\n' > "$MACHINE_FILE"
+export EXPANDERPI_MACHINE_FILE="$MACHINE_FILE"
 
 if [ ! -e "$HELPER_RESOURCE_FILE" ]; then
     HELPER_RESOURCE_CREATED=true
@@ -122,7 +126,10 @@ if [ -z "$OUTPUT" ]; then
 fi
 
 EXPECTED_SCALE="EXPANDERPI_SCALE='value with spaces'"
-EXPECTED_LABEL="EXPANDERPI_CHANNEL_0_LABEL='Tank '"'"'A'"'"''"
+EXPECTED_LABEL="$(cat <<'EOF'
+EXPANDERPI_CHANNEL_0_LABEL='Tank '"'"'A'"'"''
+EOF
+)"
 
 if ! grep -Fqx "$EXPECTED_SCALE" <<<"$OUTPUT"; then
     printf 'Fehlendes Scale-Quoting: %s\n' "$OUTPUT" >&2

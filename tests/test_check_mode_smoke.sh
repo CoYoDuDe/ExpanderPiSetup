@@ -82,7 +82,7 @@ main() {
     EXIT_ERROR=${EXIT_ERROR:-1}
     EXIT_FILE_SET_ERROR=${EXIT_FILE_SET_ERROR:-3}
 
-    helper_resource_file="/data/SetupHelper/HelperResources/forSetupScript"
+    helper_resource_file="/data/SetupHelper/HelperResources/IncludeHelpers"
     if [ ! -e "$helper_resource_file" ]; then
         helper_resource_created=true
         mkdir -p "$(dirname "$helper_resource_file")"

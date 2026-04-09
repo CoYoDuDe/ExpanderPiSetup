@@ -1,20 +1,15 @@
 --- a/opt/victronenergy/gui/qml/PageSettings.qml
 +++ b/opt/victronenergy/gui/qml/PageSettings.qml
-@@ -125,0 +125,6 @@
-                 MbSubMenu {
-                         description: qsTr("I/O")
-                         subpage: ioSettings
-                         show: ioSettings.haveSubMenus
-                         PageSettingsIo { id: ioSettings }
-                 }
-+
-+                // ExpanderPiSetup: Hardware-Untermenü für den DBus-ADC ergänzen
-+                MbSubMenu {
-+                        description: qsTr("ExpanderPi DBus-ADC")
-+                        subpage: Component { PageSettingsExpanderPiDbusAdc {} }
-+                        showAccessLevel: User.AccessInstaller
-+                }
+@@ -171,6 +171,12 @@
+ 			show: ioSettings.haveSubMenus
+ 			PageSettingsIo { id: ioSettings }
+ 		}
++		// ExpanderPiSetup: Hardware submenu for the DBus ADC page
++		MbSubMenu {
++			description: qsTr("ExpanderPi DBus-ADC")
++			subpage: Component { PageSettingsExpanderPiDbusAdc {} }
++			showAccessLevel: User.AccessInstaller
++		}
  
-                 /*
-                 MbSubMenu {
-                         description: qsTr("Backup & Restore")
+ 		/*
+ 		MbSubMenu {
