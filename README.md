@@ -31,7 +31,7 @@ Die QML-Seite ist im Stil der offiziellen SetupHelper-Seiten aufgebaut und nutzt
 - `MbSubMenu`
 - `VBusItem`
 
-Die Seite schreibt nach `com.victronenergy.settings/Settings/ExpanderPi/DbusAdc` und startet den Installationslauf ueber den PackageManager.
+Die Seite schreibt direkt nach `com.victronenergy.settings/Settings/ExpanderPi/DbusAdc`; das eigentliche Anwenden uebernimmt weiterhin das `setup`-Skript beim Paket-Installationslauf.
 
 ## Konfiguration
 
