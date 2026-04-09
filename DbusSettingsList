@@ -1,0 +1,18 @@
+{"path":"/Settings/ExpanderPi/DbusAdc/Vref", "default":1.3, "min":1.0, "max":10.0}
+{"path":"/Settings/ExpanderPi/DbusAdc/Scale", "default":4095, "min":1023, "max":65535}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel0/Type", "default":"tank"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel0/Label", "default":"tank1"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel1/Type", "default":"tank"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel1/Label", "default":"tank2"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel2/Type", "default":"tank"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel2/Label", "default":"tank3"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel3/Type", "default":"tank"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel3/Label", "default":"tank4"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel4/Type", "default":"temp"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel4/Label", "default":"temperatur5"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel5/Type", "default":"temp"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel5/Label", "default":"temperatur6"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel6/Type", "default":"temp"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel6/Label", "default":"temperatur7"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel7/Type", "default":"temp"}
+{"path":"/Settings/ExpanderPi/DbusAdc/Channel7/Label", "default":"temperatur8"}

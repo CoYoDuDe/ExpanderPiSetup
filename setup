@@ -637,6 +637,35 @@ restore_file_if_available() {
     cp -p "$backup_file" "$target_file"
 }
 
+sync_gui_settings_to_dbus() {
+    local vref_value="$1"
+    local scale_value="$2"
+
+    if ! declare -F updateDbusStringSetting >/dev/null 2>&1 \
+        || ! declare -F updateDbusIntSetting >/dev/null 2>&1 \
+        || ! declare -F updateDbusRealSetting >/dev/null 2>&1; then
+        logMessage "SetupHelper-D-Bus-Setting-Funktionen nicht verfügbar; GUI-Settings werden nicht synchronisiert."
+        return 1
+    fi
+
+    updateDbusRealSetting "/Settings/ExpanderPi/DbusAdc/Vref" "$vref_value"
+    updateDbusIntSetting "/Settings/ExpanderPi/DbusAdc/Scale" "$scale_value"
+
+    local channel
+    for (( channel=0; channel<TOTAL_ADC_CHANNELS; channel++ )); do
+        local current_type="${channel_types[channel]}"
+        local current_label="${channel_labels[channel]}"
+        local type_path="/Settings/ExpanderPi/DbusAdc/Channel${channel}/Type"
+        local label_path="/Settings/ExpanderPi/DbusAdc/Channel${channel}/Label"
+
+        updateDbusStringSetting "$type_path" "${current_type:-none}"
+        updateDbusStringSetting "$label_path" "$current_label"
+    done
+
+    logMessage "GUI-Settings unter com.victronenergy.settings wurden synchronisiert."
+    return 0
+}
+
 # Funktionen definieren
 
 ## Einträge in rc.local hinzufügen und entfernen
@@ -2328,6 +2357,8 @@ install_config() {
 
     logMessage "Benutzerkonfiguration unter ${USER_CONFIG_FILE} gespeichert."
 
+    sync_gui_settings_to_dbus "$vref_value" "$scale_value"
+
     if ! $config_changed; then
         logMessage "Bestehende Konfiguration musste nicht überschrieben werden."
     fi
@@ -3181,4 +3212,4 @@ if [ "${rebootNeeded:-false}" = true ]; then
 fi
 
 logMessage "Skriptausführung abgeschlossen."
-endScript INSTALL_FILES
+endScript INSTALL_FILES ADD_DBUS_SETTINGS
