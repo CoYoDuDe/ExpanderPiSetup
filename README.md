@@ -8,13 +8,6 @@ ExpanderPiSetup ist ein SetupHelper-Paket fuer Venus OS. Es fuegt eine GUI-Seite
 - Venus OS auf unterstuetztem Raspberry Pi
 - ExpanderPi-Hardware vorhanden
 
-Unterstuetzte Geraetetypen:
-
-- `raspberrypi2`
-- `raspberrypi3`
-- `raspberrypi4`
-- `raspberrypi5`
-
 ## Installation
 
 Repository im SetupHelper als Custom-Paket eintragen und ueber den PackageManager installieren.
