@@ -610,6 +610,21 @@ is_check_mode() {
     [ "${scriptAction:-}" = "CHECK" ]
 }
 
+logMessageStderr() {
+    logMessage "$@" >&2
+}
+
+backup_file_if_needed() {
+    local source_file="$1"
+    local backup_file="$2"
+
+    if [ -f "$source_file" ]; then
+        if [ ! -f "$backup_file" ]; then
+            cp -p "$source_file" "$backup_file"
+        fi
+    fi
+}
+
 # Funktionen definieren
 
 ## Einträge in rc.local hinzufügen und entfernen
@@ -776,10 +791,10 @@ validate_backup_prerequisites() {
 # Originaldateien sichern
 backup_originals() {
     logMessage "Sichere Originaldateien..."
-    backupFile "$CONFIG_FILE" "$BACKUP_CONFIG_FILE"
+    backup_file_if_needed "$CONFIG_FILE" "$BACKUP_CONFIG_FILE"
     [ -f "$BACKUP_CONFIG_FILE" ] && configBackupExisted=true
-    backupFile "$CONFIG_TXT" "$CONFIG_TXT_BACKUP"
-    backupFile "$RC_LOCAL_FILE" "$RC_LOCAL_BACKUP"
+    backup_file_if_needed "$CONFIG_TXT" "$CONFIG_TXT_BACKUP"
+    backup_file_if_needed "$RC_LOCAL_FILE" "$RC_LOCAL_BACKUP"
 
     mkdir -p "$OVERLAY_STATE_DIR"
     for overlay in "${OVERLAYS[@]}"; do
@@ -1494,12 +1509,12 @@ prompt_numeric_value() {
         if [[ "$candidate" =~ $validation_regex ]]; then
             local sanitized_candidate
             sanitized_candidate="$(sanitize_numeric_value "$candidate" "$min_value" "$max_value" "$fallback_value" "$value_label" "$numeric_mode")"
-            logMessage "Nicht-interaktiv: verwende ${source} (${candidate}) für ${prompt_text}."
+            logMessageStderr "Nicht-interaktiv: verwende ${source} (${candidate}) für ${prompt_text}."
             echo "$sanitized_candidate"
             return 0
         fi
 
-        logMessage "Nicht-interaktiv: ${source} '${candidate}' ist ungültig für ${prompt_text}. Verwende Fallback '${default_value}'."
+        logMessageStderr "Nicht-interaktiv: ${source} '${candidate}' ist ungültig für ${prompt_text}. Verwende Fallback '${default_value}'."
 
         if [ -n "$default_value" ] && [[ "$default_value" =~ $validation_regex ]]; then
             echo "$default_value"
@@ -1523,12 +1538,12 @@ prompt_numeric_value() {
         if [ -n "$fallback_candidate" ] && [[ "$fallback_candidate" =~ $validation_regex ]]; then
             local sanitized_fallback
             sanitized_fallback="$(sanitize_numeric_value "$fallback_candidate" "$min_value" "$max_value" "$fallback_value" "$value_label" "$numeric_mode")"
-            logMessage "Nicht-interaktiv: setze ${prompt_text} auf Skriptstandard ${fallback_candidate}."
+            logMessageStderr "Nicht-interaktiv: setze ${prompt_text} auf Skriptstandard ${fallback_candidate}."
             echo "$sanitized_fallback"
             return 0
         fi
 
-        logMessage "Nicht-interaktiv: Konnte keinen gültigen Wert für ${prompt_text} bestimmen. Setze auf '0'."
+        logMessageStderr "Nicht-interaktiv: Konnte keinen gültigen Wert für ${prompt_text} bestimmen. Setze auf '0'."
         echo "0"
         return 0
     fi
@@ -1586,16 +1601,16 @@ prompt_sensor_label() {
         local fallback="sensor_${channel_display}"
 
         if [ "$require_non_empty" = false ] && [ -z "$candidate" ]; then
-            logMessage "Nicht-interaktiv: Kanal ${channel_display} bleibt ohne Sensor."
+            logMessageStderr "Nicht-interaktiv: Kanal ${channel_display} bleibt ohne Sensor."
             echo ""
             return 0
         fi
 
         if [ -z "$candidate" ]; then
             candidate="$fallback"
-            logMessage "Nicht-interaktiv: verwende Platzhalter '${candidate}' für Kanal ${channel_display}."
+            logMessageStderr "Nicht-interaktiv: verwende Platzhalter '${candidate}' für Kanal ${channel_display}."
         else
-            logMessage "Nicht-interaktiv: verwende Umgebungswert '${candidate}' für Kanal ${channel_display}."
+            logMessageStderr "Nicht-interaktiv: verwende Umgebungswert '${candidate}' für Kanal ${channel_display}."
         fi
 
         local normalized
@@ -1718,7 +1733,7 @@ prompt_channel_assignment() {
 
         case "$canonical_type" in
             none)
-                logMessage "Nicht-interaktiv: ${log_source} führen dazu, dass Kanal ${channel_display} deaktiviert bleibt."
+                logMessageStderr "Nicht-interaktiv: ${log_source} führen dazu, dass Kanal ${channel_display} deaktiviert bleibt."
                 printf 'none|\n'
                 return 0
                 ;;
@@ -1733,7 +1748,7 @@ prompt_channel_assignment() {
                 else
                     normalized_label="$fallback_label"
                 fi
-                logMessage "Nicht-interaktiv: ${log_source} setzen Kanal ${channel_display} auf ${canonical_type}-Sensor (${normalized_label})."
+                logMessageStderr "Nicht-interaktiv: ${log_source} setzen Kanal ${channel_display} auf ${canonical_type}-Sensor (${normalized_label})."
                 printf '%s|%s\n' "$canonical_type" "$normalized_label"
                 return 0
                 ;;
@@ -1743,7 +1758,7 @@ prompt_channel_assignment() {
                 if [ -z "$raw_display" ]; then
                     raw_display="?"
                 fi
-                logMessage "Nicht-interaktiv: ${log_source} liefern den nicht unterstützten Sensortyp '${raw_display}' für Kanal ${channel_display}."
+                logMessageStderr "Nicht-interaktiv: ${log_source} liefern den nicht unterstützten Sensortyp '${raw_display}' für Kanal ${channel_display}."
                 printf 'invalid|\n'
                 return 0
                 ;;
