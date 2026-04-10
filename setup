@@ -1,27 +1,8 @@
 #!/bin/bash
 
-# Setup-Skript für ExpanderPiSetup
-# Einbinden der Helper-Ressourcen
-helper_resource="/data/SetupHelper/HelperResources/IncludeHelpers"
-if [ ! -r "$helper_resource" ]; then
-    echo "Fehler: SetupHelper-Ressourcen wurden nicht unter $helper_resource gefunden." >&2
-    echo "Bitte SetupHelper gemäß Dokumentation installieren oder den Pfad anpassen." >&2
-    exit 1
-fi
-if ! . "$helper_resource"; then
-    echo "Fehler: Helper-Ressourcen konnten nicht geladen werden (source $helper_resource)." >&2
-    echo "Bitte SetupHelper-Installation prüfen und erneut versuchen." >&2
-    exit 1
-fi
+standardPromptAndActions='no'
 
-if ! declare -F logMessage >/dev/null 2>&1; then
-    echo "Fehler: Erwartete Helper-Funktion logMessage ist nach dem Laden nicht verfügbar." >&2
-    echo "Bitte SetupHelper-Installation prüfen und erneut versuchen." >&2
-    exit 1
-fi
-
-# Standardaktionen aktivieren
-standardPromptAndActions='yes'
+source "/data/SetupHelper/HelperResources/IncludeHelpers"
 
 # Nicht-interaktiven Modus erkennen
 nonInteractiveMode=false
