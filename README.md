@@ -4,13 +4,11 @@ ExpanderPiSetup ist ein SetupHelper-Paket fuer Venus OS. Es fuegt eine GUI-Seite
 
 ## Voraussetzungen
 
-- `SetupHelper` von `kwindrem` aktuell installiert
+- [SetupHelper](https://github.com/kwindrem/SetupHelper) von [kwindrem](https://github.com/kwindrem) aktuell installiert
 - Venus OS auf unterstuetztem Raspberry Pi
 - ExpanderPi-Hardware vorhanden
 
-Dieses Paket baut auf dem SetupHelper-Projekt von `kwindrem` auf:
-
-- `https://github.com/kwindrem/SetupHelper`
+Dieses Paket baut auf [SetupHelper](https://github.com/kwindrem/SetupHelper) von [kwindrem](https://github.com/kwindrem) auf.
 
 ## Installation
 
