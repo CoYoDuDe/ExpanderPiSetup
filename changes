@@ -1,39 +1,5 @@
-Unveröffentlicht:
-- Setup klar auf `SetupHelper-first` ausgerichtet: `standardPromptAndActions='no'` steht jetzt vor `IncludeHelpers`.
-- Doppeltes `ReadMe` entfernt; nur noch `README.md` bleibt im Paket.
-- Standard-Template-Parser trennt Direktive und Rohtext zeichengetreu, übernimmt Label-Strings inklusive mehrfacher Leerzeichen unverändert und wird durch einen Regressionstest mit doppeltem Abstand abgesichert.
-- install_config prüft USER_CHANNEL_* und USER_CHANNEL_*_TYPE jetzt mit `[[ -v ... ]]` und indirekter Expansion, entfernt sämtliche eval-Aufrufe und verhindert die Ausführung gespeicherter Shell-Fragmente (z. B. `Service $1`, ``Label `echo foo` ``); ein Regressionstest bestätigt die unveränderte Übernahme aus dbus-adc.user.conf ohne Kommandoausführung.
-- Kommentarparser erkennt `python3`, fällt andernfalls auf `python` bzw. eine Shell-Implementierung zurück und nutzt denselben Automaten für alle Varianten; ein neuer Test simuliert eine Umgebung ohne `python3` und bestätigt weiterhin korrekt übernommene Template-Werte.
-- Default-Template-Parser nutzt eine Shell-basierte Zeichenanalyse, entfernt Kommentarzeichen ausschließlich außerhalb von Quotes und bewahrt so Labeltexte wie `Temp "#1"` sowie `label "Service #1"`; ein Regressionstest deckt das Szenario ab.
-- Python-D-Bus-Loader prüft vor dem Einsatz von `shlex.quote`, ob die Funktion verfügbar ist, und verwendet andernfalls automatisch `pipes.quote` bzw. eine POSIX-konforme Fallback-Routine mit identischem Escaping.
-- Neuer Shell-Test simuliert einen Interpreter ohne `shlex.quote`, inklusive Stub-D-Bus-Modul, und verifiziert korrekte Maskierung für Leerzeichen und einfache Anführungszeichen.
-- README dokumentiert explizit die unterstützten Python-Interpreter (Python 2.7 sowie alle Python-3-Varianten) für den nicht-interaktiven Konfigurationsabruf.
-- Vref-Validierung akzeptiert nun auch ganzzahlige Eingaben im Float-Modus und nutzt für Primär- und Fallback-Prüfung denselben Regex.
-- README stellt klar, dass Ganzzahlen zulässig sind und Eingaben mit Dezimalkomma konsequent auf den Fallback-Wert zurückfallen.
-- Standard-Template-Parser deaktiviert während der Tokenisierung die Pathname-Expansion und verarbeitet Label-Vorgaben inklusive `*` unverändert bis in die Gerätekonfiguration; Regressionstest deckt das Literal-Szenario ab.
-- Device-Tokenisierung wertet `device`-Zeilen ohne Pathname-Expansion aus, so dass Wildcard-Literale wie `iio:device*` unverändert übernommen werden; Regressionstest schützt das Verhalten.
-- Shell-Escape-Routine für `dbus-adc.user.conf` verwendet nun `printf '%q'` für alle `USER_*`-Zuweisungen, verhindert damit jede Substitution von `$`, Backticks oder `$(...)` beim erneuten Sourcen und wird durch einen Regressionstest mit Sonderzeichen-Label abgesichert.
-- install_config ignoriert nun `dtoverlay=`-Zeilen, die (auch mit vorangestelltem Leerraum) auskommentiert wurden, und ergänzt ausschließlich aktive Overlays.
-
-v1.0:
-- Float-Validierung akzeptiert nur noch Werte mit optionalem Vorzeichen; Ganzzahlen und Dezimalwerte mit Punkt sind erlaubt, während Dezimalkomma-Eingaben zuverlässig auf den dokumentierten Vref-Fallback zurückfallen und inklusive Log-Meldung getestet werden.
-- Device-Zeile der `dbus-adc.conf` wird dynamisch aus der Vorlage übernommen und kann per `EXPANDERPI_DEVICE` oder gespeicherter Benutzerkonfiguration überschrieben werden; Standard bleibt `iio:device0`.
-- Installer persistiert die ausgewählte IIO-Gerätenummer in `dbus-adc.user.conf` und setzt sie beim nächsten Lauf wieder als Basiswert.
-- Regressionstest prüft die Übernahme einer Vorlage mit `device iio:device1`.
-- README um das neue Override-Verhalten erweitert.
-- Versionsdatei und Change-Log auf den ausgelieferten Stand v1.0 validiert.
-- ReadMe führt die unterstützten Raspberry-Pi-Modelle 2/3/4 konsistent zum Setup und zur README auf.
-
-v0.0.3:
-- Veraltetes `ds1307-rtc.dtbo` aus den ausgelieferten Overlays entfernt und den Setup-Prozess auf das generische `i2c-rtc`-Overlay mit `ds1307`-Parameter umgestellt.
-- rc.local wird nur noch für den `hwclock -s` Aufruf angepasst; die DS1307-Anlage via `/sys/.../new_device` entfällt zugunsten des i2c-rtc-Overlays.
-- Legacy-Installationen werden beim Update automatisch von alten rc.local-Einträgen und Markern bereinigt.
-- Dokumentation und Change-Log aktualisiert, um die Umstellung auf das generische `i2c-rtc`-Overlay sowie die rc.local-Bereinigung nachvollziehbar zu machen; die ursprünglich als v1.0 vorgesehenen Nacharbeiten wurden in diesen Stand integriert.
-
-v0.0.2:
-- Device-Tree-Overlay-Eintrag auf die Komma-Schreibweise `dtoverlay=mcp3208,spi0-0-present` aktualisiert, damit der Overlay-Loader die boolesche Option korrekt setzt.
-- Dokumentation ergänzt, wie sich die erfolgreiche Aktivierung des MCP3208-Overlays direkt auf dem Gerät prüfen lässt.
-
-v0.0.1:
-- Neues kompaktes ReadMe mit Paketbeschreibung angelegt.
-- Change-Log-Datei eingeführt, um zukünftige funktionsrelevante Versionen zu dokumentieren.
+v1.2
+- SetupHelper-first Integration weiter bereinigt.
+- README-Struktur vereinfacht.
+- Konfiguration, Template-Verarbeitung und Validierung stabilisiert.
+- ExpanderPi GUI- und Installationsablauf auf dem Zielsystem verifiziert.
