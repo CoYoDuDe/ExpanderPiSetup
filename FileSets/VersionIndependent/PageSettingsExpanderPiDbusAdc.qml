@@ -9,11 +9,6 @@ MbPage {
     property string settingsPrefix: "com.victronenergy.settings/Settings/ExpanderPi/DbusAdc"
 
     model: VisibleItemModel {
-        MbItemText {
-            text: qsTr("Konfiguriere Referenzspannung, Scale und die acht ExpanderPi-Kanäle.")
-            wrapMode: Text.WordWrap
-        }
-
         MbEditBox {
             description: qsTr("Referenzspannung (Vref)")
             item.bind: Utils.path(settingsPrefix, "/Vref")
