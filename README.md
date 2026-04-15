@@ -51,6 +51,35 @@ Unterstuetzte Sensortypen:
 - `tank`
 - `temp`
 
+## Sensoren und Hardware
+
+### Temperaturfühler
+
+Verwendet werden **10k NTC B3950**.
+
+- Innen: Standard NTC
+- Außen: wasserdichte Ausführung (vergossen / Edelstahlsonde)
+
+### Beschaltung (NTC)
+
+3.3V  
+|  
+[10k Widerstand]  
+|  
++-----> ADC Eingang  
+|  
+[NTC 10k]  
+|  
+GND  
+
+Optional:
+- 100 nF Kondensator zwischen ADC und GND zur Signalberuhigung
+
+### Tanksensoren
+
+Tanksensoren werden als Widerstandsgeber über den ADC eingelesen.  
+Die Beschaltung erfolgt je nach Sensor über einen passenden Spannungsteiler.
+
 ## Hinweise
 
 - Das Setup passt die fuer ExpanderPi benoetigten Overlays und Systemdateien an.
