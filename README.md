@@ -10,6 +10,12 @@ ExpanderPiSetup ist ein SetupHelper-Paket fuer Venus OS. Es fuegt eine GUI-Seite
 
 Dieses Paket baut auf [SetupHelper](https://github.com/kwindrem/SetupHelper) von [kwindrem](https://github.com/kwindrem) auf.
 
+## Hardware
+
+Dieses Paket ist fuer den [Expander Pi von AB Electronics](https://www.abelectronics.co.uk/p/50/Expander-Pi) gedacht. Das Board stellt unter anderem 8 analoge Eingaenge ueber einen MCP3208-ADC, 16 digitale I/O-Kanaele, 2 analoge Ausgaenge und eine RTC bereit.
+
+Eine schnelle Uebersicht zur GPIO-/Pin-Belegung gibt es bei [pinout.xyz](https://pinout.xyz/pinout/expander_pi).
+
 ## Installation
 
 Repository im SetupHelper als Custom-Paket eintragen und ueber den PackageManager installieren.
