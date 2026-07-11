@@ -91,3 +91,13 @@ Die Beschaltung erfolgt je nach Sensor über einen passenden Spannungsteiler.
 - Das Setup passt die fuer ExpanderPi benoetigten Overlays und Systemdateien an.
 - Die GUI speichert nur die Werte; das eigentliche Anwenden uebernimmt das `setup`-Skript.
 - Die generierte `dbus-adc.conf` bleibt auf die von Victron unterstuetzten `tank`-/`temp`-Direktiven beschraenkt.
+
+## Unterstützung
+
+Dieses Projekt wird unabhängig und privat entwickelt und kostenlos bereitgestellt. Freiwillige Unterstützung hilft bei Infrastruktur, Servern, Domains, Tests, Wartung und Weiterentwicklung.
+
+- [PayPal](https://paypal.me/CoYoDuDe)
+- [Buy Me a Coffee](https://www.buymeacoffee.com/CoYoDuDe)
+- [Weitere Projekte und Informationen](https://dnsmith.net/)
+
+Unterstützung ist freiwillig. Es gibt keinen Abo-Zwang und daraus entsteht kein Anspruch auf bestimmte Funktionen oder persönlichen Support.
