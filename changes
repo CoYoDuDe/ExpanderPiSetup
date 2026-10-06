@@ -1,3 +1,6 @@
+v1.3
+Persistent package state; preserve other addons during uninstall; versioned kernel module detection; safe ADC defaults and sensor documentation; SetupHelper uninstall patch initialization.
+
 v1.2
 - SetupHelper-first Integration weiter bereinigt.
 - README-Struktur vereinfacht.

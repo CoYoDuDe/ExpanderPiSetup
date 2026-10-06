@@ -1,0 +1,6 @@
+* text=auto
+*.py text eol=lf
+*.qml text eol=lf
+*.sh text eol=lf
+setup text eol=lf
+run text eol=lf

@@ -59,27 +59,13 @@ Unterstuetzte Sensortypen:
 
 ## Sensoren und Hardware
 
-### Temperaturfühler
+### Temperaturfuehler
 
-Verwendet werden **10k NTC B3950**.
+`temp` verwendet die LM335-Umrechnung des offiziellen Victron-dbus-adc-Treibers samt dessen Spannungsteiler. Ein 10k-NTC B3950 ist damit nicht kompatibel; dafuer ist eine eigene Umrechnung erforderlich. NTC nicht als `temp` aktivieren.
 
-- Innen: Standard NTC
-- Außen: wasserdichte Ausführung (vergossen / Edelstahlsonde)
+Neue Installationen starten mit unbelegten Kanaelen und 4.096 V Referenzspannung fuer den unveraenderten AB-Electronics-Expander-Pi. Bei externer Referenz muss Vref der tatsaechlichen Hardware entsprechen. Vorhandene Benutzereinstellungen bleiben erhalten. Die reine Platinen-Erkennung bestaetigt keine Sensorkalibrierung.
 
-### Beschaltung (NTC)
-
-3.3V  
-|  
-[10k Widerstand]  
-|  
-+-----> ADC Eingang  
-|  
-[NTC 10k]  
-|  
-GND  
-
-Optional:
-- 100 nF Kondensator zwischen ADC und GND zur Signalberuhigung
+Quellen: [AB Electronics](https://www.abelectronics.co.uk/p/50/expander-pi), [Victron Sensorumrechnung](https://github.com/victronenergy/dbus-adc/blob/master/software/src/sensors.c).
 
 ### Tanksensoren
 
@@ -101,3 +87,7 @@ Dieses Projekt wird unabhängig und privat entwickelt und kostenlos bereitgestel
 - [Weitere Projekte und Informationen](https://dnsmith.net/)
 
 Unterstützung ist freiwillig. Es gibt keinen Abo-Zwang und daraus entsteht kein Anspruch auf bestimmte Funktionen oder persönlichen Support.
+
+## Updates und Deinstallation
+
+Eigene Backups, Overlay-Zustand und Benutzerkonfiguration liegen dauerhaft unter `/data/setupOptions/ExpanderPiSetup`, ausserhalb des ausgetauschten Paketordners. Boot-Eintraege werden in einem markierten Block verwaltet. Bei Deinstallation bleiben andere Boot- und Start-Eintraege erhalten; unmarkierte Alt-Eintraege werden nicht ohne Herkunftsnachweis entfernt.
