@@ -63,7 +63,9 @@ Unterstuetzte Sensortypen:
 
 `temp` verwendet die LM335-Umrechnung des offiziellen Victron-dbus-adc-Treibers samt dessen Spannungsteiler. Ein 10k-NTC B3950 ist damit nicht kompatibel; dafuer ist eine eigene Umrechnung erforderlich. NTC nicht als `temp` aktivieren.
 
-Neue Installationen stellen die bisherige Kanalvorlage bereit (ADC 1–4 Tank, ADC 5–8 Temperatur), mit in Venus zunaechst deaktivierten Eingaengen und 4.096 V Referenzspannung fuer den unveraenderten AB-Electronics-Expander-Pi. Bei externer Referenz muss Vref der tatsaechlichen Hardware entsprechen. Vorhandene Benutzereinstellungen bleiben erhalten. Die reine Platinen-Erkennung bestaetigt keine Sensorkalibrierung.
+Neue Installationen verwenden die bisherige Kanalvorlage (ADC 1–4 Tank, ADC 5–8 Temperatur) mit zunaechst deaktivierten Eingaengen. Der urspruengliche Softwarewert Vref=1.3 und Scale=4095 bleibt erhalten. Vref ist hier Teil der Sensorumrechnung des Victron-Treibers inklusive dessen Spannungsteiler-Annahme: die nominelle ADC-Referenzspannung allein rechtfertigt keine Aenderung einer funktionierenden Konfiguration. Vorhandene Benutzereinstellungen bleiben erhalten. Die reine Platinen-Erkennung bestaetigt keine Sensorkalibrierung.
+
+v1.5 korrigiert den in v1.3/v1.4 irrtuemlich geaenderten Standardwert. Bereits gespeicherte Einstellungen werden nicht pauschal ueberschrieben; wurde eine zuvor funktionierende 1.3-Konfiguration auf 4.096 geaendert, muss deren urspruenglicher Wert gezielt wiederhergestellt werden.
 
 Quellen: [AB Electronics](https://www.abelectronics.co.uk/p/50/expander-pi), [Victron Sensorumrechnung](https://github.com/victronenergy/dbus-adc/blob/master/software/src/sensors.c).
 
