@@ -1,3 +1,6 @@
+v1.4
+Expose the channel template in native Venus I/O; newly declared inputs remain disabled until assigned and enabled.
+
 v1.3
 Persistent package state; preserve other addons during uninstall; versioned kernel module detection; safe ADC defaults and sensor documentation; SetupHelper uninstall patch initialization.
 

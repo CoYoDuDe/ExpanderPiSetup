@@ -144,8 +144,8 @@ ADC_VREF_MIN="1.0"
 ADC_VREF_MAX="10.0"
 ADC_SCALE_MIN=1023
 ADC_SCALE_MAX=65535
-DEFAULT_CHANNEL_TYPES_FALLBACK=("none" "none" "none" "none" "none" "none" "none" "none")
-DEFAULT_CHANNEL_LABELS_FALLBACK=("tank1" "tank2" "tank3" "tank4" "temperatur5" "temperatur6" "temperatur7" "temperatur8")
+DEFAULT_CHANNEL_TYPES_FALLBACK=("tank" "tank" "tank" "tank" "temp" "temp" "temp" "temp")
+DEFAULT_CHANNEL_LABELS_FALLBACK=("ADC 1" "ADC 2" "ADC 3" "ADC 4" "ADC 5" "ADC 6" "ADC 7" "ADC 8")
 TOTAL_ADC_CHANNELS=8
 ADC_DEVICE_LINE="device iio:device0"
 ADC_DEVICE_DEFAULT_VALUE="${ADC_DEVICE_LINE#device }"
@@ -2377,7 +2377,7 @@ install_config() {
         logMessage "$CONFIG_TXT unverändert."
     fi
 
-    if [ "$config_changed" = true ] || [ "$config_txt_changed" = true ]; then
+    if [ "$config_txt_changed" = true ]; then
         rebootNeeded=true
         local restart_reason="Konfigurationsdateien geändert"
         if [ "$config_changed" = true ] && [ "$config_txt_changed" != true ]; then
@@ -2389,7 +2389,12 @@ install_config() {
         fi
         logMessage "Neustartbedarf gesetzt, da ${restart_reason}."
     else
-        logMessage "Neustart nicht erforderlich: dbus-adc.conf und $CONFIG_TXT blieben unverändert."
+        if [ "$config_changed" = true ] && [ -d /service/dbus-adc ]; then
+            svc -t /service/dbus-adc || return 1
+            logMessage "ADC-Konfiguration durch Neustart des dbus-adc-Dienstes angewendet."
+        else
+            logMessage "Neustart nicht erforderlich: Konfiguration unverändert."
+        fi
     fi
 }
 

@@ -63,7 +63,7 @@ Unterstuetzte Sensortypen:
 
 `temp` verwendet die LM335-Umrechnung des offiziellen Victron-dbus-adc-Treibers samt dessen Spannungsteiler. Ein 10k-NTC B3950 ist damit nicht kompatibel; dafuer ist eine eigene Umrechnung erforderlich. NTC nicht als `temp` aktivieren.
 
-Neue Installationen starten mit unbelegten Kanaelen und 4.096 V Referenzspannung fuer den unveraenderten AB-Electronics-Expander-Pi. Bei externer Referenz muss Vref der tatsaechlichen Hardware entsprechen. Vorhandene Benutzereinstellungen bleiben erhalten. Die reine Platinen-Erkennung bestaetigt keine Sensorkalibrierung.
+Neue Installationen stellen die bisherige Kanalvorlage bereit (ADC 1–4 Tank, ADC 5–8 Temperatur), mit in Venus zunaechst deaktivierten Eingaengen und 4.096 V Referenzspannung fuer den unveraenderten AB-Electronics-Expander-Pi. Bei externer Referenz muss Vref der tatsaechlichen Hardware entsprechen. Vorhandene Benutzereinstellungen bleiben erhalten. Die reine Platinen-Erkennung bestaetigt keine Sensorkalibrierung.
 
 Quellen: [AB Electronics](https://www.abelectronics.co.uk/p/50/expander-pi), [Victron Sensorumrechnung](https://github.com/victronenergy/dbus-adc/blob/master/software/src/sensors.c).
 
@@ -91,3 +91,5 @@ Unterstützung ist freiwillig. Es gibt keinen Abo-Zwang und daraus entsteht kein
 ## Updates und Deinstallation
 
 Eigene Backups, Overlay-Zustand und Benutzerkonfiguration liegen dauerhaft unter `/data/setupOptions/ExpanderPiSetup`, ausserhalb des ausgetauschten Paketordners. Boot-Eintraege werden in einem markierten Block verwaltet. Bei Deinstallation bleiben andere Boot- und Start-Eintraege erhalten; unmarkierte Alt-Eintraege werden nicht ohne Herkunftsnachweis entfernt.
+
+In Venus OS 3.81 erscheinen konfigurierte Kanaele unter **Einstellungen → I/O → Analoge Eingaenge**. Dort erfolgt die native Aktivierung. Die Vorlage ist keine Erkennung der angeschlossenen Sensoren. `none` entfernt einen Kanal aus dieser Liste. GUI-Aenderungen im ExpanderPi-Menue werden beim erneuten Installieren des Pakets angewendet.
