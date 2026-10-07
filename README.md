@@ -1,97 +1,34 @@
 # ExpanderPiSetup
 
-ExpanderPiSetup ist ein SetupHelper-Paket fuer Venus OS. Es fuegt eine GUI-Seite `ExpanderPi` hinzu und fuehrt die benoetigten Setup-Schritte fuer `dbus-adc`, Overlays und Systemanpassungen aus.
-
-## Voraussetzungen
-
-- [SetupHelper](https://github.com/kwindrem/SetupHelper) von [kwindrem](https://github.com/kwindrem) aktuell installiert
-- Venus OS auf unterstuetztem Raspberry Pi
-- ExpanderPi-Hardware vorhanden
-
-Dieses Paket baut auf [SetupHelper](https://github.com/kwindrem/SetupHelper) von [kwindrem](https://github.com/kwindrem) auf.
-
-## Hardware
-
-Dieses Paket ist fuer den [Expander Pi von AB Electronics](https://www.abelectronics.co.uk/p/50/Expander-Pi) gedacht. Das Board stellt unter anderem 8 analoge Eingaenge ueber einen MCP3208-ADC, 16 digitale I/O-Kanaele, 2 analoge Ausgaenge und eine RTC bereit.
-
-Eine schnelle Uebersicht zur GPIO-/Pin-Belegung gibt es bei [pinout.xyz](https://pinout.xyz/pinout/expander_pi).
+Richtet die analogen Eingänge des [AB-Electronics Expander Pi](https://www.abelectronics.co.uk/p/50/expander-pi) auf Venus OS ein. Verwendet den Victron-Treiber `dbus-adc`.
 
 ## Installation
 
-Repository im SetupHelper als Custom-Paket eintragen und ueber den PackageManager installieren.
+Voraussetzung: unterstützter Raspberry Pi, angeschlossene Expander-Pi-Platine und [SetupHelper](https://github.com/kwindrem/SetupHelper).
 
-Das Paket nutzt den offiziellen SetupHelper-Ablauf:
+Im Paketmanager: Paket `ExpanderPiSetup`, GitHub-Benutzer `CoYoDuDe`, Branch `main`.
 
-- `IncludeHelpers`
-- `endScript INSTALL_FILES`
-- FileSets fuer GUI-Datei und Patch
-- `gitHubInfo` im offiziellen Format fuer den PackageManager
-- `raspberryPiOnly` fuer die Plattformbegrenzung auf Venus-Raspberry-Pi-Systeme
+## Sensoren einrichten
 
-## GUI
+1. **Einstellungen → ExpanderPi** öffnen.
+2. Für die acht ADC-Kanäle Typ und Namen festlegen: `tank`, `temp` oder `none`.
+3. Nach Änderungen das Paket über SetupHelper erneut installieren, damit die Treiberkonfiguration angewendet wird.
+4. Kanäle unter **Einstellungen → I/O → Analoge Eingänge** aktivieren und die Werte prüfen.
 
-Die QML-Seite ist im Stil der offiziellen SetupHelper-Seiten aufgebaut und nutzt nur Venus-GUI-v1-Elemente:
+Die Vorlage sieht ADC 1–4 als Tanks und ADC 5–8 als Temperaturen vor; die Eingänge sind zunächst deaktiviert. Das ist keine automatische Erkennung der angeschlossenen Sensoren. `none` entfernt den Kanal aus der Liste. Eigene Zuordnung und Kalibrierung bleiben bei Updates erhalten.
 
-- `MbPage`
-- `VisibleItemModel`
-- `MbEditBox`
-- `MbItemOptions`
-- `MbSubMenu`
-- `VBusItem`
+## Sensorwerte
 
-Die Seite schreibt direkt nach `com.victronenergy.settings/Settings/ExpanderPi/DbusAdc`; das eigentliche Anwenden uebernimmt weiterhin das `setup`-Skript beim Paket-Installationslauf.
+Der Software-Standard ist **Vref 1,3 / Scale 4095**. Vref gehört zur Umrechnung des Victron-Treibers einschließlich Spannungsteiler. Die nominelle Referenzspannung der Platine allein ist kein Grund, funktionierende Werte zu ändern.
 
-## Konfiguration
+`temp` nutzt die [LM335-Umrechnung von Victron](https://github.com/victronenergy/dbus-adc/blob/master/software/src/sensors.c). Ein 10-kΩ-NTC B3950 braucht eine andere Umrechnung und ist damit nicht direkt kompatibel. Tanksensoren brauchen eine zum Geber passende Beschaltung und Kalibrierung.
 
-Konfigurierbar sind:
+Ab v1.5.1 stimmen Einstellungsliste und Setup-Standard wieder überein. Bereits gespeicherte Werte werden nicht automatisch geändert. Wurde eine funktionierende Konfiguration früher auf 4,096 umgestellt, den ursprünglichen Wert gezielt wiederherstellen.
 
-- `Vref`
-- `Scale`
-- Kanal 1 bis 8
-- pro Kanal `Type`
-- pro Kanal `Label`
+## Updates und Entfernen
 
-Unterstuetzte Sensortypen:
-
-- `none`
-- `tank`
-- `temp`
-
-## Sensoren und Hardware
-
-### Temperaturfuehler
-
-`temp` verwendet die LM335-Umrechnung des offiziellen Victron-dbus-adc-Treibers samt dessen Spannungsteiler. Ein 10k-NTC B3950 ist damit nicht kompatibel; dafuer ist eine eigene Umrechnung erforderlich. NTC nicht als `temp` aktivieren.
-
-Neue Installationen verwenden die bisherige Kanalvorlage (ADC 1–4 Tank, ADC 5–8 Temperatur) mit zunaechst deaktivierten Eingaengen. Der urspruengliche Softwarewert Vref=1.3 und Scale=4095 bleibt erhalten. Vref ist hier Teil der Sensorumrechnung des Victron-Treibers inklusive dessen Spannungsteiler-Annahme: die nominelle ADC-Referenzspannung allein rechtfertigt keine Aenderung einer funktionierenden Konfiguration. Vorhandene Benutzereinstellungen bleiben erhalten. Die reine Platinen-Erkennung bestaetigt keine Sensorkalibrierung.
-
-v1.5 korrigiert den in v1.3/v1.4 irrtuemlich geaenderten Standardwert. Bereits gespeicherte Einstellungen werden nicht pauschal ueberschrieben; wurde eine zuvor funktionierende 1.3-Konfiguration auf 4.096 geaendert, muss deren urspruenglicher Wert gezielt wiederhergestellt werden.
-
-Quellen: [AB Electronics](https://www.abelectronics.co.uk/p/50/expander-pi), [Victron Sensorumrechnung](https://github.com/victronenergy/dbus-adc/blob/master/software/src/sensors.c).
-
-### Tanksensoren
-
-Tanksensoren werden als Widerstandsgeber über den ADC eingelesen.  
-Die Beschaltung erfolgt je nach Sensor über einen passenden Spannungsteiler.
-
-## Hinweise
-
-- Das Setup passt die fuer ExpanderPi benoetigten Overlays und Systemdateien an.
-- Die GUI speichert nur die Werte; das eigentliche Anwenden uebernimmt das `setup`-Skript.
-- Die generierte `dbus-adc.conf` bleibt auf die von Victron unterstuetzten `tank`-/`temp`-Direktiven beschraenkt.
+Über SetupHelper aktualisieren und entfernen. Benutzerkonfiguration und Sicherungen liegen außerhalb des Pakets unter `/data/setupOptions/ExpanderPiSetup`. Das Setup verwaltet seine Boot-Anpassungen in einem markierten Block und erhält fremde Einträge.
 
 ## Unterstützung
 
-Dieses Projekt wird unabhängig und privat entwickelt und kostenlos bereitgestellt. Freiwillige Unterstützung hilft bei Infrastruktur, Servern, Domains, Tests, Wartung und Weiterentwicklung.
-
-- [PayPal](https://paypal.me/CoYoDuDe)
-- [Buy Me a Coffee](https://www.buymeacoffee.com/CoYoDuDe)
-- [Weitere Projekte und Informationen](https://dnsmith.net/)
-
-Unterstützung ist freiwillig. Es gibt keinen Abo-Zwang und daraus entsteht kein Anspruch auf bestimmte Funktionen oder persönlichen Support.
-
-## Updates und Deinstallation
-
-Eigene Backups, Overlay-Zustand und Benutzerkonfiguration liegen dauerhaft unter `/data/setupOptions/ExpanderPiSetup`, ausserhalb des ausgetauschten Paketordners. Boot-Eintraege werden in einem markierten Block verwaltet. Bei Deinstallation bleiben andere Boot- und Start-Eintraege erhalten; unmarkierte Alt-Eintraege werden nicht ohne Herkunftsnachweis entfernt.
-
-In Venus OS 3.81 erscheinen konfigurierte Kanaele unter **Einstellungen → I/O → Analoge Eingaenge**. Dort erfolgt die native Aktivierung. Die Vorlage ist keine Erkennung der angeschlossenen Sensoren. `none` entfernt einen Kanal aus dieser Liste. GUI-Aenderungen im ExpanderPi-Menue werden beim erneuten Installieren des Pakets angewendet.
+Die Pakete sind kostenlos. Freiwillige Unterstützung: [PayPal](https://paypal.me/CoYoDuDe), [Buy Me a Coffee](https://www.buymeacoffee.com/CoYoDuDe), [weitere Projekte](https://dnsmith.net/). Kein Abo-Zwang.
