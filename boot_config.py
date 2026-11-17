@@ -38,11 +38,33 @@ def main():
     before = path.read_text()
     after = update(before, sys.argv[1] == 'install')
     if before != after:
-        # /u-boot is FAT; write in place after validating the complete result.
-        with path.open('w') as stream:
+        # Never truncate the live boot file: a power cut between truncate and write
+        # would leave an empty config.txt and an unbootable Pi (vehicle power is not
+        # guaranteed). Write the complete result next to it, sync, keep a one-time
+        # backup of the original, then swap it in with a single rename (vfat supports
+        # rename; the window shrinks from the whole write to one directory update).
+        backup = path.with_name(path.name + '.expanderpi-backup')
+        tmp = path.with_name(path.name + '.expanderpi-new')
+        if not backup.exists():
+            with backup.open('w') as stream:
+                stream.write(before)
+                stream.flush()
+                os.fsync(stream.fileno())
+        with tmp.open('w') as stream:
             stream.write(after)
             stream.flush()
             os.fsync(stream.fileno())
+        if tmp.read_text() != after:
+            tmp.unlink()
+            raise SystemExit('ExpanderPi boot block verification failed; config.txt unchanged')
+        os.replace(tmp, path)
+        directory = os.open(str(path.parent), os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        except OSError:
+            pass  # some vfat mounts reject directory fsync; the rename itself is done
+        finally:
+            os.close(directory)
         print('changed')
 
 
